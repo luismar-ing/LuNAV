@@ -75,7 +75,7 @@ b. **Elegir** la primera subtarea `[ ]` (en el orden de la guía) cuyas dependen
 c. **Releer** las secciones de `docs/SPEC.md` que cita la subtarea.
 d. **Implementar solo esa subtarea.** Marcarla `[~]` mientras dura.
 e. **Verificar** el criterio de aceptación con pruebas o comandos reales y mostrar la salida. Nunca marcar `[x]` sin evidencia. Para lo científico, comparar con los rangos de 5.7 (corregidos por latitud en `docs/validation.md` §2) y con JPL Horizons.
-f. **Cerrar:** actualizar el estado en la guía, añadir una entrada a `PROGRESS.md` (plantilla incluida allí) y hacer un commit por subtarea con el formato `T1.2.a: descripción`.
+f. **Cerrar:** actualizar el estado en la guía, añadir una entrada a `PROGRESS.md` (plantilla incluida allí) y hacer un commit por subtarea con un título corto y descriptivo en inglés, formato `T1.2.a: Short description`.
 g. **Seguir** con la siguiente subtarea mientras no haya bloqueo. Al cerrar cada fase, detenerse y dar al humano un resumen y las instrucciones para probar el hito de demo.
 h. **Corregir la guía** si resulta incorrecta o incompleta, y anotar el cambio en `PROGRESS.md`. No desviarse de la spec sin documentar el porqué.
 
@@ -83,6 +83,8 @@ Notas del protocolo:
 - Una subtarea bloqueada se marca `[!]` con una línea `**Bloqueo:**` y se pasa a la siguiente elegible.
 - Las subtareas **Humano** se preparan y quedan `[!]` hasta que el humano confirma en el chat.
 - Antes de un commit: los tests de la parte tocada pasan. Nada de `--no-verify`.
+- Antes de cada acción: `git fetch` y `git status`; si `origin` va por delante, `git pull --rebase` antes de tocar nada, para no pisar el avance del equipo.
+- Commits solo con el autor del usuario: sin `Co-Authored-By` ni otra atribución a Claude, en commits ni PR.
 - Los archivos de `data/` no se versionan (salvo `data/README.md`); sus URLs y checksums sí.
 
 ## Mapa de archivos
