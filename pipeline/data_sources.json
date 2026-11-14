@@ -1,0 +1,108 @@
+{
+  "_comment": "Fuentes externas descargadas por pipeline/fetch_data.py. 'path' es relativo a data/. 'sha256' se registra en la primera descarga y se verifica después. Ver data/README.md.",
+  "sources": [
+    {
+      "id": "de440s",
+      "group": "kernels",
+      "url": "https://naif.jpl.nasa.gov/pub/naif/generic_kernels/spk/planets/de440s.bsp",
+      "path": "kernels/de440s.bsp",
+      "bytes": 32726016,
+      "md5": "3917ee56769db332790c751e2168843d",
+      "sha256": "c1c7feeab882263fc493a9d5a5b2ddd71b54826cdf65d8d17a76126b260a49f2"
+    },
+    {
+      "id": "naif0012",
+      "group": "kernels",
+      "url": "https://naif.jpl.nasa.gov/pub/naif/generic_kernels/lsk/naif0012.tls",
+      "path": "kernels/naif0012.tls",
+      "bytes": 5257,
+      "md5": null,
+      "sha256": "678e32bdb5a744117a467cd9601cd6b373f0e9bc9bbde1371d5eee39600a039b"
+    },
+    {
+      "id": "pck00011",
+      "group": "kernels",
+      "url": "https://naif.jpl.nasa.gov/pub/naif/generic_kernels/pck/pck00011.tpc",
+      "path": "kernels/pck00011.tpc",
+      "bytes": 131226,
+      "md5": null,
+      "sha256": "3dff7b1dbeceaa01f25467767d3fa25816051c85d162d1edf04acb310ee28bb1"
+    },
+    {
+      "id": "moon_pa_de440",
+      "group": "kernels",
+      "url": "https://naif.jpl.nasa.gov/pub/naif/generic_kernels/pck/moon_pa_de440_200625.bpc",
+      "path": "kernels/moon_pa_de440_200625.bpc",
+      "bytes": 12863488,
+      "md5": null,
+      "sha256": "60cd55aa401ea2ea97360636f567554bfe4e37bb829f901b4460a455dfaf783f"
+    },
+    {
+      "id": "moon_de440_fk",
+      "group": "kernels",
+      "url": "https://naif.jpl.nasa.gov/pub/naif/generic_kernels/fk/satellites/moon_de440_250416.tf",
+      "path": "kernels/moon_de440_250416.tf",
+      "bytes": 19478,
+      "md5": null,
+      "sha256": "a47c71e9c9f33796bdafb2c9d69a7ee447b6016ecad80f71cd6f3e479f9cf768"
+    },
+    {
+      "id": "lola_dem_80s_40m",
+      "group": "dem",
+      "url": "https://pgda.gsfc.nasa.gov/data/LOLA_20mpp/LDEM_80S_40MPP_ADJ.TIF",
+      "path": "dem/LDEM_80S_40MPP_ADJ.TIF",
+      "bytes": 716299920,
+      "md5": null,
+      "sha256": "b7f3567bfa405dbcb42f867f6cd3c9932ca9752b4363ce1eef835f9115c1dd76"
+    },
+    {
+      "id": "moon_color_lroc_poles_4k",
+      "group": "textures",
+      "url": "https://svs.gsfc.nasa.gov/vis/a000000/a004700/a004720/lroc_color_poles_4k.tif",
+      "path": "textures/lroc_color_poles_4k.tif",
+      "bytes": 13095388,
+      "md5": null,
+      "sha256": "918649a7f8ed2f1329b2cd95bb0d25483befdcb60ae1a66db681a637cc21344f"
+    },
+    {
+      "id": "earth_bmng_clouds_8k",
+      "group": "textures",
+      "url": "https://svs.gsfc.nasa.gov/vis/a000000/a003600/a003615/flat_earth_Largest_still.0330.jpg",
+      "path": "textures/flat_earth_Largest_still.0330.jpg",
+      "bytes": 6003000,
+      "md5": null,
+      "sha256": "5ea6b68a4412421cae11711ae4fec1a7b1f2dbd7265c0c3004d487a03c43be9a"
+    },
+    {
+      "id": "usgs_a3_9regions",
+      "group": "regions",
+      "manual": true,
+      "url": "https://www.sciencebase.gov/catalog/item/671a6fa8d34efed5620f89f8",
+      "path": "regions/A3_9regions-lonlat-simplified.zip",
+      "bytes": 637136,
+      "md5": null,
+      "sha256": "a0ca63acc829f8e8188bc90217512a81ce4f09c88126ec45efb74be560091b42",
+      "doi": "https://doi.org/10.5066/P1MEQ6UK"
+    },
+    {
+      "id": "usgs_connecting_ridge",
+      "group": "regions",
+      "manual": true,
+      "url": "https://www.sciencebase.gov/catalog/item/67168797d34ebf903f48b6fc",
+      "path": "regions/Connecting_Ridge.zip",
+      "bytes": 83294903,
+      "md5": null,
+      "sha256": "6f8b6bf9da77745acd938b5439a15771c17107bd3af6b1654f0bb2420aca07a6",
+      "doi": "https://doi.org/10.5066/P13FD9ZD"
+    },
+    {
+      "id": "lola_avg_illumination_85s",
+      "group": "illumination",
+      "url": "https://pgda.gsfc.nasa.gov/data/MoonIllumination/AVGVISIB_85S_060M_201608.TIF",
+      "path": "illumination/AVGVISIB_85S_060M_201608.TIF",
+      "bytes": 33994464,
+      "md5": null,
+      "sha256": "ccf67d4f39e0a970c111196da7d6551ffcf50d075470b93067fb3904c0b05806"
+    }
+  ]
+}

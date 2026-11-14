@@ -1,0 +1,122 @@
+import { useEffect, useState } from "react";
+import { ErrorMessage } from "../components/ErrorMessage";
+import { Telemetry } from "../components/Telemetry";
+import { describeError } from "../lib/errors";
+import { timelineOf, type MissionTimeline } from "../lib/mission";
+import { closeLive } from "../lib/modeTransition";
+import { STRINGS } from "../lib/strings";
+import { ThumbnailStrip } from "../panels2d/ThumbnailStrip";
+import { MissionControls } from "../scene3d/MissionControls";
+import { ScaleIndicator } from "../scene3d/ScaleIndicator";
+import { LOCAL_SCALE, SPACE_SCALE } from "../scene3d/scale";
+import { useApp } from "../store/appStore";
+import { SiteLayout } from "./SiteLayout";
+
+/**
+ * The journey of the Mission Planner (design B2): the scene stays full screen behind (PlannerView); over it, the
+ * telemetry column, the scale notice and ILLUSTRATIVE label, the other pinned plans, and the mission dock.
+ * "Back to planning" (or Esc) returns to the globe with the state kept (spec 8.0).
+ */
+export function MissionStage({ autoPlay }: { autoPlay: boolean }) {
+  const data = useApp((s) => s.data);
+  const plan = useApp((s) => (s.selectedPlanId ? s.plansById.get(s.selectedPlanId) : undefined));
+  const site = useApp((s) => s.sites.find((x) => x.id === plan?.site_id));
+  const missionPhase = useApp((s) => s.missionPhase);
+  const sceneScale = useApp((s) => s.sceneScale);
+  const pinned = useApp((s) => s.comparePlans.length);
+  const polarMap = useApp((s) => s.polarMap);
+  const detailedLaunch = useApp((s) => s.detailedLaunch);
+  const setDetailedLaunch = useApp((s) => s.setDetailedLaunch);
+  const setPolarMap = useApp((s) => s.setPolarMap);
+  const polarMapShown = useApp((s) => s.polarMapShown);
+  const trajectoryMode = useApp((s) => s.manifest?.params.trajectory_mode ?? "ILLUSTRATIVE");
+  const [timeline, setTimeline] = useState<{ planId: string; tl: MissionTimeline } | null>(null);
+  const [failure, setFailure] = useState<unknown>(null);
+  const [attempt, setAttempt] = useState(0);
+  const atSite = missionPhase === "site";
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape" && !e.defaultPrevented) closeLive();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
+
+  useEffect(() => {
+    if (!plan) return;
+    let alive = true;
+    setFailure(null);
+    data
+      .trajectory(plan.trajectory_id)
+      .then((t) => alive && setTimeline({ planId: plan.id, tl: timelineOf(plan, t) }))
+      .catch((e: unknown) => alive && setFailure(e));
+    return () => {
+      alive = false;
+    };
+  }, [plan, data, attempt]);
+
+  if (!plan) return null;
+  const scale = sceneScale === "local" ? LOCAL_SCALE : SPACE_SCALE;
+  return (
+    <section className={`mission-stage${atSite ? " at-site" : ""}`} aria-labelledby="live-title" data-testid="live-view">
+      {/* top-left corner, level with the tool bar on the right */}
+      <button type="button" className="btn ghost mission-back" onClick={closeLive} aria-keyshortcuts="Escape">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+          <path d="M19 12H5M11 6l-6 6 6 6" />
+        </svg>
+        {STRINGS.live.back} <kbd>Esc</kbd>
+      </button>
+      <div className="mission-head">
+        <h2 id="live-title" className="telemetry-title">
+          {STRINGS.live.title(site?.name ?? "")}
+        </h2>
+        <Telemetry plan={plan} phase={missionPhase} scale={sceneScale === "local" ? STRINGS.scale.realScale : STRINGS.scale.notToScale} />
+      </div>
+
+      {!atSite && (
+        <div className="mission-notes">
+          {/* small chips over the journey: the full explanation is in the tooltip and read by screen readers */}
+          {trajectoryMode === "ILLUSTRATIVE" && (
+            <p className="scene-chip" data-testid="illustrative-label" title={`${STRINGS.live.illustrative}. ${STRINGS.panel.illustrativeTitle}`}>
+              <span className="badge illustrative">ILLUSTRATIVE</span>
+              <span className="visually-hidden">{STRINGS.live.illustrative}</span>
+            </p>
+          )}
+          <ScaleIndicator mode={scale} compact />
+          {/* T6.2.b: the lit polar map, its switch, and its legend while it is on screen */}
+          {polarMapShown && (
+            <p className="scene-chip" data-testid="polar-map-legend" title={STRINGS.polarMap.legendTitle}>
+              <span>{STRINGS.polarMap.legend}</span>
+              <span className="polar-ramp" aria-hidden="true" />
+              <span className="visually-hidden">{STRINGS.polarMap.legendTitle}</span>
+            </p>
+          )}
+          <button type="button" className="scene-chip" aria-pressed={detailedLaunch} title={STRINGS.detailedLaunch.title} onClick={() => setDetailedLaunch(!detailedLaunch)}>
+            <span aria-hidden="true">{detailedLaunch ? "■" : "□"}</span> {STRINGS.detailedLaunch.toggle}
+          </button>
+          <button type="button" className="scene-chip" aria-pressed={polarMap} title={STRINGS.polarMap.toggleTitle} onClick={() => setPolarMap(!polarMap)}>
+            <span aria-hidden="true">{polarMap ? "■" : "□"}</span> {STRINGS.polarMap.toggle}
+          </button>
+        </div>
+      )}
+
+      {pinned > 0 && (
+        <div className="mission-thumbs">
+          <ThumbnailStrip />
+        </div>
+      )}
+
+      <p className="visually-hidden" aria-live="polite">
+        {atSite && site ? STRINGS.live.arrived(site.name) : ""}
+      </p>
+
+      {atSite && <SiteLayout />}
+
+      <div className="mission-dock">
+        {failure !== null && <ErrorMessage what={STRINGS.errors.scene} info={describeError(failure)} onRetry={() => setAttempt((n) => n + 1)} />}
+        {timeline && <MissionControls timeline={timeline.tl} planId={timeline.planId} autoPlay={autoPlay} />}
+      </div>
+    </section>
+  );
+}

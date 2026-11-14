@@ -1,0 +1,321 @@
+/**
+ * Global state shared by every view (spec 8): plans, comparison tray, selection, constraints,
+ * mission phase and the two clocks. Built with zustand's vanilla store so it is testable without React;
+ * components read it through the `useApp` hook.
+ */
+import { createStore } from "zustand/vanilla";
+import { useStore } from "zustand";
+import type { CellRange } from "../lib/calendar";
+import { buildWindowIndex, type WindowIndex } from "../lib/constraints";
+import type { Manifest, Plan, Site } from "../lib/contract";
+import { DataStore } from "../lib/data";
+
+export const MAX_COMPARE = 5; // spec 4.1, 8.5
+export type MissionPhase = "overview" | "launch" | "transit" | "landing" | "site";
+export const MISSION_PHASES: readonly MissionPhase[] = ["overview", "launch", "transit", "landing", "site"];
+/** Screen mode (spec 8.0): compare (2D) or live (the selected plan in 3D). */
+export type ViewMode = "compare" | "live";
+/** Top-level screen (decision A7): the landing page and the two ways of using the app. */
+export type Screen = "landing" | "planner" | "educator";
+
+/** Spec 5.6 constraints; null = control disabled (not evaluated). */
+export interface Constraints {
+  minSunPct: number | null; // X: sun_pct ≥ X
+  maxDarkH: number | null; // Y: longest_dark_h ≤ Y
+  minEarthH: number | null; // Z: earth_h_per_day_min ≥ Z
+}
+
+export type LoadStatus = { status: "idle" | "loading" | "ready" } | { status: "error"; message: string; error: unknown };
+
+export interface AppState {
+  data: DataStore;
+  load: LoadStatus;
+  manifest: Manifest | null;
+  sites: Site[];
+  plans: Plan[];
+  plansById: Map<string, Plan>;
+
+  comparePlans: string[]; // plan ids pinned to the tray, in pin order (≤ MAX_COMPARE)
+  selectedPlanId: string | null;
+  selectedSite: string | null;
+  selectedWindow: 3 | 7 | 14 | number; // window length L shown in the calendar
+  constraints: Constraints;
+  screen: Screen;
+  /** Going back to the landing page keeps plans, pins and selection; the mode reopens at its start. Entering
+   *  a mode with no plan selected picks the default one (defaultPlanId), so the globe always has a mission. */
+  setScreen(screen: Screen): void;
+  /** Search and comparison panel of the Mission Planner (calendar, constraints, tray), over the globe (A7). */
+  drawerOpen: boolean;
+  setDrawerOpen(open: boolean): void;
+  viewMode: ViewMode;
+  setViewMode(mode: ViewMode): void;
+  /** Reduced motion (spec 9, T5.2.b): no camera flights or animated transitions. Starts from the system setting. */
+  reducedMotion: boolean;
+  setReducedMotion(on: boolean): void;
+  /** Level B at the site (T6.1): terrain shadows and the first-person sky view. Off = the MVP scene. */
+  levelB: boolean;
+  setLevelB(on: boolean): void;
+  /** Constraints typed in plain English (T6.5, extra): the text field above the sliders. */
+  nlConstraints: boolean;
+  setNlConstraints(on: boolean): void;
+  /** Battery state of charge under the time ribbons (T6.4, extra, ASSUMED parameters). Off = MVP panels. */
+  energyModel: boolean;
+  setEnergyModel(on: boolean): void;
+  /** Detailed launch (T6.3.a, extra): staging, with the slow motion held through the ascent. Off = MVP launch. */
+  detailedLaunch: boolean;
+  setDetailedLaunch(on: boolean): void;
+  /** Lit polar map as a step of the zoom (T6.2.b, extra); polarMapShown = on screen now (for its legend). */
+  polarMap: boolean;
+  setPolarMap(on: boolean): void;
+  polarMapShown: boolean;
+  /** At the site with Level B: first-person sky view at h_obs (TR.3.a) instead of the aerial framing. */
+  surfaceView: boolean;
+  setSurfaceView(on: boolean): void;
+  /** Scale the 3D scene is drawn at (spec 5.9): "space" (bodies ×6) or "local" (real size near the site). */
+  sceneScale: "space" | "local";
+  setSceneScale(s: "space" | "local"): void;
+  missionPhase: MissionPhase;
+  missionTime: number | null; // absolute instant (epoch ms, UTC) of the selected plan's mission clock
+  compareTime: number; // relative clock shared by the 2D panels: hours since arrival
+  // The two clocks are linked (spec 4.1: choosing a time in one view updates the others): while the mission
+  // clock is inside the selected plan's window, compareTime = hours since its arrival, and moving the tray
+  // clock moves the mission clock to the same moment of the selected plan's stay.
+  exaggeration: number | null; // vertical exaggeration of the 2D silhouettes; null = fit the shared range
+  setExaggeration(x: number | null): void;
+  notice: string | null; // last user-facing message (e.g. tray full)
+  windowIndex: Partial<Record<number, WindowIndex>>; // per window length L, built on demand
+  validCount: { valid: number; total: number } | null; // cells meeting the constraints for the current L
+  selectedRange: CellRange | null; // calendar drag selection (spec 8.5), in calendar cell coordinates
+  setRange(r: CellRange | null): void;
+  setValidCount(v: { valid: number; total: number } | null): void;
+
+  loadCore(): Promise<void>;
+  loadWindows(days: number): Promise<WindowIndex>;
+  selectPlan(id: string | null): void;
+  selectSite(siteId: string | null): void;
+  setWindow(days: number): void;
+  pinPlan(id: string): boolean;
+  unpinPlan(id: string): void;
+  setConstraints(patch: Partial<Constraints>): void;
+  setMissionPhase(phase: MissionPhase): void;
+  setMissionTime(ms: number | null): void;
+  setCompareTime(hours: number): void;
+  clearNotice(): void;
+}
+
+export const DEFAULT_CONSTRAINTS: Constraints = { minSunPct: null, maxDarkH: null, minEarthH: null };
+
+/** The plan a mode opens on when none is selected: the first site, the first arrival day, 7 days. */
+export function defaultPlanId(st: Pick<AppState, "sites" | "manifest" | "plansById">): string | null {
+  const site = st.sites[0];
+  const start = st.manifest?.date_range.arrival_start;
+  if (!site || !start) return null;
+  const id = `${site.id}_${start.slice(0, 10).replace(/-/g, "")}_7d`;
+  return st.plansById.has(id) ? id : null;
+}
+
+export function createAppStore(data: DataStore = DataStore.forPage()) {
+  return createStore<AppState>()((set, get) => ({
+    data,
+    load: { status: "idle" },
+    manifest: null,
+    sites: [],
+    plans: [],
+    plansById: new Map(),
+    comparePlans: [],
+    selectedPlanId: null,
+    selectedSite: null,
+    selectedWindow: 7,
+    constraints: { ...DEFAULT_CONSTRAINTS },
+    screen: "landing",
+    setScreen(screen) {
+      if (screen === "landing") return set({ screen, viewMode: "compare", missionPhase: "overview", drawerOpen: false });
+      set({ screen });
+      const def = get().selectedPlanId ? null : defaultPlanId(get());
+      if (def) get().selectPlan(def);
+    },
+    drawerOpen: false,
+    setDrawerOpen(open) {
+      set({ drawerOpen: open });
+    },
+    viewMode: "compare",
+    reducedMotion: typeof window !== "undefined" && typeof window.matchMedia === "function" && window.matchMedia("(prefers-reduced-motion: reduce)").matches,
+    setReducedMotion(on) {
+      set({ reducedMotion: on });
+    },
+    levelB: true,
+    setLevelB(on) {
+      set({ levelB: on });
+    },
+    nlConstraints: true,
+    setNlConstraints(on) {
+      set({ nlConstraints: on });
+    },
+    energyModel: true,
+    setEnergyModel(on) {
+      set({ energyModel: on });
+    },
+    detailedLaunch: true,
+    setDetailedLaunch(on) {
+      set({ detailedLaunch: on });
+    },
+    polarMap: true,
+    setPolarMap(on) {
+      set({ polarMap: on });
+    },
+    polarMapShown: false,
+    surfaceView: true,
+    setSurfaceView(on) {
+      set({ surfaceView: on });
+    },
+    sceneScale: "space",
+    setSceneScale(s) {
+      set({ sceneScale: s });
+    },
+    setViewMode(mode) {
+      // live mode needs a selected plan (spec 8.0: the selected panel expands to the 3D scene)
+      if (mode === "live" && !get().selectedPlanId) return set({ notice: "Select a plan to open the 3D view." });
+      set({ viewMode: mode });
+    },
+    missionPhase: "overview",
+    missionTime: null,
+    compareTime: 0,
+    exaggeration: null,
+    setExaggeration(x) {
+      set({ exaggeration: x });
+    },
+    notice: null,
+    windowIndex: {},
+    validCount: null,
+    selectedRange: null,
+    setRange(r) {
+      set({ selectedRange: r });
+    },
+    setValidCount(v) {
+      set({ validCount: v });
+    },
+
+    async loadWindows(days) {
+      const cached = get().windowIndex[days];
+      if (cached) return cached;
+      const { data, sites } = get();
+      const ids = sites.map((s) => s.id);
+      const all = await Promise.all(ids.map((id) => data.windows(id, days)));
+      const index = buildWindowIndex(days, Object.fromEntries(ids.map((id, i) => [id, all[i].rows])), ids);
+      set({ windowIndex: { ...get().windowIndex, [days]: index } });
+      return index;
+    },
+
+    async loadCore() {
+      if (get().load.status === "loading" || get().load.status === "ready") return; // one load per store
+      set({ load: { status: "loading" } });
+      try {
+        const core = await get().data.loadCore();
+        set({
+          load: { status: "ready" },
+          manifest: core.manifest,
+          sites: core.sites,
+          plans: core.plans,
+          plansById: new Map(core.plans.map((p) => [p.id, p])),
+        });
+        // a mode opened before the data arrived gets its default plan now
+        const def = get().screen !== "landing" && !get().selectedPlanId ? defaultPlanId(get()) : null;
+        if (def) get().selectPlan(def);
+      } catch (e) {
+        set({ load: { status: "error", message: (e as Error).message, error: e } });
+      }
+    },
+
+    selectPlan(id) {
+      if (id === null) return set({ selectedPlanId: null, missionTime: null, missionPhase: "overview" });
+      const plan = get().plansById.get(id);
+      if (!plan) return set({ notice: `Unknown plan ${id}` });
+      // the new plan opens at the tray's moment of the stay (linked clocks), or at arrival if outside its window
+      const h = get().compareTime;
+      set({
+        selectedPlanId: id,
+        selectedSite: plan.site_id,
+        selectedWindow: plan.window_days,
+        missionTime: Date.parse(plan.arrival_utc) + (h < plan.window_days * 24 ? h * 3_600_000 : 0),
+        missionPhase: "overview",
+      });
+    },
+
+    selectSite(siteId) {
+      // choosing a site keeps the selected arrival date and window: the plan moves to the same cell of that
+      // site's row (every site x day x L combination exists, D6)
+      const st = get();
+      const sel = st.selectedPlanId ? st.plansById.get(st.selectedPlanId) : undefined;
+      if (siteId && sel && sel.site_id !== siteId) {
+        const id = siteId + sel.id.slice(sel.site_id.length);
+        if (st.plansById.has(id)) return st.selectPlan(id);
+      }
+      set({ selectedSite: siteId });
+    },
+
+    setWindow(days) {
+      const allowed = get().manifest?.params.window_days ?? [3, 7, 14];
+      if (!allowed.includes(days)) return set({ notice: `Window must be one of ${allowed.join(", ")} days` });
+      const sel = get().selectedPlanId ? get().plansById.get(get().selectedPlanId as string) : undefined;
+      // keep the same site and arrival selected when switching L
+      const selectedPlanId = sel ? sel.id.replace(/_\d+d$/, `_${days}d`) : null;
+      set({ selectedWindow: days, selectedPlanId: selectedPlanId && get().plansById.has(selectedPlanId) ? selectedPlanId : null });
+    },
+
+    pinPlan(id) {
+      const { comparePlans, plansById } = get();
+      if (!plansById.has(id)) {
+        set({ notice: `Unknown plan ${id}` });
+        return false;
+      }
+      if (comparePlans.includes(id)) return true;
+      if (comparePlans.length >= MAX_COMPARE) {
+        set({ notice: `The comparison tray holds at most ${MAX_COMPARE} plans. Remove one first.` });
+        return false;
+      }
+      set({ comparePlans: [...comparePlans, id], notice: null });
+      return true;
+    },
+
+    unpinPlan(id) {
+      set({ comparePlans: get().comparePlans.filter((p) => p !== id) });
+    },
+
+    setConstraints(patch) {
+      set({ constraints: { ...get().constraints, ...patch } });
+    },
+
+    setMissionPhase(phase) {
+      set({ missionPhase: phase });
+    },
+
+    setMissionTime(ms) {
+      const plan = get().selectedPlanId ? get().plansById.get(get().selectedPlanId as string) : undefined;
+      const h = plan && ms !== null ? (ms - Date.parse(plan.arrival_utc)) / 3_600_000 : -1;
+      // inside the plan's window the tray follows (linked clocks); launch and transit leave it where it is
+      if (plan && h >= 0 && h <= plan.window_days * 24) set({ missionTime: ms, compareTime: h });
+      else set({ missionTime: ms });
+    },
+
+    setCompareTime(hours) {
+      // Clamp to the longest window (spec 8.1: day and hour since arrival)
+      const maxH = 24 * Math.max(...(get().manifest?.params.window_days ?? [14]));
+      const h = Math.min(Math.max(hours, 0), maxH);
+      const plan = get().selectedPlanId ? get().plansById.get(get().selectedPlanId as string) : undefined;
+      // the selected plan's clock follows while the tray time is inside its window (linked clocks)
+      if (plan && h <= plan.window_days * 24) set({ compareTime: h, missionTime: Date.parse(plan.arrival_utc) + h * 3_600_000 });
+      else set({ compareTime: h });
+    },
+
+    clearNotice() {
+      set({ notice: null });
+    },
+  }));
+}
+
+/** The single application store (one DataStore, one cache). */
+export const appStore = createAppStore();
+
+export function useApp<T>(selector: (s: AppState) => T): T {
+  return useStore(appStore, selector);
+}

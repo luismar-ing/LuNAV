@@ -1,0 +1,2641 @@
+/* Base styles. Decision A7 (Phase R): deep space background, glass panels, spec 9 colours for the Sun and Earth.
+   Colours come ONLY from CSS custom properties set by styles/tokens.ts (no hex values here). */
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  margin: 0;
+  min-height: 100%;
+  background: var(--color-bg);
+  color: var(--color-text);
+  font-family: var(--font-family);
+  font-size: var(--font-md);
+  line-height: 1.45;
+  -webkit-font-smoothing: antialiased;
+}
+
+h1,
+h2,
+h3 {
+  margin: 0;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+}
+
+/* scrollbars in the interface's own colours (thin, dark track) instead of the browser's light default */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-border-strong) transparent;
+}
+
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--color-border-strong);
+  border-radius: 999px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--color-text-muted);
+}
+
+::-webkit-scrollbar-corner {
+  background: transparent;
+}
+
+:focus-visible {
+  outline: 2px solid var(--color-focus);
+  outline-offset: 2px;
+}
+
+::selection {
+  background: var(--color-accent);
+  color: var(--color-bg);
+}
+
+button {
+  font: inherit;
+  color: inherit;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    transition-duration: 0ms !important;
+    animation-duration: 0ms !important;
+  }
+}
+
+/* ------------------------------------------------------------------ app shell (spec 8.0, compare mode) */
+
+.app {
+  display: grid;
+  grid-template-rows: auto auto 1fr auto;
+  min-height: 100vh;
+  gap: var(--space-md);
+  padding: var(--space-md) var(--space-lg);
+  max-width: 1880px;
+  margin: 0 auto;
+}
+
+.app-header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-md);
+  flex-wrap: wrap;
+  border-bottom: 1px solid var(--color-border);
+  padding-bottom: var(--space-sm);
+}
+
+.app-title {
+  font-size: var(--font-xxl);
+  letter-spacing: -0.03em;
+}
+
+.app-subtitle {
+  color: var(--color-text-muted);
+  font-size: var(--font-lg);
+  margin-left: var(--space-md);
+  font-weight: 400;
+}
+
+.data-badge {
+  font-family: var(--font-mono);
+  font-size: var(--font-sm);
+  color: var(--color-text-muted);
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  padding: 2px var(--space-sm);
+}
+
+.data-badge::before {
+  content: "● ";
+  color: var(--color-accent);
+}
+
+.search-area {
+  display: grid;
+  grid-template-columns: minmax(280px, 360px) 1fr;
+  gap: var(--space-md);
+}
+
+.tray-area {
+  min-height: 320px;
+}
+
+.panel {
+  background: var(--color-panel);
+  border: 1px solid var(--color-border);
+  border-radius: 16px;
+  padding: var(--space-md) var(--space-lg) var(--space-lg);
+}
+
+.panel-title {
+  font-size: var(--font-lg);
+  font-weight: 600;
+  margin-bottom: var(--space-sm);
+}
+
+.placeholder {
+  color: var(--color-text-muted);
+  font-size: var(--font-md);
+}
+
+.app-footer {
+  color: var(--color-text-muted);
+  font-size: var(--font-sm);
+  border-top: 1px solid var(--color-border);
+  padding-top: var(--space-sm);
+}
+
+.synthetic-banner {
+  background: var(--color-danger);
+  color: var(--color-bg);
+  padding: var(--space-sm) var(--space-md);
+  border-radius: 8px;
+  font-weight: 600;
+}
+
+.state-message {
+  font-size: var(--font-lg);
+  padding: var(--space-xl);
+  text-align: center;
+}
+
+@media (max-width: 900px) {
+  .search-area {
+    grid-template-columns: 1fr;
+  }
+  .app {
+    padding: var(--space-sm);
+  }
+  .app-subtitle {
+    display: block;
+    margin-left: 0;
+  }
+}
+
+/* ------------------------------------------------------------------ calendar (T3.2.a) */
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+.calendar-controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-md);
+  margin-bottom: var(--space-sm);
+}
+
+.segmented {
+  display: inline-flex;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  overflow: hidden;
+  font-size: var(--font-sm);
+}
+
+.segmented button {
+  background: transparent;
+  border: 0;
+  padding: 6px 12px;
+  cursor: pointer;
+  color: var(--color-text-muted);
+  transition: background var(--motion-fast), color var(--motion-fast);
+}
+
+.segmented button + button {
+  border-left: 1px solid var(--color-border);
+}
+
+.segmented button:hover {
+  color: var(--color-text);
+}
+
+.segmented button.on {
+  background: var(--color-accent);
+  color: var(--color-bg);
+  font-weight: 500;
+}
+
+.legend {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-sm);
+  color: var(--color-text-muted);
+  font-size: var(--font-sm);
+}
+
+.legend-name {
+  color: var(--color-text);
+}
+
+.legend-ramp {
+  display: inline-block;
+  width: 160px;
+  height: 10px;
+  border-radius: 4px;
+}
+
+.calendar-canvas-wrap {
+  position: relative;
+  width: 100%;
+}
+
+/* max-width: a measured canvas/SVG must never hold its container wider than the page (window shrink) */
+.calendar-canvas-wrap canvas {
+  display: block;
+  max-width: 100%;
+  cursor: crosshair;
+}
+
+.tooltip {
+  position: absolute;
+  z-index: 10;
+  pointer-events: none;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 220px;
+  background: var(--color-bg);
+  border: 1px solid var(--color-border-strong);
+  border-radius: 8px;
+  padding: var(--space-sm) var(--space-md);
+  font-size: var(--font-sm);
+  color: var(--color-text);
+  box-shadow: 0 6px 20px rgb(0 0 0 / 0.45);
+}
+
+/* ------------------------------------------------------------------ constraints (T3.2.b) */
+
+.constraints {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+}
+
+.constraint {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+/* off: only the slider dims; the hint keeps full contrast (it says what the control does, T5.2.b) */
+.constraint.off input[type="range"] {
+  opacity: 0.45;
+}
+
+.constraint-toggle {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  cursor: pointer;
+  font-weight: 500;
+}
+
+.constraint-value {
+  margin-left: auto;
+  font-family: var(--font-mono);
+  font-weight: 400;
+  color: var(--color-text);
+}
+
+.constraint input[type="range"] {
+  width: 100%;
+  accent-color: var(--color-accent);
+}
+
+.constraint-toggle input[type="checkbox"] {
+  accent-color: var(--color-accent);
+}
+
+.constraint-hint {
+  color: var(--color-text-muted);
+  font-size: var(--font-sm);
+}
+
+.constraint-count {
+  margin: 0;
+  color: var(--color-text);
+  font-size: var(--font-sm);
+}
+
+/* ------------------------------------------------------------------ calendar interaction (T3.2.c) */
+
+.btn {
+  background: transparent;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  padding: 6px 12px;
+  cursor: pointer;
+  transition: color var(--motion-fast), border-color var(--motion-fast);
+}
+
+.btn:hover:not(:disabled) {
+  border-color: var(--color-accent);
+  color: var(--color-accent);
+}
+
+.btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.btn.ghost {
+  background: transparent;
+}
+
+.pin-count {
+  font-family: var(--font-mono);
+  font-size: var(--font-sm);
+  color: var(--color-text-muted);
+}
+
+.calendar-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-md);
+  min-height: 36px;
+  margin-top: var(--space-sm);
+}
+
+.calendar-help {
+  color: var(--color-text-muted);
+  font-size: var(--font-sm);
+}
+
+.range-bar {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  font-size: var(--font-sm);
+}
+
+.notice {
+  margin: 0;
+  color: var(--color-text);
+  font-size: var(--font-sm);
+}
+
+/* ------------------------------------------------------------------ comparison tray (T3.3.a) */
+
+.tray-grid {
+  display: grid;
+  grid-template-columns: repeat(var(--cols), minmax(0, 1fr));
+  gap: var(--space-md);
+}
+
+/* numbered plans (01, 02 …), header with a hairline, KPI tiles first, metric rows: layout chosen in the
+   style preview ("Apollo" structure, "Quantum" finish) */
+.tray-grid {
+  counter-reset: plan;
+}
+
+.plan-panel {
+  counter-increment: plan;
+  display: grid;
+  grid-template-rows: auto 220px auto auto; /* the ribbon's own height: 2 lanes, or 3 with the battery (T6.4.b) */
+  gap: var(--space-sm);
+  min-width: 0;
+  background: transparent;
+  border: 1px solid var(--color-border);
+  border-radius: 12px;
+  padding: 0 0 var(--space-md);
+  overflow: hidden;
+  transition: border-color var(--motion-fast), box-shadow var(--motion-fast);
+}
+
+.plan-panel > :not(.plan-panel-header) {
+  margin: 0 var(--space-md);
+}
+
+.plan-panel:hover {
+  border-color: var(--color-border-strong);
+}
+
+.plan-panel.selected {
+  border-color: var(--color-accent);
+  box-shadow: 0 0 0 1px var(--color-accent);
+}
+
+.plan-panel-header {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-sm);
+  padding: var(--space-md) var(--space-md) var(--space-sm);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.plan-panel-header::before {
+  content: counter(plan, decimal-leading-zero);
+  font-family: var(--font-mono);
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--color-accent);
+  padding-top: 4px;
+}
+
+.plan-panel-title {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 2px;
+  flex: 1 1 0;
+  width: 0; /* buttons do not shrink below their content in flex rows otherwise */
+  min-width: 0;
+  overflow: hidden;
+  background: none;
+  border: 0;
+  padding: 0;
+  text-align: left;
+  cursor: pointer;
+}
+
+.plan-site {
+  display: block;
+  font-size: 17px;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.plan-meta {
+  color: var(--color-text-muted);
+  font-family: var(--font-mono);
+  font-size: var(--font-sm);
+}
+
+.badge {
+  flex-shrink: 0;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  border-radius: 4px;
+  padding: 2px 6px;
+  white-space: nowrap;
+}
+
+.badge.illustrative {
+  color: var(--color-illustrative);
+  border: 1px dashed var(--color-border-strong);
+  border-radius: 6px;
+}
+
+.icon-btn {
+  background: none;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  color: var(--color-text-muted);
+  font-size: var(--font-lg);
+  line-height: 1;
+  width: 28px;
+  height: 28px;
+  cursor: pointer;
+}
+
+.icon-btn:hover {
+  color: var(--color-text);
+  border-color: var(--color-border);
+}
+
+.plan-slot {
+  min-width: 0;
+  border-radius: 6px;
+}
+
+@media (max-width: 900px) {
+  /* mobile: the tray becomes a horizontal swipeable strip (spec 8.7) */
+  .tray-grid {
+    grid-template-columns: none;
+    grid-auto-flow: column;
+    grid-auto-columns: 86%;
+    overflow-x: auto;
+    scroll-snap-type: x mandatory;
+    padding-bottom: var(--space-sm);
+  }
+  .plan-panel {
+    scroll-snap-align: start;
+  }
+}
+
+/* ------------------------------------------------------------------ silhouettes (T3.3.b) */
+
+.tray-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-sm);
+  margin-bottom: var(--space-md);
+}
+
+.tray-head .panel-title {
+  margin-bottom: 0;
+  font-size: 26px;
+}
+
+/* one thin green rule under the tray title, fading out */
+.tray-head::after {
+  content: "";
+  flex-basis: 100%;
+  height: 1px;
+  background: linear-gradient(90deg, var(--color-accent), var(--color-border) 40%, transparent);
+}
+
+.tray-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-md);
+  align-items: center;
+  margin-bottom: var(--space-md);
+}
+
+.segmented-label {
+  align-self: center;
+  padding: 0 var(--space-sm);
+  color: var(--color-text-muted);
+  font-size: var(--font-sm);
+}
+
+.silhouette {
+  width: 100%;
+  height: 100%;
+  background: var(--color-bg);
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.silhouette svg {
+  display: block;
+  max-width: 100%;
+}
+
+/* ------------------------------------------------------------------ time ribbon (T3.3.c) */
+
+.ribbon {
+  width: 100%;
+  height: 100%;
+}
+
+.ribbon svg {
+  display: block;
+  max-width: 100%;
+}
+
+/* ------------------------------------------------------------------ metrics box (T3.3.d) */
+
+/* KPI tiles first (Sunlight % and Score), the other four as rows with hairlines */
+.metrics-list {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 4px var(--space-sm);
+  margin: 0;
+}
+
+.metric {
+  grid-column: 1 / -1;
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: var(--space-sm);
+  padding: 5px 0;
+  border-bottom: 1px solid var(--color-border);
+  font-size: var(--font-sm);
+}
+
+.metric[data-metric="sun_pct"],
+.metric[data-metric="score"] {
+  grid-column: auto;
+  grid-row: 1;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  padding: 10px 12px;
+  margin-bottom: 4px;
+  border: 1px solid var(--color-border);
+  border-radius: 10px;
+}
+
+/* number on top, Best badge below: same arrangement in both tiles */
+.metric[data-metric="sun_pct"] dd,
+.metric[data-metric="score"] dd {
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+}
+
+.metric[data-metric="sun_pct"] .metric-value,
+.metric[data-metric="score"] .metric-value {
+  font-family: var(--font-family);
+  font-weight: 300;
+  font-size: 34px;
+  line-height: 1.05;
+  letter-spacing: -0.02em;
+}
+
+.metric[data-metric="score"] .metric-value {
+  color: var(--color-accent);
+}
+
+.metric dt {
+  color: var(--color-text-muted);
+  font-size: 12px;
+  font-weight: 500;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.metric dd {
+  margin: 0;
+  display: flex;
+  gap: var(--space-sm);
+  align-items: baseline;
+  flex-shrink: 0;
+}
+
+.metric-value {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.badge.best {
+  color: var(--color-accent);
+  border: 1px solid var(--color-accent);
+  border-radius: 6px;
+}
+
+.why {
+  margin: var(--space-sm) 0 0;
+  font-size: var(--font-sm);
+  line-height: 1.4;
+  color: var(--color-text-muted);
+}
+
+.why::before {
+  content: "● ";
+  color: var(--color-accent);
+}
+
+/* ------------------------------------------------------------------ compare scrubber (T3.3.e) */
+
+.scrubber {
+  display: flex;
+  align-items: center;
+  gap: calc(var(--space-sm) / 2);
+  flex: 1 1 360px;
+  min-width: 0;
+}
+
+.scrubber input[type="range"] {
+  flex: 1 1 auto;
+  min-width: 80px;
+  accent-color: var(--color-accent);
+}
+
+.scrubber .icon-btn {
+  width: auto;
+  min-width: 28px;
+  padding: 0 6px;
+  font-size: var(--font-sm);
+  white-space: nowrap;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+}
+
+.scrubber .icon-btn:hover {
+  border-color: var(--color-accent);
+  color: var(--color-accent);
+}
+
+.scrubber-value {
+  font-family: var(--font-mono);
+  font-size: var(--font-sm);
+  white-space: nowrap;
+  min-width: 12ch;
+  padding-left: var(--space-sm);
+  text-align: right;
+}
+
+/* ------------------------------------------------------------------ panorama (T3.4.a) */
+
+.site-area {
+  margin-top: var(--space-md);
+}
+
+.site-heading {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-sm);
+  margin: 0 0 var(--space-sm);
+}
+
+.site-heading p {
+  margin: 0;
+}
+
+.panorama-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-sm);
+  margin-bottom: var(--space-sm);
+}
+
+.panorama {
+  min-width: 0;
+}
+
+.panorama-canvas {
+  width: 100%;
+  height: 260px;
+  background: var(--color-bg);
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.panorama-canvas svg {
+  display: block;
+  max-width: 100%;
+}
+
+.panorama-readout {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: var(--space-sm) var(--space-md);
+  margin: var(--space-sm) 0 0;
+  font-size: var(--font-sm);
+}
+
+.panorama-readout dt {
+  color: var(--color-text-muted);
+}
+
+.panorama-readout dd {
+  margin: 0;
+}
+
+.mono {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}
+
+.status {
+  display: inline-block;
+  padding: 1px 6px;
+  border-radius: 6px;
+  border: 1px solid var(--color-border);
+  color: var(--color-text-muted);
+}
+
+.status.on.sun {
+  border-color: var(--color-sun);
+  color: var(--color-sun);
+}
+
+.status.on.earth {
+  border-color: var(--color-earth);
+  color: var(--color-earth);
+}
+
+/* ------------------------------------------------------------------ time control (T3.4.b) */
+
+.time-control {
+  flex-wrap: wrap;
+  margin-bottom: var(--space-sm);
+}
+
+/* ------------------------------------------------------------------ site panel (T3.4.c) */
+
+.site-panel {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: var(--space-md) var(--space-lg);
+  margin-top: var(--space-md);
+  padding-top: var(--space-md);
+  border-top: 1px solid var(--color-border);
+  font-size: var(--font-sm);
+}
+
+.site-panel h3 {
+  font-size: var(--font-md);
+  font-weight: 600;
+  margin-bottom: var(--space-sm);
+}
+
+.kv {
+  margin: 0;
+  display: grid;
+  gap: 2px;
+}
+
+.kv > div {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-sm);
+  padding: 4px 0;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.kv dt {
+  color: var(--color-text-muted);
+}
+
+.kv dd {
+  margin: 0;
+  text-align: right;
+}
+
+.sourced {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  border-bottom: 1px dotted var(--color-text-muted);
+  cursor: help;
+}
+
+.sourced.na {
+  font-family: var(--font-family);
+  color: var(--color-text-muted);
+  font-style: italic;
+}
+
+.daily-table,
+.compare-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.daily-table th,
+.daily-table td,
+.compare-table th,
+.compare-table td {
+  padding: 2px var(--space-sm) 2px 0;
+  text-align: left;
+  font-weight: normal;
+  white-space: nowrap;
+}
+
+.daily-table thead th,
+.compare-table thead th {
+  color: var(--color-text-muted);
+}
+
+.compare-table td {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}
+
+.compare-table tr.this-plan th,
+.compare-table tr.this-plan td {
+  color: var(--color-accent);
+  font-weight: 600;
+}
+
+.hbar {
+  display: inline-block;
+  height: 8px;
+  margin-right: 6px;
+  border-radius: 2px;
+  vertical-align: middle;
+}
+
+.hbar.sun {
+  background: var(--color-sun);
+}
+
+.hbar.earth {
+  background: var(--color-earth);
+}
+
+.site-panel section.wide {
+  grid-column: 1 / -1;
+}
+
+.compare-table tbody th {
+  white-space: normal;
+}
+
+.table-scroll {
+  overflow-x: auto;
+  max-width: 100%;
+}
+
+.nearby {
+  margin: 0;
+  padding-left: 1.1em;
+}
+
+/* ------------------------------------------------------------------ live view (T4.1.a, provisional layout) */
+
+.live-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-md);
+  margin-bottom: var(--space-md);
+}
+
+.scene-host {
+  position: relative;
+  width: 100%;
+  height: min(72vh, 760px);
+  min-height: 360px;
+  border: 1px solid var(--color-border);
+  border-radius: 12px;
+  overflow: hidden;
+  background: var(--color-bg);
+}
+
+.scene-host canvas {
+  display: block;
+  max-width: 100%;
+}
+
+.scene-status {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  margin: 0;
+  color: var(--color-text-muted);
+}
+
+/* ------------------------------------------------------------------ scale indicator (T4.1.b) */
+
+.scene-wrap {
+  position: relative;
+}
+
+.scale-indicator {
+  position: absolute;
+  left: var(--space-md);
+  bottom: var(--space-md);
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-sm);
+  max-width: calc(100% - 2 * var(--space-md));
+  padding: 6px 10px;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  background: var(--color-bg);
+  color: var(--color-text-muted);
+  font-size: var(--font-sm);
+  pointer-events: auto;
+  cursor: help;
+}
+
+.scale-indicator-tag {
+  font-family: var(--font-mono);
+  color: var(--color-accent);
+}
+
+/* ------------------------------------------------------------------ mission controls (T4.1.d) */
+
+.mission-controls {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+  margin-top: var(--space-md);
+}
+
+.mission-clock {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--space-md);
+  font-size: var(--font-lg);
+}
+
+.mission-phase {
+  color: var(--color-accent);
+  font-weight: 600;
+}
+
+.mission-clock .muted {
+  color: var(--color-text-muted);
+  font-size: var(--font-sm);
+}
+
+.mission-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-sm) var(--space-md);
+}
+
+/* .scrubber grows along a row (flex: 1 1 360px); in this column that basis would become its height */
+.mission-controls .scrubber {
+  flex: none;
+}
+
+/* ------------------------------------------------------------------ ILLUSTRATIVE label over the scene (T4.2.b) */
+
+.scene-badge {
+  position: absolute;
+  top: var(--space-md);
+  left: var(--space-md);
+  max-width: calc(100% - 2 * var(--space-md));
+  margin: 0;
+  padding: 6px 10px;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  background: var(--color-bg);
+  color: var(--color-text-muted);
+  font-size: var(--font-sm);
+}
+
+/* ------------------------------------------------------------------ camera take-over (T4.3.a) */
+
+.scene-camera-btn {
+  position: absolute;
+  top: var(--space-md);
+  right: var(--space-md);
+  background: var(--color-bg);
+}
+
+.scene-host canvas:focus-visible {
+  outline: 2px solid var(--color-focus);
+  outline-offset: -2px;
+}
+
+/* ------------------------------------------------------------------ arrival at the site (T4.3.c) */
+
+/* at the site the scene gives room to the panorama, so its sky is in view together with the 3D one */
+.scene-host {
+  transition: height var(--motion-mid) ease;
+}
+
+.live-area.at-site .scene-host {
+  height: min(52vh, 560px);
+}
+
+.live-site {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+  margin-top: var(--space-lg);
+  padding-top: var(--space-md);
+  border-top: 1px solid var(--color-border);
+  animation: live-site-in var(--motion-mid) ease both;
+}
+
+@keyframes live-site-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* ------------------------------------------------------------------ compare ↔ live (T4.4.a) */
+
+.live-body {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 232px;
+  gap: var(--space-md);
+  align-items: start;
+}
+
+.live-main {
+  min-width: 0;
+}
+
+.live-head kbd {
+  margin-left: 6px;
+  padding: 0 5px;
+  border: 1px solid var(--color-border);
+  border-radius: 4px;
+  font-family: var(--font-mono);
+  font-size: var(--font-sm);
+  color: var(--color-text-muted);
+}
+
+.scene-wrap {
+  will-change: transform;
+}
+
+.thumb-strip {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+  min-width: 0;
+}
+
+.thumb-clock {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin: 0;
+  color: var(--color-text-muted);
+  font-size: var(--font-sm);
+}
+
+.thumb-clock .mono {
+  color: var(--color-text);
+}
+
+.thumb-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.thumb {
+  display: grid;
+  grid-template-rows: auto 92px 40px auto;
+  gap: 6px;
+  padding: var(--space-sm);
+  border: 1px solid var(--color-border);
+  border-radius: 10px;
+}
+
+.thumb-head {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.thumb-head .plan-site {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.thumb-head .plan-meta {
+  font-size: var(--font-sm);
+  color: var(--color-text-muted);
+}
+
+.thumb-silhouette {
+  min-height: 0;
+}
+
+.thumb-score {
+  display: flex;
+  justify-content: space-between;
+  margin: 0;
+  font-size: var(--font-sm);
+  color: var(--color-text-muted);
+}
+
+.thumb-score .mono {
+  color: var(--color-text);
+}
+
+.live-btn {
+  padding: 2px 10px;
+  font-family: var(--font-mono);
+  font-size: var(--font-sm);
+}
+
+/* narrow screens: the strip becomes a scrollable row above the controls */
+@media (max-width: 960px) {
+  .live-body {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .thumb-list {
+    flex-direction: row;
+    overflow-x: auto;
+    padding-bottom: 4px;
+  }
+
+  .thumb-list > li {
+    flex: 0 0 200px;
+  }
+}
+
+/* thumbnails are buttons (T4.4.b): clicking one switches the 3D plan */
+button.thumb {
+  width: 100%;
+  background: transparent;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+button.thumb:hover {
+  border-color: var(--color-border-strong);
+}
+
+button.thumb:focus-visible {
+  outline: 2px solid var(--color-focus);
+  outline-offset: 2px;
+}
+
+.thumb-silhouette,
+.thumb-score {
+  display: block;
+}
+
+.thumb-score {
+  display: flex;
+}
+
+/* ------------------------------------------------------------------ site selection on the calendar (T5.1.a) */
+
+.calendar-site-buttons {
+  position: absolute;
+  left: 0;
+}
+
+.calendar-site-btn {
+  position: absolute;
+  left: 0;
+  width: 100%;
+  padding: 0;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  cursor: pointer;
+}
+
+.calendar-site-btn:hover {
+  background: color-mix(in srgb, var(--color-text) 6%, transparent);
+}
+
+.calendar-site-btn:focus-visible {
+  outline: 2px solid var(--color-focus);
+  outline-offset: -2px;
+}
+
+/* ------------------------------------------------------------------ projector polish (T5.2.a) */
+
+/* identical panels (spec 8.1): every row starts at the same height in every panel, whatever the length of
+   its metrics box, so the shared vertical axis of the silhouettes lines up across the tray */
+.plan-panel {
+  align-content: start;
+}
+
+/* chart text readable from the back of a room: at least 12 px (the SVG attributes say 10–11) */
+.silhouette .sil-label,
+.ribbon .rib-label,
+.panorama-canvas text {
+  font-size: 12px;
+}
+
+.silhouette .sil-cardinal {
+  font-size: 13px;
+  font-weight: 600;
+}
+
+/* thumbnails are small multiples: no axis labels or captions (the full panels carry them), so nothing
+   collides; the ribbon row fits its two lanes */
+.thumb {
+  grid-template-rows: auto 92px 36px auto;
+}
+
+.thumb .sil-label,
+.thumb .rib-label {
+  display: none;
+}
+
+.thumb .ribbon {
+  overflow: hidden;
+}
+
+/* the battery lane (T6.4.b) stays in the full panels: thumbnails keep their two lanes */
+.thumb .rib-battery {
+  display: none;
+}
+
+.mission-slow {
+  font-size: var(--font-sm);
+  color: var(--color-text-muted);
+  border: 1px dashed var(--color-border-strong);
+  border-radius: 6px;
+  padding: 0 6px;
+}
+
+/* ------------------------------------------------------------------ errors, reduced motion (T5.2.b) */
+
+/* the app's own "Reduce motion" switch does what prefers-reduced-motion does */
+:root[data-reduced-motion="true"] *,
+:root[data-reduced-motion="true"] *::before,
+:root[data-reduced-motion="true"] *::after {
+  transition-duration: 0ms !important;
+  animation-duration: 0ms !important;
+}
+
+.header-tools {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+}
+
+.motion-toggle[aria-pressed="true"] {
+  border-color: var(--color-accent);
+}
+
+.error-message {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-xs);
+  max-width: 72ch;
+  padding: var(--space-sm) var(--space-md);
+  border: 1px solid var(--color-danger);
+  border-left-width: 4px;
+  border-radius: 8px;
+  background: var(--color-bg);
+}
+
+.error-message p {
+  margin: 0;
+}
+
+.error-detail {
+  font-family: var(--font-mono);
+  font-size: var(--font-sm);
+  color: var(--color-text-muted);
+  overflow-wrap: anywhere;
+}
+
+/* ------------------------------------------------------------------ narrow screens (T5.2.d, spec 8.7) */
+
+/* grid children default to min-width: auto, so their content (canvas, slider rows, badges) could hold the page
+   wider than the screen: every layout column may shrink, and wide content scrolls inside its own box */
+.app {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.app > *,
+.search-area > *,
+.live-body > *,
+.panel {
+  min-width: 0;
+}
+
+.header-tools {
+  flex-wrap: wrap;
+}
+
+.calendar-controls {
+  flex-wrap: wrap;
+}
+
+@media (max-width: 600px) {
+  .app-title {
+    font-size: var(--font-xl);
+  }
+
+  .data-badge {
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .panel {
+    padding: var(--space-md);
+  }
+
+  /* the swipeable tray: one panel and a peek of the next */
+  .tray-grid {
+    grid-auto-columns: 88%;
+  }
+
+  .mission-row,
+  .tray-toolbar {
+    flex-wrap: wrap;
+  }
+}
+
+input[type="range"] {
+  margin-left: 0;
+  margin-right: 0;
+}
+
+@media (max-width: 600px) {
+  /* scrubbers: the buttons on one line, the slider on its own full-width line */
+  .scrubber {
+    flex-wrap: wrap;
+  }
+
+  .scrubber input[type="range"] {
+    order: 10;
+    flex: 1 1 100%;
+    min-width: 0;
+  }
+
+  .scrubber-value {
+    min-width: 0;
+  }
+}
+
+@media (max-width: 600px) {
+  /* panel header: the plan's name and date on their own line, badges and buttons below */
+  .plan-panel-header {
+    flex-wrap: wrap;
+  }
+
+  .plan-panel-title {
+    flex: 1 1 100%;
+    min-width: 0;
+  }
+}
+
+/* ------------------------------------------------------------------ about & credits (T5.3.b) */
+
+.link-btn {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--color-accent);
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.credits-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: grid;
+  place-items: center;
+  padding: var(--space-md);
+  background: color-mix(in srgb, var(--color-bg) 80%, transparent);
+}
+
+.credits {
+  width: min(960px, 100%);
+  max-height: 90vh;
+  overflow: auto;
+  padding: var(--space-lg);
+  border: 1px solid var(--color-border-strong);
+  border-radius: 12px;
+  background: var(--color-bg);
+}
+
+.credits:focus {
+  outline: none;
+}
+
+.credits-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-md);
+}
+
+.credits h3 {
+  margin-top: var(--space-lg);
+}
+
+.credits .muted {
+  color: var(--color-text-muted);
+}
+
+.credits-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+  padding-left: 1.1em;
+}
+
+.credits-list li {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.credits-links {
+  display: flex;
+  flex-direction: column;
+  overflow-wrap: anywhere;
+}
+
+.credits a {
+  color: var(--color-accent);
+}
+
+.credits-software {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: var(--space-md);
+}
+
+.credits-software caption {
+  text-align: left;
+  font-weight: 600;
+  padding-bottom: var(--space-xs);
+}
+
+.credits-software th,
+.credits-software td {
+  padding: 2px var(--space-sm) 2px 0;
+  text-align: left;
+  font-weight: 400;
+}
+
+/* ------------------------------------------------------------------ landing page (decision A7, design A1) */
+
+.app-landing {
+  min-height: 100vh;
+  background: var(--color-bg);
+}
+
+.landing {
+  position: relative;
+  min-height: 100vh;
+  overflow: hidden;
+  display: grid;
+  grid-template-rows: auto 1fr auto auto;
+  gap: clamp(24px, 4vh, 48px);
+  padding: clamp(16px, 3vw, 48px) clamp(16px, 5vw, 80px);
+  isolation: isolate;
+}
+
+.landing-backdrop {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+}
+
+/* the Moon sits right of centre and partly off-screen; on narrow screens it moves up behind the headline */
+.landing-moon-static,
+.landing-moon-gl {
+  position: absolute;
+  width: min(62vw, 110vh);
+  aspect-ratio: 1;
+  right: -12vw;
+  top: 50%;
+  translate: 0 -50%;
+}
+
+.landing-moon-gl canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.landing-moon-static {
+  transition: opacity var(--motion-slow);
+  border-radius: 50%;
+  background-size: 200% 100%;
+  background-position: 50% 50%;
+  box-shadow: inset -8vw -2vw 10vw 2vw var(--color-bg);
+  opacity: 0.85;
+}
+
+.landing-backdrop[data-moon="live"] .landing-moon-static {
+  opacity: 0;
+}
+
+.landing-shade {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, var(--color-bg) 0%, transparent 72%);
+}
+
+.landing-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-md);
+}
+
+.landing-wordmark {
+  font-family: var(--font-display);
+  font-weight: 500;
+  font-size: var(--font-lg);
+  letter-spacing: 0.02em;
+}
+
+.landing-tools {
+  display: flex;
+  gap: var(--space-sm);
+}
+
+.landing-tools .btn {
+  border-radius: 999px;
+  background: var(--glass-panel);
+  backdrop-filter: blur(var(--glass-blur));
+}
+
+.landing-copy {
+  align-self: center;
+  max-width: 34rem;
+}
+
+.landing-title {
+  font-family: var(--font-display);
+  font-weight: 300;
+  font-size: clamp(40px, 5.2vw, 84px);
+  line-height: 1.02;
+  letter-spacing: -0.025em;
+}
+
+.landing-modes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-lg);
+}
+
+.spotlight-card {
+  --spot-x: 50%;
+  --spot-y: 50%;
+  position: relative;
+  border: 1px solid var(--glass-stroke);
+  border-radius: var(--radius-lg);
+  background: var(--glass-panel);
+  backdrop-filter: blur(var(--glass-blur));
+  color: var(--color-text);
+  text-align: left;
+  cursor: pointer;
+  overflow: hidden;
+  transition:
+    border-color var(--motion-mid),
+    translate var(--motion-mid);
+}
+
+/* the light: a soft disc at the pointer, shown on hover and keyboard focus */
+.spotlight-card::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(18rem circle at var(--spot-x) var(--spot-y), rgb(255 255 255 / 0.11), transparent 70%);
+  opacity: 0;
+  transition: opacity var(--motion-mid);
+  pointer-events: none;
+}
+
+.spotlight-card:hover,
+.spotlight-card:focus-visible {
+  border-color: var(--glass-stroke-hover);
+  translate: 0 -2px;
+}
+
+.spotlight-card:hover::before,
+.spotlight-card:focus-visible::before {
+  opacity: 1;
+}
+
+.spotlight-card:focus-visible {
+  --spot-x: 50%;
+  --spot-y: 40%;
+}
+
+.mode-card {
+  flex: 1 1 18rem;
+  max-width: 24rem;
+  min-height: 15rem;
+  padding: 28px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.mode-card-name {
+  color: var(--color-text-muted);
+  font-size: var(--font-sm);
+  font-weight: 500;
+}
+
+.mode-card-title {
+  font-family: var(--font-display);
+  font-size: var(--font-xl);
+  font-weight: 500;
+}
+
+.mode-card-body {
+  color: var(--color-text-muted);
+  line-height: 1.5;
+}
+
+.mode-card-enter {
+  margin-top: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 500;
+}
+
+.landing-foot {
+  color: var(--color-text-muted);
+  font-size: var(--font-sm);
+}
+
+@media (max-width: 720px) {
+  .landing-moon-static,
+  .landing-moon-gl {
+    width: 120vw;
+    right: -40vw;
+    top: 8vh;
+    translate: 0 0;
+  }
+  .landing-shade {
+    background: linear-gradient(180deg, transparent 0%, var(--color-bg) 55%);
+  }
+  .mode-card {
+    max-width: none;
+    min-height: 0;
+  }
+}
+
+/* ------------------------------------------------------------------ Mission Planner (decision A7, A2) */
+
+.glass {
+  background: var(--glass-panel);
+  border: 1px solid var(--glass-stroke);
+  border-radius: var(--radius-lg);
+  backdrop-filter: blur(var(--glass-blur));
+}
+
+.app-planner {
+  min-height: 100vh;
+  background: var(--color-bg);
+}
+
+.planner {
+  position: relative;
+  height: 100vh;
+  min-height: 560px;
+  overflow: hidden;
+}
+
+/* the one scene fills the screen behind every stage */
+.planner-scene {
+  position: absolute;
+  inset: 0;
+}
+
+/* full-screen scene: "Guided camera" goes to the top centre, clear of the tool bar and the side panels */
+.planner-scene .scene-camera-btn {
+  top: 76px;
+  right: auto;
+  left: 50%;
+  translate: -50% 0;
+  border-radius: 999px;
+  background: var(--glass-panel);
+  backdrop-filter: blur(var(--glass-blur));
+}
+
+.planner-scene .scene-host {
+  height: 100%;
+  min-height: 0;
+  border: 0;
+  border-radius: 0;
+}
+
+.planner-top {
+  position: absolute;
+  top: 24px;
+  right: 24px;
+  z-index: 3;
+}
+
+.planner-top .landing-tools {
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.planner-top .btn {
+  border-radius: 999px;
+  background: var(--glass-panel);
+  backdrop-filter: blur(var(--glass-blur));
+}
+
+.mission-sidebar {
+  position: absolute;
+  left: 24px;
+  top: 24px;
+  bottom: 24px;
+  z-index: 2;
+  width: 360px;
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+  overflow-y: auto;
+}
+
+.mission-sidebar > *,
+.site-card > * {
+  flex: none; /* scroll instead of squeezing the sections */
+}
+
+.sidebar-mode {
+  margin: 0;
+  font-family: var(--font-display);
+  font-weight: 500;
+  font-size: var(--font-lg);
+}
+
+.sidebar-block {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.sidebar-label {
+  font-size: var(--font-sm);
+  font-weight: 500;
+  color: var(--color-text-muted);
+  letter-spacing: 0;
+}
+
+.sidebar-hint {
+  margin: 0;
+  font-size: var(--font-sm);
+  color: var(--color-text-muted);
+}
+
+.arrival-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+}
+
+.arrival-input {
+  flex: 1;
+  min-width: 0;
+  font-family: var(--font-display);
+  font-size: var(--font-xl);
+  color: var(--color-text);
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  padding: 2px 6px;
+  color-scheme: dark;
+}
+
+.arrival-input:hover {
+  border-color: var(--glass-stroke-hover);
+}
+
+.day-strip {
+  display: grid;
+  grid-template-columns: repeat(21, minmax(0, 1fr));
+  gap: 3px;
+}
+
+.day-cell {
+  height: 26px;
+  padding: 0;
+  border: 0;
+  border-radius: 3px;
+  background: var(--color-dark);
+  cursor: pointer;
+}
+
+.day-cell[aria-pressed="true"] {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 1px;
+}
+
+.mission-sidebar .segmented {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 4px;
+  padding: 4px;
+  border: 0;
+  border-radius: 12px;
+  background: rgb(255 255 255 / 0.04);
+}
+
+.mission-sidebar .segmented button {
+  border: 0;
+  border-radius: 9px;
+  padding: 10px;
+  background: none;
+  color: var(--color-text-muted);
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.mission-sidebar .segmented button + button {
+  border: 0;
+}
+
+.mission-sidebar .segmented button[aria-pressed="true"] {
+  background: rgb(255 255 255 / 0.12);
+  color: var(--color-text);
+}
+
+.site-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.site-row {
+  width: 100%;
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-sm);
+  padding: 10px 12px;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: none;
+  color: var(--color-text-muted);
+  text-align: left;
+  cursor: pointer;
+}
+
+.site-row:hover {
+  background: rgb(255 255 255 / 0.05);
+  color: var(--color-text);
+}
+
+.site-row[aria-pressed="true"] {
+  background: rgb(255 255 255 / 0.1);
+  color: var(--color-text);
+}
+
+.site-sun {
+  color: var(--color-sun);
+  white-space: nowrap;
+}
+
+.sidebar-actions {
+  margin-top: auto;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+  /* on short screens the sidebar scrolls: Launch stays pinned to its bottom edge, over the list */
+  position: sticky;
+  bottom: -24px;
+  margin-bottom: -24px;
+  padding: 12px 0 24px;
+  background: linear-gradient(to bottom, transparent, var(--color-panel) 14px);
+}
+
+.btn.primary {
+  background: var(--color-text);
+  color: var(--color-bg);
+  border-color: var(--color-text);
+  font-weight: 600;
+}
+
+.btn.primary:hover:not(:disabled) {
+  background: var(--color-focus);
+  border-color: var(--color-focus);
+}
+
+.launch-btn {
+  padding: 14px;
+  border-radius: 14px;
+  font-size: var(--font-md);
+}
+
+.planner-badge {
+  position: absolute;
+  top: 84px;
+  right: 24px;
+  z-index: 2;
+  margin: 0;
+  max-width: 28rem;
+  text-align: right;
+  font-size: var(--font-sm);
+  color: var(--color-text-muted);
+}
+
+.phase-rail {
+  position: absolute;
+  left: 400px;
+  right: 24px;
+  bottom: 24px;
+  z-index: 2;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  justify-content: center;
+  gap: 28px;
+  font-size: var(--font-sm);
+  font-weight: 500;
+  color: var(--color-text-muted);
+  pointer-events: none;
+}
+
+.phase-rail li::before {
+  content: "○ ";
+}
+
+.phase-rail li[aria-current="step"] {
+  color: var(--color-text);
+}
+
+.phase-rail li[aria-current="step"]::before {
+  content: "● ";
+}
+
+/* the journey (design B2): panels float over the full-screen scene, which stays draggable between them */
+.mission-stage {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  display: grid;
+  grid-template-columns: minmax(240px, 300px) minmax(0, 1fr) minmax(0, 232px);
+  grid-template-rows: auto minmax(0, 1fr) auto auto;
+  grid-template-areas:
+    "head . thumbs"
+    ". . thumbs"
+    "notes notes notes"
+    "dock dock dock";
+  gap: var(--space-md);
+  padding: 76px 24px 24px; /* the top row of tools (planner-top) sits above the grid */
+  pointer-events: none;
+}
+
+/* at the site (B3 layout, A3 style): the sky stays on top, metrics card right, console and dock below */
+.mission-stage.at-site {
+  grid-template-columns: minmax(240px, 300px) minmax(0, 1fr) minmax(0, 320px);
+  grid-template-rows: auto minmax(0, 1fr) auto auto;
+  /* the card spans the sky's rows, so its height never squeezes the console (the 2D panorama) */
+  grid-template-areas:
+    "head . card"
+    "thumbs . card"
+    "console console console"
+    "dock dock dock";
+}
+
+.mission-stage > * {
+  pointer-events: auto;
+}
+
+.mission-head {
+  grid-area: head;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.mission-back {
+  position: absolute;
+  top: 24px;
+  left: 24px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  border-radius: 999px;
+  background: var(--glass-panel);
+  backdrop-filter: blur(var(--glass-blur));
+}
+
+.telemetry-title {
+  font-family: var(--font-display);
+  font-weight: 500;
+  font-size: var(--font-lg);
+}
+
+.mission-head kbd,
+.mission-back kbd {
+  margin-left: 6px;
+  padding: 0 5px;
+  border: 1px solid var(--color-border);
+  border-radius: 4px;
+  font-family: var(--font-mono);
+  font-size: var(--font-sm);
+  color: var(--color-text-muted);
+}
+
+.telemetry {
+  margin: 0;
+  display: grid;
+  gap: 4px;
+  font-family: var(--font-mono);
+  font-size: var(--font-sm);
+}
+
+.telemetry-row {
+  display: grid;
+  grid-template-columns: 6.5rem 1fr;
+  gap: var(--space-sm);
+}
+
+.telemetry dt {
+  color: var(--color-text-muted);
+}
+
+.telemetry dd {
+  margin: 0;
+}
+
+.mission-notes {
+  grid-area: notes;
+  align-self: end;
+  justify-self: end; /* at the right, clear of the trajectory in the middle of the view */
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-sm);
+  max-width: 44rem;
+  text-align: center;
+  pointer-events: none;
+}
+
+.mission-notes > * {
+  pointer-events: auto;
+}
+
+.mission-notes {
+  flex-direction: row;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+/* compact notes over the journey (ILLUSTRATIVE, scale): small chips, details in the tooltip */
+.scene-chip {
+  margin: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 8px;
+  border: 1px solid var(--glass-stroke);
+  border-radius: 999px;
+  background: var(--glass-panel);
+  backdrop-filter: blur(var(--glass-blur));
+  font-size: 12px;
+  color: var(--color-text-muted);
+  cursor: help;
+}
+
+.scene-chip .badge {
+  border: 0;
+  padding: 0;
+}
+
+.mission-thumbs {
+  grid-area: thumbs;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+.mission-dock {
+  grid-area: dock;
+  max-height: 34vh;
+  overflow-y: auto;
+  padding: 14px 18px;
+  background: var(--glass-panel);
+  border: 1px solid var(--glass-stroke);
+  border-radius: var(--radius-md);
+  backdrop-filter: blur(var(--glass-blur));
+}
+
+.site-layout {
+  display: contents;
+}
+
+/* at the site the dock is one row (clock, play + timeline, jump, speed), so the 2D console keeps its height */
+@media (min-width: 1100px) {
+  .mission-stage.at-site .mission-controls {
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--space-sm) var(--space-lg);
+  }
+  .mission-stage.at-site .phase-track {
+    display: none; /* the "Jump to" buttons name the phases; the bar is the scrubber itself */
+  }
+  .mission-stage.at-site .mission-row {
+    display: contents;
+  }
+  .mission-stage.at-site .mission-controls .scrubber {
+    flex: 1 1 360px;
+  }
+  .mission-stage.at-site .mission-controls .segmented,
+  .mission-stage.at-site .mission-clock {
+    flex: none;
+  }
+}
+
+/* at the site the comparison table (same plans, same clock) takes over from the thumbnails, which would
+   only fit clipped next to the console */
+.mission-stage.at-site:has(.site-compare-mini) .mission-thumbs {
+  display: none;
+}
+
+/* the card's actions side by side */
+.site-card-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-sm);
+}
+
+.site-card-actions .btn {
+  flex: 1 1 auto;
+  padding: 6px 10px;
+  font-size: var(--font-sm);
+}
+
+.site-card {
+  grid-area: card;
+  align-self: start;
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: 100%;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+.site-card-label {
+  margin: 0;
+  font-size: var(--font-sm);
+  font-weight: 500;
+  color: var(--color-text-muted);
+  text-align: left;
+}
+
+.site-console {
+  grid-area: console;
+  padding: 14px 18px;
+  display: grid;
+  grid-template-columns: minmax(0, 2fr) minmax(0, 1fr);
+  gap: var(--space-lg);
+  max-height: 46vh;
+  overflow-y: auto;
+  background: var(--glass-panel-strong);
+}
+
+.site-console-main {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+}
+
+.site-compare-mini {
+  min-width: 0;
+}
+
+.site-compare-mini caption {
+  caption-side: top;
+  padding-bottom: var(--space-sm);
+}
+
+.site-compare-mini td[data-best="true"] {
+  color: var(--color-text);
+  font-weight: 600;
+}
+
+@media (max-width: 1100px) {
+  .site-console {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+/* short screens (laptops, 768 px tall): the 2D panorama and the comparison keep their full height and the
+   journey's panels scroll as one page instead of clipping the console */
+@media (max-height: 860px) and (min-width: 721px) {
+  .mission-stage.at-site {
+    grid-template-rows: auto minmax(120px, auto) auto auto;
+    overflow-y: auto; /* wheel over the panels scrolls; the empty sky still lets the canvas take drags */
+  }
+  .mission-stage.at-site .site-console,
+  .mission-stage.at-site .mission-dock {
+    max-height: none;
+    overflow: visible; /* a scrolling grid item may shrink to nothing: let the stage scroll instead */
+  }
+}
+
+.mission-dock .mission-controls {
+  margin-top: 0;
+}
+
+.phase-track {
+  display: flex;
+  gap: 2px;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--color-text-muted);
+}
+
+.phase-seg {
+  flex-basis: 0;
+  min-width: 3.5rem;
+  padding-top: 4px;
+  border-top: 2px solid var(--color-border-strong);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.phase-seg[data-on] {
+  color: var(--color-text);
+  border-top-color: var(--color-text);
+}
+
+.planner[data-stage="mission"] .phase-rail {
+  display: none;
+}
+
+.drawer-scrim {
+  position: absolute;
+  inset: 72px 0 0; /* below the top bar: Home, sound and credits stay visible and usable */
+  z-index: 4;
+  background: rgb(0 0 0 / 0.4);
+  animation: fade-in var(--motion-mid) ease-out;
+}
+
+.drawer {
+  position: absolute;
+  top: 72px;
+  border-top-left-radius: var(--radius-lg);
+  right: 0;
+  bottom: 0;
+  z-index: 5;
+  width: min(1180px, 100%);
+  overflow-y: auto;
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+  /* opaque: the 2D comparison must read the same over any part of the scene (spec 8.1) */
+  background: var(--color-bg);
+  border-left: 1px solid var(--glass-stroke);
+  animation: drawer-in var(--motion-mid) cubic-bezier(0.2, 0, 0, 1);
+}
+
+/* the panel scrolls; its sections keep their own height (shrinking them pushed the tray's panels under the
+   next section) */
+.drawer > * {
+  flex: none;
+}
+
+.drawer-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: var(--space-md);
+}
+
+.drawer-title {
+  font-family: var(--font-display);
+  font-weight: 500;
+  font-size: var(--font-xl);
+}
+
+@keyframes drawer-in {
+  from {
+    translate: 48px 0;
+    opacity: 0;
+  }
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+}
+
+@media (max-width: 720px) {
+  .mission-sidebar {
+    top: auto;
+    left: 8px;
+    right: 8px;
+    bottom: 8px;
+    width: auto;
+    max-height: 62vh;
+  }
+  .planner-top {
+    top: 8px;
+    right: 8px;
+    left: 8px;
+  }
+  .planner-badge,
+  .planner[data-stage="planning"] .phase-rail {
+    display: none;
+  }
+}
+
+/* surface view sky overlay (TR.3.a): over the canvas, never catches the pointer */
+.sky-overlay {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+
+/* ------------------------------------------------------------------ Educator (decision A7, C2/C3) */
+.educator { position: relative; height: 100vh; min-height: 560px; overflow: hidden; }
+.edu-head { position: absolute; left: 56px; top: 48px; z-index: 2; max-width: 26rem; }
+.edu-kicker { margin: 0; color: var(--color-text-muted); font-size: var(--font-sm); }
+.edu-title { margin-top: 12px; font-family: var(--font-serif); font-weight: 400; font-size: clamp(36px, 4vw, 56px); line-height: 1.05; }
+.edu-lead { margin: 16px 0 0; color: var(--color-text-muted); line-height: 1.6; }
+.edu-note { margin: 12px 0 0; font-size: var(--font-sm); color: var(--color-text-muted); }
+.edu-progress { position: absolute; right: 56px; top: 96px; z-index: 2; display: flex; gap: 8px; margin: 0; padding: 0; list-style: none; }
+.edu-progress li { width: 28px; height: 3px; background: var(--color-border-strong); }
+.edu-progress li[data-done], .edu-progress li[aria-current="step"] { background: var(--color-text); }
+.edu-dock { position: absolute; left: 56px; right: 56px; bottom: 40px; z-index: 2; display: flex; flex-direction: column; gap: 18px; }
+.edu-tabs { display: flex; flex-wrap: wrap; gap: 24px; }
+.edu-tabs button { background: none; border: 0; border-bottom: 1px solid transparent; padding: 6px 0; color: var(--color-text-muted); cursor: pointer; font: inherit; }
+.edu-tabs button[aria-pressed="true"] { color: var(--color-text); border-bottom-color: var(--color-text); }
+.edu-choose { display: flex; align-items: flex-end; gap: 24px; flex-wrap: wrap; }
+.edu-days { flex: 1 1 320px; min-width: 0; }
+.edu-bars { display: flex; align-items: flex-end; gap: 3px; height: 48px; }
+.edu-bar { flex: 1; height: 100%; padding: 0; border: 0; background: none; display: flex; align-items: flex-end; cursor: pointer; }
+.edu-bar span { display: block; width: 100%; background: var(--color-border-strong); }
+.edu-bar[aria-pressed="true"] span { background: var(--color-text); }
+.edu-days-axis { display: flex; justify-content: space-between; margin-top: 8px; font-size: var(--font-sm); color: var(--color-text-muted); }
+.edu-arrive { color: var(--color-text); }
+.btn.pill { border-radius: 999px; padding: 12px 22px; }
+.edu-caption { position: absolute; left: 0; right: 0; bottom: 56px; z-index: 2; text-align: center; padding: 0 16px; }
+.edu-caption-text { margin: 0 auto; max-width: 48rem; font-family: var(--font-serif); font-size: clamp(22px, 2.4vw, 34px); line-height: 1.3; }
+.edu-actions { display: flex; justify-content: center; gap: 12px; margin-top: 24px; }
+.edu-hint { margin: 12px 0 0; color: var(--color-text-muted); font-size: var(--font-sm); }
+
+/* ------------------------------------------------------------------ phone (TR.5.a): 375 px, no horizontal page scroll */
+@media (max-width: 720px) {
+  /* one row of tools that scrolls sideways instead of wrapping over the content */
+  .planner-top {
+    left: 8px;
+    right: 8px;
+    top: 8px;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+  .planner-top .landing-tools {
+    flex-wrap: nowrap;
+    justify-content: flex-start;
+    width: max-content;
+  }
+  .planner-top .btn {
+    padding: 6px 12px;
+    font-size: var(--font-sm);
+    white-space: nowrap;
+  }
+  /* the journey: the scene keeps the top of the screen; everything else is a sheet that scrolls below it */
+  .mission-stage,
+  .mission-stage.at-site {
+    top: 42vh;
+    padding: 16px 12px;
+    display: flex;
+    flex-direction: column;
+    overflow-y: auto;
+    pointer-events: auto;
+    background: var(--glass-panel-strong);
+    border-top: 1px solid var(--glass-stroke);
+    border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+  }
+  .mission-stage > *,
+  .mission-stage .site-layout > * {
+    flex: none;
+  }
+  .mission-head { order: 1; }
+  .mission-notes { order: 2; align-self: stretch; }
+  .mission-dock { order: 3; }
+  .site-card { order: 4; }
+  .site-console { order: 5; }
+  .mission-thumbs { order: 6; }
+  .mission-dock,
+  .mission-stage.at-site .mission-dock,
+  .site-card,
+  .site-console {
+    max-height: none;
+  }
+  .site-console {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .mission-thumbs {
+    max-height: none;
+  }
+  /* Educator: the heading below the tools, progress above it */
+  .edu-progress {
+    top: 60px;
+    left: 16px;
+    right: auto;
+  }
+  .edu-head {
+    left: 16px;
+    right: 16px;
+    top: 76px;
+    max-width: none;
+  }
+  .edu-dock {
+    left: 16px;
+    right: 16px;
+    bottom: 16px;
+  }
+  .edu-tabs {
+    gap: 4px 16px;
+  }
+  .edu-caption {
+    bottom: 16px;
+  }
+  .edu-actions {
+    flex-wrap: wrap;
+  }
+  .edu-actions .btn.pill {
+    padding: 10px 16px;
+  }
+}
+
+/* header toggles: icon and label on one centred line (the sound button is icon-only) */
+.motion-toggle,
+.sound-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  line-height: 1;
+}
+
+.sound-toggle {
+  min-width: 40px;
+  min-height: 34px;
+}
+
+/* legend of the lit polar map (T6.2.b): the same ramp the map is drawn with, dark to Sun orange */
+.polar-ramp {
+  display: inline-block;
+  width: 64px;
+  height: 8px;
+  border-radius: 4px;
+  background: linear-gradient(90deg, var(--color-bg), var(--color-sun));
+}
+
+button.scene-chip {
+  font: inherit;
+  font-size: 12px;
+}
+
+/* constraints in plain English (T6.5.b) */
+.nl-constraints {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: var(--space-md);
+}
+
+.nl-label {
+  font-size: var(--font-sm);
+  color: var(--color-text-muted);
+}
+
+.nl-row {
+  display: flex;
+  gap: var(--space-sm);
+}
+
+.nl-input {
+  flex: 1;
+  min-width: 0;
+  padding: 8px 10px;
+  border: 1px solid var(--color-border-strong);
+  border-radius: 8px;
+  background: var(--color-bg);
+  color: var(--color-text);
+  font: inherit;
+}
+
+.nl-input::placeholder {
+  color: var(--color-text-muted);
+}
+
+.nl-result {
+  margin: 0;
+  min-height: 1.2em;
+  font-size: var(--font-sm);
+  color: var(--color-text-muted);
+}
+
+/* phone: the journey is a bottom sheet; the button heads it instead of floating */
+@media (max-width: 720px) {
+  .mission-back {
+    position: static;
+    align-self: flex-start;
+    order: 0;
+  }
+}
