@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { Drawer } from "../components/Drawer";
 import { MissionSidebar } from "../components/MissionSidebar";
+import { MoonMap, type SiteTone } from "../components/MoonMap";
+import { lookup } from "../lib/constraints";
 import { timelineOf, PLAY_PHASES } from "../lib/mission";
 import { STRINGS } from "../lib/strings";
 import { sceneBridge } from "../scene3d/bridge";
@@ -8,28 +10,34 @@ import { SceneHost } from "../scene3d/SceneHost";
 import { appStore, useApp } from "../store/appStore";
 import { CompareView } from "./CompareView";
 import { MissionStage } from "./MissionStage";
+import { SiteBrief } from "./SiteBrief";
 
-/** The globe shows while the plan is being chosen; "Launch" (live view mode) starts the journey. */
+/** The scene is only mounted for the journey; planning happens on the 2D Moon map. */
 const isPlanning = () => appStore.getState().viewMode !== "live";
 
 /**
- * Mission Planner (decision A7): one 3D scene behind every stage, so the camera can hop from the globe to the
- * launch. Planning (A2): globe + mission sidebar. Mission: the journey with its controls (restyled in TR.2.d,
- * TR.2.e). Search and comparison (calendar, constraints, tray, site) open in a panel over the scene.
+ * Mission Planner (decision A7; planner redesign REDIS + 3C). Planning: the sidebar (arrival date, stay, site)
+ * beside a 2D Moon map of the south pole with the landing sites, and the chosen site told in plain words.
+ * "Launch" plays the whole journey in the one 3D scene; "Land at …" opens the same scene directly at the site.
+ * Search and comparison (calendar, constraints, tray, site) open in a panel over the stage.
  */
 export function PlannerView({ tools }: { tools: ReactNode }) {
   const planId = useApp((s) => s.selectedPlanId);
+  const plan = useApp((s) => (s.selectedPlanId ? s.plansById.get(s.selectedPlanId) : undefined));
+  const sites = useApp((s) => s.sites);
+  const index = useApp((s) => (plan ? s.windowIndex[plan.window_days] : undefined));
   const viewMode = useApp((s) => s.viewMode);
   const missionPhase = useApp((s) => s.missionPhase);
   const drawerOpen = useApp((s) => s.drawerOpen);
   const pinned = useApp((s) => s.comparePlans.length);
   const setDrawerOpen = useApp((s) => s.setDrawerOpen);
+  const selectSite = useApp((s) => s.selectSite);
   const trajectoryMode = useApp((s) => s.manifest?.params.trajectory_mode ?? "ILLUSTRATIVE");
   const [launched, setLaunched] = useState(false);
   const mission = viewMode === "live";
 
-  // while planning, the scene follows the plan chosen in the sidebar or the calendar (the live view switches
-  // plans itself, with its own clock rules: switchLivePlan)
+  // during the journey the scene follows a change of plan from the thumbnails (switchLivePlan handles the
+  // clock); a plan chosen while planning is loaded when the scene mounts
   const shown = useRef(planId);
   useEffect(() => {
     if (!planId || planId === shown.current) return;
@@ -39,11 +47,11 @@ export function PlannerView({ tools }: { tools: ReactNode }) {
     }
     let alive = true;
     const st = appStore.getState();
-    const plan = st.plansById.get(planId);
-    if (!plan) return;
-    void st.data.trajectory(plan.trajectory_id).then((traj) => {
+    const p = st.plansById.get(planId);
+    if (!p || !sceneBridge.setPlan) return;
+    void st.data.trajectory(p.trajectory_id).then((traj) => {
       if (!alive || !sceneBridge.setPlan) return;
-      sceneBridge.setPlan({ trajectory: traj, timeline: timelineOf(plan, traj), siteId: plan.site_id });
+      sceneBridge.setPlan({ trajectory: traj, timeline: timelineOf(p, traj), siteId: p.site_id });
       shown.current = planId;
     });
     return () => {
@@ -58,10 +66,27 @@ export function PlannerView({ tools }: { tools: ReactNode }) {
     appStore.getState().setViewMode("live");
   };
 
+  // straight to the site (REDIS screen 3): the scene opens at the landing, paused, with the stay ahead
+  const land = () => {
+    const st = appStore.getState();
+    const p = st.selectedPlanId ? st.plansById.get(st.selectedPlanId) : undefined;
+    if (!p) return;
+    setDrawerOpen(false);
+    setLaunched(false);
+    st.setMissionPhase("site");
+    st.setMissionTime(Date.parse(p.arrival_utc));
+    st.setViewMode("live");
+  };
+
+  const tone = (siteId: string): SiteTone => {
+    const m = index && plan ? lookup(index, siteId, plan.arrival_utc.slice(0, 10)) : null;
+    return m ? (m.longest_dark_h === 0 ? "lit" : "night") : undefined;
+  };
+
   const current = mission ? (missionPhase === "overview" ? "launch" : missionPhase) : "plan";
   return (
     <div className="planner" data-stage={mission ? "mission" : "planning"} data-testid="planner">
-      {planId && (
+      {planId && mission && (
         <div className="planner-scene">
           <SceneHost planning={isPlanning} />
         </div>
@@ -78,9 +103,13 @@ export function PlannerView({ tools }: { tools: ReactNode }) {
         </div>
       </header>
       {!mission && <MissionSidebar onLaunch={launch} onOpenSearch={() => setDrawerOpen(true)} />}
-      {mission && (
-        <MissionStage autoPlay={launched} />
+      {!mission && plan && (
+        <div className="plan-stage">
+          <MoonMap sites={sites} selectedId={plan.site_id} tone={tone} onSelect={(id) => selectSite(id)} />
+          <SiteBrief onLand={land} />
+        </div>
       )}
+      {mission && <MissionStage autoPlay={launched} />}
       {trajectoryMode === "ILLUSTRATIVE" && !mission && (
         <p className="planner-badge" title={STRINGS.panel.illustrativeTitle}>
           <span className="badge illustrative">ILLUSTRATIVE</span> {STRINGS.live.illustrative}

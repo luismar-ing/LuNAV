@@ -12,19 +12,27 @@ import { useApp } from "../store/appStore";
 import { Panorama } from "./Panorama";
 import { SitePanel } from "./SitePanel";
 import { useSiteData } from "./useSiteData";
+import { NextEvents, TimeLeft } from "./TimeLeft";
+import { useTimeseries } from "./useTimeseries";
 
 /**
- * Arrival at the site in the Mission Planner (decision A7: layout of B3, style of A3). The 3D sky stays on top;
- * a metrics card sits on the right (spec 8.6, with "Site details" for the full panel: location, daily values,
- * nearby features, each with its source); the bottom console holds the 360° horizon panorama (8.4, level A)
- * and the time ribbon on the mission clock, and the metrics against the other pinned plans (★ = best).
+ * Arrival at the site in the Mission Planner (decision A7: layout of B3; planner redesign: REDIS screen 3 in the
+ * 3C style). The 3D sky stays on top; the "Time left" card on the right counts down to the next sunset and
+ * Earthset (with "Site details" for the full panel of spec 8.6: location, daily values, nearby features, each with
+ * its source); the bottom console holds the 360° horizon panorama (8.4, level A) and the time ribbon on the mission
+ * clock, and beside them what happens next and the window metrics against the other pinned plans (★ = best).
+ * "Hide 2D view" folds the console away so the 3D site can be seen whole.
  * `display: contents`: its parts take their places in the journey's grid (MissionStage).
  */
 export function SiteLayout() {
   const missionTime = useApp((s) => s.missionTime);
   const compareTime = useApp((s) => s.compareTime);
+  const limit = useApp((s) => s.constraints.maxDarkH);
   const { plan, site, pinned, error, retry } = useSiteData();
+  const series = useTimeseries(plan?.site.id);
   const [details, setDetails] = useState(false);
+  const [show2d, setShow2d] = useState(true);
+  const [tab, setTab] = useState<"next" | "metrics">("next");
   const levelB = useApp((s) => s.levelB);
   const setLevelB = useApp((s) => s.setLevelB);
   const surfaceView = useApp((s) => s.surfaceView);
@@ -33,6 +41,7 @@ export function SiteLayout() {
   const best = plan
     ? bestBadges([plan.metrics, ...others.map((p) => p.metrics)])[0]
     : new Set<never>();
+  const endMs = plan ? plan.series.startMs + plan.plan.window_days * 86_400_000 : 0;
 
   return (
     <section
@@ -59,10 +68,11 @@ export function SiteLayout() {
         <>
           <aside
             className="site-card glass"
-            aria-label={STRINGS.siteLayout.card}
+            aria-label={STRINGS.siteLayout.timeLeft}
           >
-            <p className="site-card-label">{STRINGS.siteLayout.card}</p>
-            <MetricsBox metrics={plan.metrics} best={best} />
+            {series.error !== null && <ErrorMessage what={STRINGS.errors.site} info={describeError(series.error)} onRetry={series.retry} />}
+            {series.error === null && !series.ts && <p className="site-card-label">{STRINGS.loading}</p>}
+            {series.ts && <TimeLeft plan={plan} ts={series.ts} timeMs={missionTime} limitH={limit} />}
             <div className="site-card-actions">
               <button
                 type="button"
@@ -97,13 +107,57 @@ export function SiteLayout() {
               )}
             </div>
           </aside>
-          <div className="site-console glass">
-            <div className="site-console-main">
-              <Panorama data={plan} timeMs={missionTime} />
-              <TimeRibbon series={plan.series} compareTime={compareTime} />
+          {show2d ? (
+            <div className="site-console glass" data-testid="site-console">
+              <div className="site-console-main">
+                <Panorama data={plan} timeMs={missionTime} />
+                <TimeRibbon series={plan.series} compareTime={compareTime} thin />
+              </div>
+              <div className="site-side">
+                <div className="site-side-head">
+                  <div className="site-tabs" role="tablist" aria-label={STRINGS.siteLayout.side}>
+                    {(["next", "metrics"] as const).map((t) => (
+                      <button
+                        key={t}
+                        type="button"
+                        role="tab"
+                        id={`site-tab-${t}`}
+                        aria-selected={tab === t}
+                        aria-controls={`site-panel-${t}`}
+                        tabIndex={tab === t ? 0 : -1}
+                        onClick={() => setTab(t)}
+                        onKeyDown={(e) => {
+                          if (e.key === "ArrowRight" || e.key === "ArrowLeft") {
+                            const next = t === "next" ? "metrics" : "next";
+                            setTab(next);
+                            document.getElementById(`site-tab-${next}`)?.focus();
+                          }
+                        }}
+                      >
+                        {t === "next" ? STRINGS.siteLayout.next : STRINGS.siteLayout.metrics}
+                      </button>
+                    ))}
+                  </div>
+                  <button type="button" className="btn ghost pill console-toggle" title={STRINGS.siteLayout.hide2dTitle} onClick={() => setShow2d(false)}>
+                    {STRINGS.siteLayout.hide2d}
+                  </button>
+                </div>
+                <div role="tabpanel" id="site-panel-next" aria-labelledby="site-tab-next" hidden={tab !== "next"}>
+                  {series.ts ? <NextEvents ts={series.ts} timeMs={missionTime} endMs={endMs} /> : <p className="muted-note">{STRINGS.loading}</p>}
+                </div>
+                <div role="tabpanel" id="site-panel-metrics" aria-labelledby="site-tab-metrics" hidden={tab !== "metrics"}>
+                  <MetricsBox metrics={plan.metrics} best={best} />
+                  {others.length > 0 && <CompareTable plan={plan} others={others} />}
+                </div>
+              </div>
             </div>
-            {others.length > 0 && <CompareTable plan={plan} others={others} />}
-          </div>
+          ) : (
+            <div className="site-console-folded">
+              <button type="button" className="btn ghost pill console-toggle" onClick={() => setShow2d(true)}>
+                {STRINGS.siteLayout.show2d}
+              </button>
+            </div>
+          )}
           {/* rendered in the Mission Planner's root layer: above the journey panels (which may scroll) and
               below the tool bar, like the search panel */}
           {details &&

@@ -3,7 +3,7 @@
  * (docs/DATA_CONTRACT.md) and cached. Applies the per-file cross checks of contract §14 at load time.
  * Spec 7: everything is precomputed; the browser only filters and draws.
  */
-import type { z } from "zod";
+import { z } from "zod";
 import {
   CONTRACT_VERSION,
   DailySchema,
@@ -63,6 +63,14 @@ export interface Core {
 }
 
 type Fetcher = (url: string) => Promise<Response>;
+
+/** Header of the lit polar map (T6.2, extra; pipeline/illumination_map.py): outside the contract files. */
+const IlluminationHeaderSchema = z.object({
+  extent_m: z.strictObject({ left: z.number(), right: z.number(), bottom: z.number(), top: z.number() }),
+  size_px: z.number().int().gt(0),
+  citation: z.string().min(1),
+});
+export type IlluminationHeader = z.infer<typeof IlluminationHeaderSchema>;
 
 export class DataStore {
   private cache = new Map<string, Promise<unknown>>();
@@ -207,6 +215,16 @@ export class DataStore {
     return this.load("scene/ephemeris.json", SceneEphemerisSchema, (s) => {
       if (s.frame !== m.params.scene_frame || s.moon_frame !== m.params.moon_frame) this.fail("scene/ephemeris.json", "frames differ from the manifest"); // §14.10
     });
+  }
+
+  /** Lit polar map header (the Mission Planner's Moon map): extent of the south polar stereographic image. */
+  illumination(): Promise<IlluminationHeader> {
+    return this.load("illumination/south_avg.json", IlluminationHeaderSchema);
+  }
+
+  /** URL of the lit polar map image (grey = fraction of time sunlit, LOLA average). */
+  illuminationImageUrl(): string {
+    return `${this.baseUrl}illumination/south_avg.png`;
   }
 
   /** Terrain level: header plus heights in metres (decoded int16, row-major from north to south). */

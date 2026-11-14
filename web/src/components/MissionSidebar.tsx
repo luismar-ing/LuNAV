@@ -15,7 +15,7 @@ const ymd = (ms: number) => new Date(ms).toISOString().slice(0, 10);
 /**
  * Mission start sidebar (decision A7, design A2): arrival date (with a strip of days coloured by the chosen
  * site's combined score, the calendar's own ramp), length of stay, landing site and "Launch". Every control
- * changes the selected plan, which the globe and every other view follow.
+ * changes the selected plan, which the Moon map, the site brief and every other view follow.
  */
 export function MissionSidebar({ onLaunch, onOpenSearch }: { onLaunch(): void; onOpenSearch(): void }) {
   const plan = useApp((s) => (s.selectedPlanId ? s.plansById.get(s.selectedPlanId) : undefined));
@@ -120,7 +120,10 @@ export function MissionSidebar({ onLaunch, onOpenSearch }: { onLaunch(): void; o
               <li key={s.id}>
                 <button type="button" className="site-row" aria-pressed={s.id === plan.site_id} onClick={() => selectSite(s.id)}>
                   <span>{s.name}</span>
-                  <span className="site-sun">{m ? STRINGS.planner.sun(round(m.sun_pct, 1)) : ""}</span>
+                  {/* planner redesign: the night length tells the sites apart at a glance (the % is in the brief) */}
+                  <span className="site-status" data-tone={m ? (m.longest_dark_h === 0 ? "lit" : "night") : undefined} title={m ? STRINGS.planner.sun(round(m.sun_pct, 1)) : undefined}>
+                    {m ? STRINGS.planner.status(m.longest_dark_h) : ""}
+                  </span>
                 </button>
               </li>
             );

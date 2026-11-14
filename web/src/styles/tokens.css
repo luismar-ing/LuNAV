@@ -1917,33 +1917,37 @@ input[type="range"] {
   outline-offset: 1px;
 }
 
+/* planner redesign (3C): the stay is three words with an underline, not a boxed switch */
 .mission-sidebar .segmented {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 4px;
-  padding: 4px;
+  display: flex;
+  gap: 24px;
+  padding: 0;
   border: 0;
-  border-radius: 12px;
-  background: rgb(255 255 255 / 0.04);
+  border-radius: 0;
+  background: none;
+  overflow: visible;
 }
 
 .mission-sidebar .segmented button {
   border: 0;
-  border-radius: 9px;
-  padding: 10px;
+  border-bottom: 1px solid transparent;
+  border-radius: 0;
+  padding: 4px 0;
   background: none;
   color: var(--color-text-muted);
   font-weight: 500;
+  font-size: var(--font-md);
   cursor: pointer;
 }
 
 .mission-sidebar .segmented button + button {
-  border: 0;
+  border-left: 0;
 }
 
 .mission-sidebar .segmented button[aria-pressed="true"] {
-  background: rgb(255 255 255 / 0.12);
+  background: none;
   color: var(--color-text);
+  border-bottom-color: var(--color-text);
 }
 
 .site-list {
@@ -1952,17 +1956,19 @@ input[type="range"] {
   padding: 0;
   display: flex;
   flex-direction: column;
-  gap: 2px;
 }
 
+/* one row per site between hairlines; the chosen one is lit and marked with the Sun's dot */
 .site-row {
   width: 100%;
   display: flex;
   justify-content: space-between;
+  align-items: baseline;
   gap: var(--space-sm);
-  padding: 10px 12px;
+  padding: 10px 4px;
   border: 0;
-  border-radius: var(--radius-sm);
+  border-top: 1px solid var(--color-border);
+  border-radius: 0;
   background: none;
   color: var(--color-text-muted);
   text-align: left;
@@ -1970,18 +1976,38 @@ input[type="range"] {
 }
 
 .site-row:hover {
-  background: rgb(255 255 255 / 0.05);
+  background: rgb(255 255 255 / 0.04);
   color: var(--color-text);
 }
 
 .site-row[aria-pressed="true"] {
-  background: rgb(255 255 255 / 0.1);
+  background: none;
   color: var(--color-text);
 }
 
-.site-sun {
-  color: var(--color-sun);
+.site-row[aria-pressed="true"] > span:first-child::before {
+  content: "";
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  margin-right: 10px;
+  border-radius: 50%;
+  background: var(--color-sun);
+  vertical-align: middle;
+}
+
+.site-status {
+  font-size: 13px;
   white-space: nowrap;
+  color: var(--color-text-muted);
+}
+
+.site-status[data-tone="lit"] {
+  color: var(--color-both);
+}
+
+.site-status[data-tone="night"] {
+  color: var(--color-sun);
 }
 
 .sidebar-actions {
@@ -2055,6 +2081,358 @@ input[type="range"] {
 
 .phase-rail li[aria-current="step"]::before {
   content: "● ";
+}
+
+/* ------------------------------------------------------------------ planning stage (planner redesign: REDIS 1 + 3C)
+   No 3D while planning: a starfield, the 2D Moon map in a porthole and the chosen site told in plain words. */
+.planner[data-stage="planning"] {
+  background-color: var(--color-bg);
+  background-image:
+    radial-gradient(1.5px 1.5px at 8% 12%, var(--color-text) 50%, transparent 52%),
+    radial-gradient(1px 1px at 17% 64%, var(--color-text-muted) 50%, transparent 52%),
+    radial-gradient(1.5px 1.5px at 23% 31%, var(--color-text-muted) 50%, transparent 52%),
+    radial-gradient(1px 1px at 29% 88%, var(--color-text) 50%, transparent 52%),
+    radial-gradient(1px 1px at 34% 9%, var(--color-text) 50%, transparent 52%),
+    radial-gradient(1.5px 1.5px at 41% 47%, var(--color-text-muted) 50%, transparent 52%),
+    radial-gradient(1px 1px at 46% 92%, var(--color-text) 50%, transparent 52%),
+    radial-gradient(1px 1px at 52% 6%, var(--color-text-muted) 50%, transparent 52%),
+    radial-gradient(1.5px 1.5px at 58% 96%, var(--color-text) 50%, transparent 52%),
+    radial-gradient(1px 1px at 63% 18%, var(--color-text) 50%, transparent 52%),
+    radial-gradient(1px 1px at 69% 81%, var(--color-text-muted) 50%, transparent 52%),
+    radial-gradient(1.5px 1.5px at 74% 8%, var(--color-text) 50%, transparent 52%),
+    radial-gradient(1px 1px at 81% 94%, var(--color-text) 50%, transparent 52%),
+    radial-gradient(1px 1px at 88% 44%, var(--color-text-muted) 50%, transparent 52%),
+    radial-gradient(1.5px 1.5px at 92% 27%, var(--color-text) 50%, transparent 52%),
+    radial-gradient(1px 1px at 97% 68%, var(--color-text-muted) 50%, transparent 52%);
+}
+
+.plan-stage {
+  position: absolute;
+  top: 128px;
+  bottom: 64px;
+  left: 408px;
+  right: 24px;
+  z-index: 1;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(300px, min(34rem, 44%));
+  gap: 48px;
+  align-items: start; /* the brief grows once the series is in: start, so the map never jumps */
+  overflow-y: auto;
+}
+
+.plan-stage .site-brief {
+  padding-top: 24px;
+}
+
+.moon-map {
+  margin: 0;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 18px;
+}
+
+/* the pins and their names may run past the porthole's rim: only the image is clipped to the circle */
+.moon-map-disc {
+  position: relative;
+  width: min(100%, calc(100vh - 260px));
+  min-width: 260px;
+  aspect-ratio: 1;
+}
+
+.moon-map-disc img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  box-shadow: 0 0 0 1px var(--color-border-strong), 0 0 0 12px var(--color-bg), 0 0 0 13px var(--color-border);
+  user-select: none;
+}
+
+.moon-map-lines {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+
+.moon-map-lines line {
+  stroke: var(--color-text);
+  stroke-width: 1;
+  stroke-dasharray: 4 3;
+  opacity: 0.8;
+}
+
+.moon-map-km {
+  position: absolute;
+  translate: -50% -50%;
+  padding: 2px 7px;
+  border-radius: 6px;
+  background: var(--glass-panel-strong);
+  font-size: 12px;
+  white-space: nowrap;
+  cursor: help;
+}
+
+/* a 44 px target around a small dot; no night in the stay = filled, a night = a ring (shape, not colour alone) */
+.moon-pin {
+  position: absolute;
+  width: 44px;
+  height: 44px;
+  margin: -22px 0 0 -22px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: none;
+  color: var(--color-text);
+  cursor: pointer;
+}
+
+.moon-pin-dot {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 10px;
+  height: 10px;
+  translate: -50% -50%;
+  box-sizing: border-box;
+  border-radius: 50%;
+  background: var(--color-text);
+  box-shadow: 0 0 0 2px var(--color-bg);
+  transition: width var(--motion-fast), height var(--motion-fast);
+}
+
+.moon-pin[data-tone="night"] .moon-pin-dot {
+  background: var(--color-bg);
+  border: 2px solid var(--color-text);
+}
+
+.moon-pin[aria-pressed="true"] .moon-pin-dot {
+  width: 18px;
+  height: 18px;
+  border: 0;
+  background: var(--color-sun);
+  box-shadow: 0 0 0 2px var(--color-bg), 0 0 18px rgb(255 179 71 / 0.7);
+}
+
+.moon-pin:hover .moon-pin-dot {
+  box-shadow: 0 0 0 2px var(--color-bg), 0 0 0 4px var(--glass-stroke-hover);
+}
+
+.moon-pin:focus-visible {
+  outline: 2px solid var(--color-focus);
+  outline-offset: -6px;
+}
+
+.moon-pin-label {
+  position: absolute;
+  left: calc(50% + 14px);
+  top: 50%;
+  translate: 0 -50%;
+  font-size: 13px;
+  color: var(--color-text-muted);
+  white-space: nowrap;
+  text-shadow: 0 0 6px var(--color-bg), 0 1px 2px var(--color-bg), 0 0 2px var(--color-bg);
+}
+
+.moon-pin:hover .moon-pin-label {
+  color: var(--color-text);
+}
+
+.moon-pin[aria-pressed="true"] .moon-pin-label {
+  color: var(--color-text);
+  font-weight: 600;
+}
+
+.moon-map-caption {
+  max-width: 44rem;
+  text-align: center;
+  font-size: 13px;
+  color: var(--color-text-muted);
+}
+
+/* the chosen site, 3C style: serif name and sentence, thin lines, no boxes */
+.site-brief {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+}
+
+.brief-where {
+  margin: 0;
+  font-size: var(--font-sm);
+  color: var(--color-text-muted);
+}
+
+.brief-name {
+  margin: 8px 0 0;
+  font-family: var(--font-serif);
+  font-weight: 400;
+  font-size: clamp(40px, 3.4vw, 60px);
+  line-height: 1.02;
+}
+
+.brief-story {
+  margin: 0;
+  font-family: var(--font-serif);
+  font-size: clamp(22px, 1.8vw, 30px);
+  line-height: 1.25;
+}
+
+.brief-story.muted {
+  font-family: inherit;
+  font-size: var(--font-sm);
+  color: var(--color-text-muted);
+}
+
+.brief-tracks {
+  display: grid;
+  grid-template-columns: 52px minmax(0, 1fr) auto;
+  gap: 12px 14px;
+  align-items: center;
+  font-size: var(--font-sm);
+  color: var(--color-text-muted);
+}
+
+.brief-track,
+.brief-track-axis {
+  display: contents;
+}
+
+.brief-track-line {
+  position: relative;
+  height: 3px;
+  background: var(--color-border-strong);
+}
+
+.brief-track-line > span {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+}
+
+.brief-track[data-body="sun"] .brief-track-line > span {
+  background: var(--color-sun);
+}
+
+.brief-track[data-body="earth"] .brief-track-line > span {
+  background: var(--color-earth);
+}
+
+.brief-track-count {
+  text-align: right;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+.brief-track[data-body="sun"] .brief-track-count {
+  color: var(--color-sun);
+}
+
+.brief-track[data-body="earth"] .brief-track-count {
+  color: var(--color-earth);
+}
+
+.brief-track-verb {
+  color: var(--color-text-muted);
+}
+
+.brief-track-ends {
+  display: flex;
+  justify-content: space-between;
+  margin-top: -6px;
+  font-size: 12px;
+}
+
+.brief-metrics {
+  margin: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 40px;
+}
+
+.brief-metrics dt {
+  font-size: 13px;
+  color: var(--color-text-muted);
+}
+
+.brief-metrics dd {
+  margin: 0;
+  font-family: var(--font-serif);
+  font-size: 30px;
+  line-height: 1.1;
+  font-variant-numeric: tabular-nums;
+}
+
+.brief-metrics dd[data-tone="night"] {
+  color: var(--color-sun);
+}
+
+.brief-label {
+  margin: 0 0 6px;
+  font-size: var(--font-sm);
+  font-weight: 400;
+  color: var(--color-text-muted);
+}
+
+.brief-others ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.brief-others li {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 70px 112px;
+  gap: 12px;
+  padding: 8px 0;
+  border-top: 1px solid var(--color-border);
+  font-variant-numeric: tabular-nums;
+}
+
+.brief-others li > span + span {
+  text-align: right;
+}
+
+.brief-others .muted {
+  color: var(--color-text-muted);
+}
+
+.brief-others [data-trend="up"] {
+  color: var(--color-both);
+}
+
+.brief-others [data-trend="down"] {
+  color: var(--color-sun);
+}
+
+.brief-others [data-trend="same"] {
+  color: var(--color-text-muted);
+}
+
+.brief-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.brief-actions .btn.ghost {
+  border-color: var(--color-border-strong);
+}
+
+@media (max-width: 1180px) {
+  .plan-stage {
+    grid-template-columns: minmax(0, 1fr);
+    align-items: start;
+    gap: 32px;
+  }
+  .moon-map-disc {
+    width: min(100%, 520px);
+  }
 }
 
 /* the journey (design B2): panels float over the full-screen scene, which stays draggable between them */
@@ -2309,6 +2687,233 @@ input[type="range"] {
   font-weight: 600;
 }
 
+/* ------------------------------------------------------------------ at the site (planner redesign: REDIS 3 + 3C)
+   Countdowns in serif over hairlines, no boxes inside boxes, underlined choices instead of boxed switches. */
+.site-card {
+  gap: 14px;
+  padding: 16px 18px;
+}
+
+.time-left {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.countdown {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.countdown-label,
+.countdown-when {
+  font-size: 13px;
+  color: var(--color-text-muted);
+}
+
+.countdown-value {
+  font-family: var(--font-serif);
+  font-size: 44px;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+
+.countdown[data-body="sun"] .countdown-value {
+  color: var(--color-sun);
+}
+
+.countdown[data-body="earth"] .countdown-value {
+  color: var(--color-earth);
+}
+
+.countdown-line {
+  position: relative;
+  height: 3px;
+  margin: 6px 0 2px;
+  background: var(--color-dark);
+}
+
+.countdown-line > span {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+}
+
+.countdown[data-body="sun"] .countdown-line .on {
+  background: var(--color-sun);
+}
+
+.countdown[data-body="earth"] .countdown-line .on {
+  background: var(--color-earth);
+}
+
+/* the part of the stay already lived is dimmed; a 1 px line marks now */
+.countdown-line .past {
+  left: 0;
+  background: rgb(5 7 13 / 0.6);
+}
+
+.countdown-line .now {
+  top: -5px;
+  bottom: -5px;
+  width: 1px;
+  background: var(--color-text);
+}
+
+.countdown-note {
+  font-size: var(--font-sm);
+  color: var(--color-text-muted);
+}
+
+.countdown-note[data-warn] {
+  color: var(--color-text);
+}
+
+.site-card-actions .btn {
+  border-color: var(--color-border-strong);
+  border-radius: 999px;
+}
+
+.site-side {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.site-side-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.site-tabs {
+  display: flex;
+  gap: 20px;
+}
+
+.site-tabs button {
+  padding: 4px 0;
+  border: 0;
+  border-bottom: 1px solid transparent;
+  background: none;
+  color: var(--color-text-muted);
+  font: inherit;
+  font-size: var(--font-sm);
+  cursor: pointer;
+}
+
+.site-tabs button[aria-selected="true"] {
+  color: var(--color-text);
+  border-bottom-color: var(--color-text);
+}
+
+.console-toggle {
+  padding: 6px 14px;
+  font-size: var(--font-sm);
+  border-color: var(--color-border-strong);
+}
+
+.site-console-folded {
+  grid-area: console;
+  justify-self: start;
+  align-self: end;
+}
+
+.site-console-folded .console-toggle {
+  background: var(--glass-panel-strong);
+  backdrop-filter: blur(var(--glass-blur));
+}
+
+.next-events {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.next-events li {
+  display: grid;
+  grid-template-columns: 92px minmax(0, 1fr) auto;
+  gap: 12px;
+  align-items: baseline;
+  padding: 9px 0;
+  border-top: 1px solid var(--color-border);
+  font-variant-numeric: tabular-nums;
+}
+
+.next-events li:last-child {
+  border-bottom: 1px solid var(--color-border);
+}
+
+.next-events li[data-kind="sunset"] .next-in,
+.next-events li[data-kind="sunrise"] .next-in {
+  color: var(--color-sun);
+}
+
+.next-events li[data-kind="earthset"] .next-in,
+.next-events li[data-kind="earthrise"] .next-in {
+  color: var(--color-earth);
+}
+
+.next-events li[data-after] .next-in {
+  color: var(--color-text-muted);
+}
+
+.next-when,
+.next-events .muted,
+.muted-note {
+  font-size: 13px;
+  color: var(--color-text-muted);
+}
+
+/* the window metrics in the console: the two key figures in serif, no tiles */
+.site-side .metric[data-metric="sun_pct"],
+.site-side .metric[data-metric="score"] {
+  padding: 0 0 8px;
+  border: 0;
+  border-radius: 0;
+}
+
+.site-side .metric[data-metric="sun_pct"] .metric-value,
+.site-side .metric[data-metric="score"] .metric-value {
+  font-family: var(--font-serif);
+  font-weight: 400;
+}
+
+.site-console .panorama-canvas {
+  border-color: transparent;
+}
+
+/* every switch of the journey (panorama, jump to, speed) as underlined words */
+.mission-stage .segmented {
+  gap: 14px;
+  border: 0;
+  border-radius: 0;
+  overflow: visible;
+}
+
+.mission-stage .segmented button {
+  padding: 4px 0;
+  border-bottom: 1px solid transparent;
+}
+
+.mission-stage .segmented button + button {
+  border-left: 0;
+}
+
+.mission-stage .segmented button.on {
+  background: none;
+  color: var(--color-text);
+  border-bottom-color: var(--color-text);
+}
+
+.mission-stage .segmented-label {
+  padding: 0;
+}
+
 @media (max-width: 1100px) {
   .site-console {
     grid-template-columns: minmax(0, 1fr);
@@ -2435,6 +3040,22 @@ input[type="range"] {
   }
   .planner-badge,
   .planner[data-stage="planning"] .phase-rail {
+    display: none;
+  }
+  /* phone: the map and the brief scroll in the space above the sidebar sheet */
+  .plan-stage {
+    top: 56px;
+    left: 8px;
+    right: 8px;
+    bottom: calc(62vh + 16px);
+    gap: 24px;
+  }
+  .moon-map-disc {
+    width: min(100% - 48px, 320px);
+    min-width: 0;
+  }
+  /* small screen: only the chosen site keeps its name on the map (the list names them all) */
+  .moon-pin:not([aria-pressed="true"]) .moon-pin-label {
     display: none;
   }
 }

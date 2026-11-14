@@ -3035,3 +3035,29 @@ Las trayectorias ILLUSTRATIVE, los datos SYNTHETIC y toda desviación de la spec
 - **Desviaciones de la spec / cambios en la guía:** ninguna. Detalle visual declarado en «About & credits».
 - **Problemas abiertos:** repetir `npm --prefix web run fps` con el portátil enchufado antes de la entrega (8.7).
 - **Siguiente tarea:** T5.2.e (revisión del humano) y la Fase 7.
+
+## AJUSTE · Rediseño del Mission Planner (REDIS + 3C)
+
+- **Tarea:** petición del humano (fuera de la guía, decisión A8). Base: el artefacto REDIS; pantalla 1 combinada con el diseño 3C («Atlas Porthole»); pantalla 3 con el estilo 3C; pantallas 4 y 5 omitidas; botón para ocultar la vista 2D en el sitio.
+- **Qué se hizo:**
+  - **Planificación en 2D** (`views/PlannerView.tsx`): sin globo 3D. La escena (`SceneHost`) solo se monta en el viaje; el renderizador y su único contexto WebGL se reutilizan como antes.
+  - **Mapa lunar** (`components/MoonMap.tsx`): el mapa de iluminación media de LOLA (Mazarico et al. 2011, el mismo de la capa polar 3D, T6.2) en un círculo, con un pin por sitio en su posición real (estereográfica polar, `lib/moonMap.ts`, inversa de `polarToLonLat`). El pin elegido es ámbar; si el sitio tiene noche en la estancia, el pin es un anillo (forma, no solo color). Una línea une el sitio elegido con el más cercano y da la distancia (40 km entre Connecting Ridge y de Gerlache Rim 2).
+  - **Panel del sitio** (`views/SiteBrief.tsx`, `lib/siteBrief.ts`): coordenadas y altitud, nombre en Instrument Serif, una frase generada solo con los datos del sitio (cuándo se pone el Sol y hacia dónde, la noche más larga frente al límite del usuario si lo fijó, la Tierra), franjas de 3 px de Sol y Tierra con su cuenta atrás, tres métricas, «Same day, other sites» (distancia y diferencia de Sol) y los botones «Land at …» y «Pin to compare».
+  - **Barra lateral:** calendario arriba como en REDIS. La estancia es texto subrayado y la lista de sitios lleva la duración de la noche («Sunlit all stay» / «34 h night»).
+  - **«Land at …»** abre el viaje directamente en el sitio, en pausa y a la hora de llegada. «Launch» sigue reproduciendo el viaje completo.
+  - **En el sitio** (`views/SiteLayout.tsx`, `views/TimeLeft.tsx`): la tarjeta «Time left» cuenta hasta la próxima puesta del Sol y de la Tierra con la serie de un año (puede pasar del fin de la estancia), con fecha UTC, línea fina y lo que viene después. La consola 2D tiene a la derecha dos pestañas: «What happens next» (eventos ordenados) y «Window metrics» (caja de métricas y tabla contra los planes anclados). «Hide 2D view» pliega la consola y deja el 3D a la vista; «Show 2D view» la recupera. Cinta temporal fina (`TimeRibbon thin`) y conmutadores subrayados.
+  - Datos: `DataStore.illumination()` valida la cabecera del mapa con zod. Textos en `strings.ts` (inglés).
+- **Cómo se verificó:**
+  ```
+  $ npm --prefix web run typecheck → sin errores
+  $ npm --prefix web test → 274 passed (45 archivos; antes 266)
+  $ npm --prefix web run build → OK
+  ```
+  - `tests/moonMap.test.ts` (nuevo): posiciones de los pines frente a pyproj con la proyección del propio mapa (±0,05 %), distancias, y Haworth con llegada el 11 ene 2027: ocaso a 5 d 14 h hacia el este (16 ene 14:00 UTC), noche de 36,5 h, puesta de la Tierra el 26 ene 20:30 UTC. Son las mismas cifras de REDIS.
+  - `tests/plannerSidebar.test.tsx`: prueba nueva del flujo (pin → frase → «Land at» → «Time left» → pestañas → ocultar y mostrar la vista 2D). Se ajustaron dos pruebas: ya no hay escena 3D al planificar, y la tarjeta del sitio se llama «Time left».
+  - Navegador (build en el puerto 4173), 1920×1080, 1366×768 y 375×812: sin errores en consola y sin scroll horizontal. El 3D del sitio se ve entero al ocultar la vista 2D.
+- **Desviaciones de la spec / cambios en la guía:** el globo 3D de la etapa de planificación (A7, diseño A2) se sustituye por el mapa 2D. El 3D sigue siendo solo para el plan elegido (spec 4) y los paneles 2D no usan WebGL (regla 7). El mapa de iluminación es contexto: ninguna métrica sale de él.
+- **Problemas abiertos:**
+  - Con dos pestañas abriendo WebGL a la vez, el navegador integrado perdió el contexto y la escena quedó en blanco tras restaurarse. Con una sola pestaña no pasó. Revisar la restauración del contexto en `renderer.ts`.
+  - Hay que regenerar las capturas (`npm --prefix web run screens`) para `docs/figures/screens/`.
+- **Siguiente tarea:** revisión del humano; después T5.2.e y la Fase 7.

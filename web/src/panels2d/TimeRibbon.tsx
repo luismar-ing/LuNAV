@@ -10,20 +10,41 @@ import { useApp } from "../store/appStore";
 interface Props {
   series: PlanWindowSeries;
   compareTime: number; // hours since arrival
+  /** thin lanes (planner redesign, 3C style), for the site console; the tray keeps the standard ones */
+  thin?: boolean;
 }
 
 // two lanes: Sun on top (orange), Earth below (blue). Each lane has its own colour, so "both" is simply
 // both lanes lit and the state reads by position as well as by colour (spec 9, decision A7).
-const LANE_SUN = { y: 2, h: 15 };
-const LANE_EARTH = { y: 19, h: 15 };
-const LABEL_Y = 50;
 // battery lane (T6.4.b, extra): below the two lanes, the labels move under it
-const LANE_BATTERY = { y: 40, h: 18 };
-const LABEL_Y_BATTERY = 72; // the usual labels, under the battery lane
-const BATTERY_LABEL_Y = 88; // the battery's own line
+const STANDARD = {
+  sun: { y: 2, h: 15 },
+  earth: { y: 19, h: 15 },
+  labelY: 50,
+  battery: { y: 40, h: 18 },
+  labelYBattery: 72, // the usual labels, under the battery lane
+  batteryLabelY: 88, // the battery's own line
+  height: 56,
+  heightBattery: 94,
+};
+const THIN = {
+  sun: { y: 4, h: 5 },
+  earth: { y: 13, h: 5 },
+  labelY: 34,
+  battery: { y: 24, h: 10 },
+  labelYBattery: 50,
+  batteryLabelY: 64,
+  height: 38,
+  heightBattery: 70,
+};
 
 /** Time ribbon of a plan (spec 8.1): Sun / Earth / both / none over the window, longest dark stretch outlined. */
-export const TimeRibbon = memo(function TimeRibbon({ series, compareTime }: Props) {
+export const TimeRibbon = memo(function TimeRibbon({ series, compareTime, thin = false }: Props) {
+  const G = thin ? THIN : STANDARD;
+  const LANE_SUN = G.sun;
+  const LANE_EARTH = G.earth;
+  const LANE_BATTERY = G.battery;
+  const BATTERY_LABEL_Y = G.batteryLabelY;
   const ref = useRef<HTMLDivElement>(null);
   const [w, setW] = useState(0);
   useEffect(() => {
@@ -38,7 +59,7 @@ export const TimeRibbon = memo(function TimeRibbon({ series, compareTime }: Prop
 
   const energy = useApp((s) => s.energyModel);
   const battery = useMemo(() => (energy ? batteryRun(series.sunVis, series.stepMin) : null), [energy, series]);
-  const labelY = battery ? LABEL_Y_BATTERY : LABEL_Y;
+  const labelY = battery ? G.labelYBattery : G.labelY;
   const runs = useMemo(() => stateRuns(series.sunVis, series.earthVis), [series]);
   const dark = useMemo(() => longestZeroRun(series.sunVis), [series]);
   const darkH = dark ? ((dark.end - dark.start) * series.stepMin) / 60 : 0;
@@ -50,9 +71,9 @@ export const TimeRibbon = memo(function TimeRibbon({ series, compareTime }: Prop
     : STRINGS.ribbon.ariaNoDark;
 
   return (
-    <div ref={ref} className="ribbon" data-testid="ribbon" data-dark-start={dark?.start} data-dark-h={darkH}>
+    <div ref={ref} className={`ribbon${thin ? " thin" : ""}`} data-testid="ribbon" data-dark-start={dark?.start} data-dark-h={darkH}>
       {w > 0 && (
-        <svg width={w} height={battery ? 94 : 56} role="img" aria-label={battery ? `${label} ${STRINGS.ribbon.batteryAria(battery.minSoc, (battery.emptySamples * series.stepMin) / 60)}` : label}>
+        <svg width={w} height={battery ? G.heightBattery : G.height} role="img" aria-label={battery ? `${label} ${STRINGS.ribbon.batteryAria(battery.minSoc, (battery.emptySamples * series.stepMin) / 60)}` : label}>
           <rect className="rib-bg" x={0} y={LANE_SUN.y} width={w} height={LANE_EARTH.y + LANE_EARTH.h - LANE_SUN.y} fill={COLORS.dark} />
           {runs.map((r) => {
             const sun = r.state === "both" || r.state === "sun";
@@ -81,12 +102,12 @@ export const TimeRibbon = memo(function TimeRibbon({ series, compareTime }: Prop
               height={LANE_EARTH.y + LANE_EARTH.h - LANE_SUN.y + 2}
               fill="none"
               stroke={COLORS.textMuted}
-              strokeWidth={1.5}
+              strokeWidth={thin ? 1 : 1.5}
               strokeDasharray="4 2"
             />
           )}
           {/* compareTime cursor */}
-          <line className="rib-cursor" x1={x(Math.min(k + 0.5, series.n))} x2={x(Math.min(k + 0.5, series.n))} y1={0} y2={LANE_EARTH.y + LANE_EARTH.h + 2} stroke={COLORS.text} strokeWidth={1.5} />
+          <line className="rib-cursor" x1={x(Math.min(k + 0.5, series.n))} x2={x(Math.min(k + 0.5, series.n))} y1={0} y2={LANE_EARTH.y + LANE_EARTH.h + 2} stroke={COLORS.text} strokeWidth={thin ? 1 : 1.5} />
           {battery && (
             <g className="rib-battery" data-testid="battery" data-min-soc={battery.minSoc.toFixed(3)}>
               <title>{STRINGS.ribbon.batteryTitle(ASSUMED_BATTERY)}</title>
