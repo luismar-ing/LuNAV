@@ -3,8 +3,8 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import type { Site, Timeseries } from "../src/lib/contract";
-import { compass, distanceKm, fmtDuration, fmtUtc, mapFraction, nextChange, polarXY, sampleIndex } from "../src/lib/moonMap";
-import { readAt, story, upcoming, visibleSpans } from "../src/lib/siteBrief";
+import { distanceKm, fmtDuration, fmtUtc, mapFraction, nextChange, polarXY, sampleIndex } from "../src/lib/moonMap";
+import { readAt, upcoming, visibleSpans } from "../src/lib/siteBrief";
 import { polarToLonLat } from "../src/scene3d/terrain";
 
 const DATA = join(__dirname, "..", "public", "data");
@@ -45,10 +45,7 @@ describe("Moon map geometry", () => {
     expect(distanceKm(site("haworth"), site("haworth"))).toBe(0);
   });
 
-  it("compass points and formats", () => {
-    expect(compass(0)).toBe("north");
-    expect(compass(96.6)).toBe("east");
-    expect(compass(-45)).toBe("north-west");
+  it("formats", () => {
     expect(fmtDuration(134)).toBe("5 d 14 h");
     expect(fmtDuration(18.5)).toBe("18 h 30 m");
     expect(fmtDuration(2)).toBe("2 h");
@@ -67,18 +64,12 @@ describe("countdowns from the visibility series", () => {
     expect(nextChange([1], 3, 30)).toBeNull();
   });
 
-  it("Haworth, landing 11 Jan 2027: sunset after 5 d 14 h to the east, 36.5 h of night, Earth sets after the stay", () => {
+  it("Haworth, landing 11 Jan 2027: sunset after 5 d 14 h, 36.5 h of night, Earth sets after the stay", () => {
     const r = readAt(ts, jan11);
     expect(r.k).toBe(sampleIndex(ts, jan11));
     expect(r.sun).toEqual({ visible: true, hours: 134, lastsH: 36.5 });
-    expect(r.setDirection).toBe("east");
     expect(r.earth?.visible).toBe(true);
     expect(r.earth?.hours).toBe(380.5);
-    // window metrics of the same plan: longest dark 34 h (the night runs past the end of the stay)
-    expect(story(r, 168, 34, null)).toBe(
-      "The Sun sets 5 d 14 h after landing, behind the terrain to the east. The longest night of the stay lasts 34 h. Earth stays in view the whole stay.",
-    );
-    expect(story(r, 168, 34, 24)).toContain("34 h, 10 h over your 24 h limit.");
   });
 
   it("the Sun track over the stay and what happens next", () => {

@@ -4,7 +4,7 @@ import { lookup } from "../lib/constraints";
 import { parseInstant } from "../lib/contract";
 import { describeError } from "../lib/errors";
 import { distanceKm, fmtDuration, type Change } from "../lib/moonMap";
-import { readAt, story, visibleSpans, type Span } from "../lib/siteBrief";
+import { readAt, visibleSpans, type Span } from "../lib/siteBrief";
 import { STRINGS } from "../lib/strings";
 import { fmtMetric, num, round } from "../lib/why";
 import { useApp } from "../store/appStore";
@@ -13,15 +13,13 @@ import { useTimeseries } from "./useTimeseries";
 const fmtDate = (ms: number) => new Date(ms).toLocaleDateString("en-GB", { day: "numeric", month: "short", timeZone: "UTC" });
 
 /**
- * The chosen site, told in plain words (planner redesign, 3C style): where it is, one sentence on what the stay
- * looks like, thin Sun and Earth tracks with their countdowns, three window metrics, the same day at the other
+ * The chosen site (planner redesign, 3C style): where it is, thin Sun and Earth tracks with their countdowns, three window metrics, the same day at the other
  * sites, and the way on: "Land at …" opens the site view, "Pin to compare" adds the plan to the comparison.
  */
 export function SiteBrief({ onLand }: { onLand(): void }) {
   const plan = useApp((s) => (s.selectedPlanId ? s.plansById.get(s.selectedPlanId) : undefined));
   const sites = useApp((s) => s.sites);
   const index = useApp((s) => (plan ? s.windowIndex[plan.window_days] : undefined));
-  const limit = useApp((s) => s.constraints.maxDarkH);
   const pinned = useApp((s) => (plan ? s.comparePlans.includes(plan.id) : false));
   const pinPlan = useApp((s) => s.pinPlan);
   const unpinPlan = useApp((s) => s.unpinPlan);
@@ -55,12 +53,7 @@ export function SiteBrief({ onLand }: { onLand(): void }) {
       </div>
 
       {error !== null && <ErrorMessage what={STRINGS.errors.site} info={describeError(error)} onRetry={retry} />}
-      {error === null && !reading && <p className="brief-story muted">{STRINGS.loading}</p>}
-      {reading && m && (
-        <p className="brief-story" role="status" data-testid="brief-story">
-          {story(reading, stayH, m.longest_dark_h, limit)}
-        </p>
-      )}
+      {error === null && !reading && <p className="muted-note">{STRINGS.loading}</p>}
 
       {reading && spans && (
         <div className="brief-tracks" role="group" aria-label={STRINGS.planner.tracksAria(site.name)}>

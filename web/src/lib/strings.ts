@@ -37,7 +37,7 @@ export const STRINGS = {
     nextDay: "Next day",
     strip: (site: string) => `Arrival days around the chosen date, coloured by the combined score at ${site}`,
     dayCell: (day: string, score: string | null) => (score === null ? day : `${day}, score ${score}`),
-    stripHint: "Brighter days score higher for this site. Hover a day for its score.",
+    stripHint: "Brighter days score higher for this site.",
     stay: "Stay on the surface",
     days: (d: number) => `${d} days`,
     site: "Landing site",
@@ -385,7 +385,7 @@ export const STRINGS = {
     speedLabel: (h: number) => (h === 24 ? "1 d/s" : `${h} h/s`),
   },
   trayTitle: "Comparison tray",
-  trayEmpty: "Pin 2 to 5 plans from the calendar to compare them side by side.",
+  trayEmpty: "Pin 2 to 5 plans with “Pin to compare” under the site to see them side by side.",
   credits: {
     open: "About & credits",
     title: "About & credits",

@@ -155,7 +155,7 @@ describe("Mission Planner sidebar (A2)", () => {
     expect(appStore.getState().levelB).toBe(true);
   });
 
-  it("planner redesign: map pins pick the site, the brief tells the stay, 'Land at' opens the site paused; the 2D view folds away", async () => {
+  it("planner redesign: map pins pick the site, the brief shows the stay, 'Land at' opens the site paused; the 2D view folds away", async () => {
     const st = appStore.getState();
     st.setScreen("planner");
     st.selectPlan("haworth_20270111_7d");
@@ -168,11 +168,9 @@ describe("Mission Planner sidebar (A2)", () => {
     expect(within(map).getByRole("button", { name: "Haworth" }).getAttribute("aria-pressed")).toBe("true");
     expect(within(map).getByText("52 km")).toBeTruthy(); // to Malapert Massif, the nearest other site
 
-    // the sidebar names each site's night for these dates; the brief says it in words (same data as REDIS)
+    // the sidebar names each site's night for these dates (same data as REDIS); the brief has no sentence (A9)
     await waitFor(() => expect(sidebar().getByRole("button", { name: /^Haworth/ }).textContent).toContain("34 h night"));
-    expect((await screen.findByTestId("brief-story", {}, { timeout: 5000 })).textContent).toBe(
-      "The Sun sets 5 d 14 h after landing, behind the terrain to the east. The longest night of the stay lasts 34 h. Earth stays in view the whole stay.",
-    );
+    expect(screen.queryByTestId("brief-story")).toBeNull();
     expect(within(screen.getByTestId("brief-others")).getAllByRole("listitem")[0].textContent).toMatch(/^Malapert Massif52 km\+20\.2 % sun$/);
 
     fireEvent.click(screen.getByRole("button", { name: "Land at Haworth" }));

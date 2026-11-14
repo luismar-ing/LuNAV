@@ -40,13 +40,6 @@ export function distanceKm(a: { lat: number; lon: number }, b: { lat: number; lo
   return (MOON_RADIUS_M / 1000) * Math.acos(Math.min(1, Math.max(-1, cos)));
 }
 
-const POINTS = ["north", "north-east", "east", "south-east", "south", "south-west", "west", "north-west"] as const;
-
-/** Compass point (8 winds) of an azimuth measured from local north, clockwise. */
-export function compass(azDeg: number): (typeof POINTS)[number] {
-  return POINTS[Math.round((((azDeg % 360) + 360) % 360) / 45) % 8];
-}
-
 /** Sample of a timeseries at an instant (floor), or −1 / n outside it. */
 export function sampleIndex(ts: Pick<Timeseries, "start_utc" | "step_min" | "n">, ms: number): number {
   const k = Math.floor((ms - parseInstant(ts.start_utc)) / (ts.step_min * 60_000));

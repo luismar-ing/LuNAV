@@ -3061,3 +3061,26 @@ Las trayectorias ILLUSTRATIVE, los datos SYNTHETIC y toda desviación de la spec
   - Con dos pestañas abriendo WebGL a la vez, el navegador integrado perdió el contexto y la escena quedó en blanco tras restaurarse. Con una sola pestaña no pasó. Revisar la restauración del contexto en `renderer.ts`.
   - Hay que regenerar las capturas (`npm --prefix web run screens`) para `docs/figures/screens/`.
 - **Siguiente tarea:** revisión del humano; después T5.2.e y la Fase 7.
+
+## AJUSTE · Planificador sin scroll y bandeja sola
+
+- **Tarea:** petición del humano (decisión A9), sobre el rediseño A8.
+- **Qué se hizo:**
+  - **Panel del sitio** (`views/SiteBrief.tsx`): fuera la frase bajo el nombre. Con ella se borran `story()` (`lib/siteBrief.ts`), `setDirection` y `compass()` (`lib/moonMap.ts`), que solo la alimentaban.
+  - **Sin scroll** (`styles/tokens.css`): márgenes, huecos, alto de las celdas del calendario, filas de sitios y botones dependen de la altura de la ventana (`clamp` con `vh`). Cuando el mapa queda limitado por la altura, el panel del sitio toma el ancho que sobra y el nombre y los botones caben en menos líneas. La etiqueta ILLUSTRATIVE va en una línea y la etapa empieza justo debajo. Fuera el «Launch» fijo al fondo (ya no hace falta). La pista del calendario se acorta a «Brighter days score higher for this site.» (el valor sigue en el tooltip de cada día). El scroll queda solo como red en ventanas muy bajas, para no cortar nada.
+  - **«Search and compare»** (`views/CompareView.tsx`): solo la bandeja de comparación (con su interruptor de batería y el aviso SYNTHETIC si aplica). Fuera el calendario de llegadas, las restricciones de misión y «At the site». El texto de la bandeja vacía apunta a «Pin to compare». `Calendar`, `ConstraintControls` y `SiteSection` quedan en el código con sus pruebas propias, pero sin uso en la app.
+- **Cómo se verificó:**
+  ```
+  $ npm --prefix web run typecheck → sin errores
+  $ npm --prefix web test → 269 passed (45 archivos)
+  $ npm --prefix web run build → OK
+  ```
+  - Navegador (servidor de desarrollo), con Connecting Ridge (el nombre más largo): `scrollHeight == clientHeight` en la barra lateral y en la etapa a 1366×650, 1280×720, 1536×700, 1536×864, 1440×900 y 1920×1080; sin scroll horizontal; 375×812 sin scroll horizontal (en el teléfono la hoja sigue desplazándose, como antes). El cajón muestra solo «Comparison tray».
+  - `tests/integration.test.tsx` (T5.1.a/b) reescrito con las vistas que quedan: bandeja, mapa lunar, barra lateral, panel del sitio y vista 3D. Fuera las celdas del calendario, de las restricciones y de la sección del sitio. T5.1.b compara ahora la bandeja, la cinta, el texto «why» y las tres métricas del panel del sitio con la fila de `windows`.
+  - `tests/errors.test.tsx`: fuera el caso del calendario sin conexión (la vista ya no está en la app).
+- **Desviaciones de la spec / cambios en la guía:** la spec (2 y 8.0) pide calendario de calor y controles de restricciones en «Buscar». Se quitan del planificador a petición del humano (A9). La matriz de vistas enlazadas de T5.1.a queda reducida a las vistas de arriba.
+- **Problemas abiertos:**
+  - Si falla la descarga de `windows/*.json`, la barra lateral no avisa (antes lo hacía el calendario): las celdas quedan sin color y los sitios sin estado.
+  - Decidir si se borran `Calendar`, `ConstraintControls` y `SiteSection` o se recolocan en otra vista.
+  - Siguen abiertos los de la entrada anterior (contexto WebGL, capturas).
+- **Siguiente tarea:** revisión del humano; después T5.2.e y la Fase 7.

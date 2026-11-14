@@ -1829,23 +1829,25 @@ input[type="range"] {
   backdrop-filter: blur(var(--glass-blur));
 }
 
+/* fits the window without a scroll bar: spacing follows the window's height (the scroll stays only as a last
+   resort on very short windows, so nothing is ever cut off) */
 .mission-sidebar {
   position: absolute;
   left: 24px;
-  top: 24px;
-  bottom: 24px;
+  top: clamp(12px, 2.2vh, 24px);
+  bottom: clamp(12px, 2.2vh, 24px);
   z-index: 2;
   width: 360px;
-  padding: 24px;
+  padding: clamp(14px, 2vh, 24px) 24px;
   display: flex;
   flex-direction: column;
-  gap: 22px;
+  gap: clamp(10px, 1.6vh, 22px);
   overflow-y: auto;
 }
 
 .mission-sidebar > *,
 .site-card > * {
-  flex: none; /* scroll instead of squeezing the sections */
+  flex: none;
 }
 
 .sidebar-mode {
@@ -1858,7 +1860,7 @@ input[type="range"] {
 .sidebar-block {
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: clamp(6px, 1.1vh, 10px);
 }
 
 .sidebar-label {
@@ -1904,7 +1906,7 @@ input[type="range"] {
 }
 
 .day-cell {
-  height: 26px;
+  height: clamp(18px, 2.8vh, 26px);
   padding: 0;
   border: 0;
   border-radius: 3px;
@@ -1965,7 +1967,7 @@ input[type="range"] {
   justify-content: space-between;
   align-items: baseline;
   gap: var(--space-sm);
-  padding: 10px 4px;
+  padding: clamp(6px, 1.1vh, 10px) 4px;
   border: 0;
   border-top: 1px solid var(--color-border);
   border-radius: 0;
@@ -2015,12 +2017,6 @@ input[type="range"] {
   display: flex;
   flex-direction: column;
   gap: var(--space-sm);
-  /* on short screens the sidebar scrolls: Launch stays pinned to its bottom edge, over the list */
-  position: sticky;
-  bottom: -24px;
-  margin-bottom: -24px;
-  padding: 12px 0 24px;
-  background: linear-gradient(to bottom, transparent, var(--color-panel) 14px);
 }
 
 .btn.primary {
@@ -2036,18 +2032,18 @@ input[type="range"] {
 }
 
 .launch-btn {
-  padding: 14px;
+  padding: clamp(10px, 1.6vh, 14px);
   border-radius: 14px;
   font-size: var(--font-md);
 }
 
 .planner-badge {
   position: absolute;
-  top: 84px;
+  top: clamp(68px, 8vh + 16px, 84px);
   right: 24px;
   z-index: 2;
   margin: 0;
-  max-width: 28rem;
+  max-width: 44rem; /* one line over the planning stage, which starts right under it */
   text-align: right;
   font-size: var(--font-sm);
   color: var(--color-text-muted);
@@ -2108,20 +2104,21 @@ input[type="range"] {
 
 .plan-stage {
   position: absolute;
-  top: 128px;
-  bottom: 64px;
+  top: clamp(104px, 12vh + 24px, 128px);
+  bottom: 56px;
   left: 408px;
   right: 24px;
   z-index: 1;
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(300px, min(34rem, 44%));
+  /* when the window is short the porthole is limited by the height: the brief takes the width it leaves */
+  grid-template-columns: minmax(0, 1fr) minmax(300px, min(40rem, max(min(34rem, 44%), calc(100% - 48px - (100vh - 260px)))));
   gap: 48px;
   align-items: start; /* the brief grows once the series is in: start, so the map never jumps */
   overflow-y: auto;
 }
 
 .plan-stage .site-brief {
-  padding-top: 24px;
+  padding-top: clamp(0px, 4vh - 20px, 24px);
 }
 
 .moon-map {
@@ -2259,7 +2256,7 @@ input[type="range"] {
   min-width: 0;
   display: flex;
   flex-direction: column;
-  gap: 22px;
+  gap: clamp(10px, 1.8vh, 22px);
 }
 
 .brief-where {
@@ -2272,27 +2269,14 @@ input[type="range"] {
   margin: 8px 0 0;
   font-family: var(--font-serif);
   font-weight: 400;
-  font-size: clamp(40px, 3.4vw, 60px);
+  font-size: clamp(32px, min(3.4vw, 5.6vh), 60px);
   line-height: 1.02;
-}
-
-.brief-story {
-  margin: 0;
-  font-family: var(--font-serif);
-  font-size: clamp(22px, 1.8vw, 30px);
-  line-height: 1.25;
-}
-
-.brief-story.muted {
-  font-family: inherit;
-  font-size: var(--font-sm);
-  color: var(--color-text-muted);
 }
 
 .brief-tracks {
   display: grid;
   grid-template-columns: 52px minmax(0, 1fr) auto;
-  gap: 12px 14px;
+  gap: clamp(8px, 1.2vh, 12px) 14px;
   align-items: center;
   font-size: var(--font-sm);
   color: var(--color-text-muted);
@@ -2363,7 +2347,7 @@ input[type="range"] {
 .brief-metrics dd {
   margin: 0;
   font-family: var(--font-serif);
-  font-size: 30px;
+  font-size: clamp(24px, 3.4vh, 30px);
   line-height: 1.1;
   font-variant-numeric: tabular-nums;
 }
@@ -2389,7 +2373,7 @@ input[type="range"] {
   display: grid;
   grid-template-columns: minmax(0, 1fr) 70px 112px;
   gap: 12px;
-  padding: 8px 0;
+  padding: clamp(3px, 0.6vh, 8px) 0;
   border-top: 1px solid var(--color-border);
   font-variant-numeric: tabular-nums;
 }
@@ -2418,6 +2402,10 @@ input[type="range"] {
   display: flex;
   flex-wrap: wrap;
   gap: 12px;
+}
+
+.brief-actions .btn.pill {
+  padding: clamp(8px, 1.4vh, 12px) 22px;
 }
 
 .brief-actions .btn.ghost {

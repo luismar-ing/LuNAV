@@ -1,11 +1,10 @@
 /**
- * Plain-language readings of a site's visibility series for the Mission Planner (planner redesign): the sentence
- * that sums up a plan, the Sun / Earth tracks over the stay, the countdowns and the list of what happens next.
+ * Plain-language readings of a site's visibility series for the Mission Planner (planner redesign): the Sun / Earth
+ * tracks over the stay, the countdowns and the list of what happens next.
  * Everything is built from the site's own one-year series and window metrics; nothing is made up to fill a gap.
  */
 import type { Timeseries } from "./contract";
-import { compass, fmtDuration, nextChange, sampleIndex, type Change } from "./moonMap";
-import { num } from "./why";
+import { nextChange, sampleIndex, type Change } from "./moonMap";
 
 /** A stretch of the stay, as fractions of it (0..1), where a body is above the terrain. */
 export interface Span {
@@ -33,8 +32,6 @@ export interface Reading {
   k: number;
   sun: Change | null;
   earth: Change | null;
-  /** compass point of the Sun when it next sets (null if it does not set within the series, or is down now) */
-  setDirection: string | null;
 }
 
 /** Sun and Earth state at an instant of a site's series. */
@@ -42,39 +39,7 @@ export function readAt(ts: Timeseries, ms: number): Reading {
   const k = sampleIndex(ts, ms);
   const sun = nextChange(ts.sun_vis, k, ts.step_min);
   const earth = nextChange(ts.earth_vis, k, ts.step_min);
-  let setDirection: string | null = null;
-  if (sun?.visible && sun.hours !== null) {
-    const j = k + Math.round((sun.hours * 60) / ts.step_min) - 1; // last sample with the Sun up
-    setDirection = compass(ts.sun_az[j] * ts.angle_scale);
-  }
-  return { k, sun, earth, setDirection };
-}
-
-/**
- * The sentence that sums up a plan, from the moment of landing: when the Sun goes (or comes back), the longest
- * night of the stay against the user's own limit (only when one is set), and the Earth.
- */
-export function story(r: Reading, stayH: number, longestDarkH: number, limitH: number | null): string {
-  const parts: string[] = [];
-  const night = longestDarkH > 0 ? `The longest night of the stay lasts ${num(longestDarkH)} h${limitH !== null && longestDarkH > limitH ? `, ${num(longestDarkH - limitH)} h over your ${num(limitH)} h limit` : ""}.` : "";
-  const sun = r.sun;
-  if (!sun) return "";
-  if (sun.visible && (sun.hours === null || sun.hours >= stayH)) {
-    parts.push(sun.hours === null ? "The Sun stays up the whole stay." : `The Sun stays up the whole stay and sets ${fmtDuration(sun.hours)} after landing.`);
-  } else if (sun.visible) {
-    parts.push(`The Sun sets ${fmtDuration(sun.hours as number)} after landing, behind the terrain to the ${r.setDirection ?? "horizon"}.`);
-    if (night) parts.push(night);
-  } else {
-    parts.push(sun.hours === null ? "You land in shadow, and the Sun does not come back within the data." : `You land in shadow; the Sun comes back ${fmtDuration(sun.hours)} later.`);
-    if (night && longestDarkH > (sun.hours ?? 0)) parts.push(night);
-  }
-  const earth = r.earth;
-  if (earth) {
-    if (earth.visible && (earth.hours === null || earth.hours >= stayH)) parts.push("Earth stays in view the whole stay.");
-    else if (earth.visible) parts.push(`Earth sets ${fmtDuration(earth.hours as number)} after landing.`);
-    else parts.push(earth.hours === null ? "Earth stays below the skyline." : `Earth is below the skyline at landing and rises ${fmtDuration(earth.hours)} later.`);
-  }
-  return parts.join(" ");
+  return { k, sun, earth };
 }
 
 export type EventKind = "sunset" | "sunrise" | "earthset" | "earthrise" | "end";

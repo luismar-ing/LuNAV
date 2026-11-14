@@ -2,14 +2,15 @@
 /**
  * T5.1.a: linked views (spec 4.1: "choosing a plan, a site or a time in one view updates the others", spec 8).
  * One test per cell of the view × state matrix (the matrix itself is in PROGRESS.md): the change is made
- * through the UI of the source view, and every other view is checked in the DOM.
+ * through the UI of the source view, and every other view is checked in the DOM. Since decision A9 the views are
+ * the comparison tray, the Moon map, the sidebar, the site brief and the live view (the calendar, the constraint
+ * controls and the site section left the search panel).
  */
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { App } from "../src/App";
-import { cellRect, makeLayout } from "../src/lib/calendar";
 import { timelineOf } from "../src/lib/mission";
 import { loadPlanData } from "../src/lib/planData";
 import { longestZeroRun } from "../src/lib/ribbon";
@@ -66,7 +67,7 @@ beforeAll(async () => {
 beforeEach(() => {
   const st = appStore.getState();
   st.setScreen("planner"); // the compare and live views live in the Mission Planner screen (A7)
-  st.setDrawerOpen(true); // calendar, tray and site section: the search panel (TR.2.b)
+  st.setDrawerOpen(true); // the comparison tray: the search panel (TR.2.b, A9)
   st.setViewMode("compare");
   for (const id of [...st.comparePlans]) st.unpinPlan(id);
   st.selectPlan(null);
@@ -79,60 +80,44 @@ afterEach(cleanup);
 
 const plan = (id: string) => appStore.getState().plansById.get(id)!;
 const arrivalMs = (id: string) => Date.parse(plan(id).arrival_utc);
-const canvas = () => screen.getByTestId("calendar-canvas");
 const tray = () => screen.getByTestId("tray-grid");
 const panelOf = (id: string) => tray().querySelector<HTMLElement>(`[data-plan-id="${id}"]`)!;
-const siteArea = () => screen.getByRole("region", { name: "At the site" });
-
-/** Client coordinates of a calendar cell (same layout maths as the component). */
-function cellPoint(siteId: string, isoDate: string): { clientX: number; clientY: number } {
-  const index = appStore.getState().windowIndex[7]!;
-  const layout = makeLayout(W, index.siteIds.length, index.nDays);
-  const day = Math.round((Date.parse(isoDate) - Date.parse(index.firstArrival)) / 86_400_000);
-  const [x, y, w, h] = cellRect(layout, index.siteIds.indexOf(siteId), day);
-  return { clientX: x + w / 2, clientY: y + h / 2 };
-}
+const map = () => within(screen.getByTestId("moon-map"));
+const sidebar = () => within(screen.getByTestId("mission-sidebar"));
+const brief = () => screen.getByTestId("site-brief");
+const escapeRe = (s: string) => s.replace(/[()]/g, "\\$&");
 
 async function renderApp(pinned: string[] = [], selected: string | null = null) {
   const st = appStore.getState();
   for (const id of pinned) st.pinPlan(id);
   if (selected) st.selectPlan(selected);
   render(<App />);
-  await waitFor(() => expect(canvas().dataset.pinnedCells).toBe(String(pinned.length)));
+  await screen.findByTestId("search-drawer");
   if (pinned.length) await waitFor(() => expect(screen.getAllByTestId("plan-panel")).toHaveLength(pinned.length));
+  if (selected) await screen.findByTestId("site-brief");
 }
 
-async function siteHeading(name: RegExp) {
-  await waitFor(() => expect(within(siteArea()).getByText(name, { selector: "strong" })).toBeTruthy());
+/** The site the planning stage shows: its pin on the Moon map, its row in the sidebar and the brief's title. */
+async function stageShows(site: string) {
+  await waitFor(() => expect(within(brief()).getByRole("heading", { level: 2 }).textContent).toBe(site));
+  expect(map().getByRole("button", { name: site }).getAttribute("aria-pressed")).toBe("true");
+  expect(sidebar().getByRole("button", { name: new RegExp(`^${escapeRe(site)}`) }).getAttribute("aria-pressed")).toBe("true");
 }
 
 /* ------------------------------------------------------------------ plan */
 
 describe("plan", () => {
-  it("calendar click → tray panel selected, site section shows the plan, calendar marks the cell", async () => {
-    await renderApp([A, B]);
-    const at = cellPoint("malapert_massif", "2027-10-15");
-    fireEvent.mouseDown(canvas(), at);
-    fireEvent.mouseUp(canvas(), at);
-    expect(appStore.getState().selectedPlanId).toBe(B);
-    expect(canvas().dataset.selectedCell).toMatch(/^malapert_massif:/);
-    expect(panelOf(B).className).toContain("selected");
-    expect(panelOf(A).className).not.toContain("selected");
-    await siteHeading(/Malapert Massif/);
-    expect(canvas().dataset.selectedSite).toBe("malapert_massif");
-  });
-
-  it("tray title → calendar cell and site, site section", async () => {
+  it("tray title → plan selected: tray panel, Moon map pin, sidebar (site and date) and brief", async () => {
     await renderApp([A, B]);
     fireEvent.click(within(panelOf(A)).getByRole("button", { name: /Haworth/, pressed: false }));
     expect(appStore.getState().selectedPlanId).toBe(A);
-    expect(canvas().dataset.selectedCell).toMatch(/^haworth:/);
-    expect(canvas().dataset.selectedSite).toBe("haworth");
-    expect(screen.getByRole("button", { name: /^Select Haworth/ }).getAttribute("aria-pressed")).toBe("true");
-    await siteHeading(/Haworth/);
+    expect(panelOf(A).className).toContain("selected");
+    expect(panelOf(B).className).not.toContain("selected");
+    await stageShows("Haworth");
+    expect((sidebar().getByLabelText("Arrival date (UTC)") as HTMLInputElement).value).toBe("2027-03-09");
   });
 
-  it("tray 3D button → live view on that plan; a thumbnail switches it; back in compare every view shows the new plan", async () => {
+  it("tray 3D button → live view on that plan; a thumbnail switches it; back in planning every view shows the new plan", async () => {
     await renderApp([A, B, C]);
     fireEvent.click(screen.getByRole("button", { name: "Open Haworth in the 3D live view" }));
     expect(await screen.findByRole("heading", { name: "Live view · Haworth" })).toBeTruthy();
@@ -143,91 +128,69 @@ describe("plan", () => {
     fireEvent.keyDown(window, { key: "Escape" });
     await waitFor(() => expect(screen.getAllByTestId("plan-panel")).toHaveLength(3));
     expect(panelOf(C).className).toContain("selected");
-    expect(canvas().dataset.selectedCell).toMatch(/^connecting_ridge:/);
-    await siteHeading(/Connecting Ridge/);
-  });
-
-  it("site section 'Open 3D view' → live view on the selected plan", async () => {
-    await renderApp([A], A);
-    await siteHeading(/Haworth/);
-    fireEvent.click(within(siteArea()).getByRole("button", { name: "Open 3D view" }));
-    expect(await screen.findByRole("heading", { name: "Live view · Haworth" })).toBeTruthy();
+    await stageShows("Connecting Ridge (Shackleton rim)");
   });
 });
 
 /* ------------------------------------------------------------------ pinned plans */
 
 describe("pinned plans", () => {
-  it("calendar double-click pins → tray panel, calendar marker, live thumbnails", async () => {
+  it("brief 'Pin to compare' → tray panel and live thumbnails", async () => {
+    const B2 = "malapert_massif_20270309_7d";
     await renderApp([A], A);
-    fireEvent.doubleClick(canvas(), cellPoint("malapert_massif", "2027-10-15"));
+    fireEvent.click(map().getByRole("button", { name: "Malapert Massif" }));
+    expect(appStore.getState().selectedPlanId).toBe(B2);
+    fireEvent.click(within(brief()).getByRole("button", { name: "Pin to compare" }));
     await waitFor(() => expect(screen.getAllByTestId("plan-panel")).toHaveLength(2));
-    expect(panelOf(B)).toBeTruthy();
-    expect(canvas().dataset.pinnedCells).toBe("2");
-    fireEvent.click(within(siteArea()).getByRole("button", { name: "Open 3D view" }));
+    expect(panelOf(B2)).toBeTruthy();
+    expect(within(brief()).getByRole("button", { name: "Pinned · remove" }).getAttribute("aria-pressed")).toBe("true");
+    fireEvent.click(screen.getByRole("button", { name: "Open Haworth in the 3D live view" }));
     const strip = await screen.findByTestId("thumb-strip");
-    await waitFor(() => expect(within(strip).getAllByTestId("thumb").map((t) => t.dataset.planId)).toEqual([B]));
+    await waitFor(() => expect(within(strip).getAllByTestId("thumb").map((t) => t.dataset.planId)).toEqual([B2]));
   });
 
-  it("tray × unpins → calendar marker and the site panel's comparison", async () => {
+  it("tray × unpins → the brief's pin button", async () => {
     await renderApp([A, B, C], A);
-    const table = await screen.findByTestId("site-compare");
-    await waitFor(() => expect(within(table).getByText(/Malapert Massif/)).toBeTruthy());
-    fireEvent.click(screen.getByRole("button", { name: "Remove Malapert Massif from the comparison" }));
+    expect(within(brief()).getByRole("button", { name: "Pinned · remove" }).getAttribute("aria-pressed")).toBe("true");
+    fireEvent.click(screen.getByRole("button", { name: "Remove Haworth from the comparison" }));
     await waitFor(() => expect(screen.getAllByTestId("plan-panel")).toHaveLength(2));
-    expect(canvas().dataset.pinnedCells).toBe("2");
-    await waitFor(() => expect(within(screen.getByTestId("site-compare")).queryByText(/Malapert Massif/)).toBeNull());
+    expect(within(brief()).getByRole("button", { name: "Pin to compare" }).getAttribute("aria-pressed")).toBe("false");
   });
 });
 
 /* ------------------------------------------------------------------ site */
 
 describe("site", () => {
-  it("calendar site name → site marked, plan moves to the same date at that site, tray and site section follow", async () => {
-    await renderApp([A, "malapert_massif_20270309_7d"], A);
-    fireEvent.click(screen.getByRole("button", { name: /^Select Malapert Massif/ }));
+  it("Moon map pin → plan moves to the same date at that site; sidebar, tray and brief follow", async () => {
+    const M = "malapert_massif_20270309_7d";
+    await renderApp([A, M], A);
+    fireEvent.click(map().getByRole("button", { name: "Malapert Massif" }));
     expect(appStore.getState().selectedSite).toBe("malapert_massif");
-    expect(appStore.getState().selectedPlanId).toBe("malapert_massif_20270309_7d"); // same arrival, same L
-    expect(canvas().dataset.selectedSite).toBe("malapert_massif");
-    expect(canvas().dataset.selectedCell).toMatch(/^malapert_massif:/);
-    expect(screen.getByRole("button", { name: /^Select Malapert Massif/ }).getAttribute("aria-pressed")).toBe("true");
-    expect(screen.getByRole("button", { name: /^Select Haworth/ }).getAttribute("aria-pressed")).toBe("false");
-    expect(panelOf("malapert_massif_20270309_7d").className).toContain("selected");
-    await siteHeading(/Malapert Massif/);
-    await waitFor(() => expect(siteArea().querySelector(".site-heading")!.textContent).toMatch(/Malapert Massif · Arrival 2027-03-09 · 7 days/));
+    expect(appStore.getState().selectedPlanId).toBe(M); // same arrival, same L
+    await stageShows("Malapert Massif");
+    expect(sidebar().getByRole("button", { name: /^Haworth/ }).getAttribute("aria-pressed")).toBe("false");
+    expect(panelOf(M).className).toContain("selected");
   });
 
-  it("without a selected plan, choosing a site only marks it", async () => {
-    await renderApp();
-    fireEvent.click(screen.getByRole("button", { name: /^Select Haworth/ }));
-    expect(canvas().dataset.selectedSite).toBe("haworth");
-    expect(appStore.getState().selectedPlanId).toBeNull();
+  it("sidebar site row → the Moon map pin and the brief", async () => {
+    await renderApp([], A);
+    fireEvent.click(sidebar().getByRole("button", { name: /^Nobile Rim 1/ }));
+    expect(appStore.getState().selectedPlanId).toBe("nobile_rim_1_20270309_7d");
+    await stageShows("Nobile Rim 1");
   });
 });
 
 /* ------------------------------------------------------------------ time */
 
 describe("time", () => {
-  it("tray scrubber → every panel, the site time control and the panorama", async () => {
+  it("tray scrubber → every panel and the selected plan's mission clock", async () => {
     await renderApp([A, B], A);
-    const panorama = await screen.findByTestId("panorama");
     fireEvent.change(screen.getByRole("slider", { name: "Time since arrival (all panels)" }), { target: { value: "30" } });
     for (const p of screen.getAllByTestId("plan-panel")) expect(within(p).getByTestId("silhouette").dataset.sample).toBe("60");
-    expect((screen.getByRole("slider", { name: "Mission time at the site" }) as HTMLInputElement).value).toBe("30");
-    expect(panorama.dataset.sample).toBe("60");
     expect(appStore.getState().missionTime).toBe(arrivalMs(A) + 30 * HOUR);
   });
 
-  it("site time control → panorama, every panel and the tray scrubber", async () => {
-    await renderApp([A, B], A);
-    const panorama = await screen.findByTestId("panorama");
-    fireEvent.change(screen.getByRole("slider", { name: "Mission time at the site" }), { target: { value: "45.5" } });
-    expect(panorama.dataset.sample).toBe("91");
-    for (const p of screen.getAllByTestId("plan-panel")) expect(within(p).getByTestId("silhouette").dataset.sample).toBe("91");
-    expect((screen.getByRole("slider", { name: "Time since arrival (all panels)" }) as HTMLInputElement).value).toBe("45.5");
-  });
-
-  it("live mission clock at the site → arrival panorama and thumbnails; back in compare the tray is at the same moment", async () => {
+  it("live mission clock at the site → arrival panorama and thumbnails; back in planning the tray is at the same moment", async () => {
     await renderApp([A, B], A);
     fireEvent.click(screen.getByRole("button", { name: "Open Haworth in the 3D live view" }));
     await screen.findByTestId("mission-controls");
@@ -257,27 +220,16 @@ describe("time", () => {
   });
 });
 
-/* ------------------------------------------------------------------ window length and constraints */
+/* ------------------------------------------------------------------ window length */
 
-describe("window length and constraints", () => {
-  it("calendar window L → same site and arrival with the new L in the site section and the calendar", async () => {
+describe("window length", () => {
+  it("sidebar stay L → same site and arrival with the new L in the sidebar and the brief", async () => {
     await renderApp([], A);
-    await siteHeading(/Haworth/);
-    // the calendar's own L control (the mission sidebar has one too, behind the search panel)
-    fireEvent.click(within(screen.getByTestId("search-drawer")).getByRole("button", { name: "14 days" }));
+    fireEvent.click(sidebar().getByRole("button", { name: "14 days" }));
     expect(appStore.getState().selectedPlanId).toBe("haworth_20270309_14d");
-    await waitFor(() => expect(within(siteArea()).getByText(/14 days/)).toBeTruthy());
-    await waitFor(() => expect(canvas().dataset.selectedCell).toMatch(/^haworth:/));
-  });
-
-  it("constraint control → calendar valid cells and the count", async () => {
-    await renderApp();
-    const status = await screen.findByText(/plans meet the constraints/);
-    const total = Number(/of (\d+)/.exec(status.textContent!)![1]);
-    expect(status.textContent).toMatch(new RegExp(`^${total} of ${total}`));
-    fireEvent.click(screen.getByRole("checkbox", { name: /Minimum sunlight/ }));
-    await waitFor(() => expect(Number(/^(\d+)/.exec(screen.getByText(/plans meet the constraints/).textContent!)![1])).toBeLessThan(total));
-    expect(appStore.getState().validCount!.valid).toBeLessThan(total);
+    expect(sidebar().getByRole("button", { name: "14 days" }).getAttribute("aria-pressed")).toBe("true");
+    await waitFor(() => expect(within(brief()).getByText("Day 14")).toBeTruthy());
+    await stageShows("Haworth");
   });
 });
 
@@ -299,7 +251,7 @@ describe("same figures in every view (T5.1.b)", () => {
     expect(fmtMetric("score", 0.975)).toBe("0.98");
   });
 
-  it("3 plans: tray box, site panel, comparison table, calendar tooltip, ribbon and why text agree", async () => {
+  it("3 plans: tray box, ribbon, why text and the site brief agree", async () => {
     await renderApp(P);
     for (const id of P) {
       const rows = await appStore.getState().data.windows(plan(id).site_id, 7);
@@ -313,24 +265,12 @@ describe("same figures in every view (T5.1.b)", () => {
       const ribbonText = within(panelOf(id)).getByText(/Longest dark:|No dark stretch/).textContent!;
       expect(ribbonText, `${id} ribbon`).toBe(row.longest_dark_h === 0 ? "No dark stretch" : `Longest dark: ${expected.longest_dark_h} h`);
 
-      // site panel: metrics list and the "this plan" row of the comparison table
+      // the planning stage's site brief: sunlight, longest night and the Earth's worst day
       act(() => appStore.getState().selectPlan(id));
-      const sitePanel = await screen.findByLabelText(new RegExp(`Site features: ${plan(id).site_id === "haworth" ? "Haworth" : "Connecting Ridge"}`));
-      await waitFor(() => expect(sitePanel.closest("section")!.ownerDocument.querySelector(".site-heading")!.textContent).toContain(plan(id).arrival_utc.slice(0, 10)));
-      for (const { key } of METRICS) expect(sitePanel.querySelector(`[data-key="${key}"] dd`)!.textContent, `${id} site ${key}`).toBe(expected[key]);
-      const thisRow = within(screen.getByTestId("site-compare")).getAllByRole("row").find((r) => r.className === "this-plan")!;
-      expect([...thisRow.querySelectorAll("td")].map((td) => td.textContent)).toEqual([expected.sun_pct, expected.longest_dark_h, expected.earth_h_min, expected.score]);
-
-      // calendar: hover tooltip of the plan's cell
-      fireEvent.mouseMove(canvas(), cellPoint(plan(id).site_id, plan(id).arrival_utc));
-      await waitFor(() => expect(document.querySelector(".calendar .tooltip")).not.toBeNull());
-      const tipText = document.querySelector(".calendar .tooltip")!.textContent!;
-      expect(tipText).toContain(plan(id).arrival_utc.slice(0, 10)); // the tooltip is for this plan's cell
-      expect(tipText, `${id} calendar`).toContain(`Sunlight ${expected.sun_pct} %`);
-      expect(tipText).toContain(`Longest dark ${expected.longest_dark_h} h`);
-      expect(tipText).toContain(`Earth ${expected.earth_h_mean} h/day (min ${expected.earth_h_min})`);
-      expect(tipText).toContain(`Score ${expected.score}`);
-      fireEvent.mouseLeave(canvas());
+      await waitFor(() => expect(within(brief()).getByRole("heading", { level: 2 }).textContent).toBe(plan(id).site_id === "haworth" ? "Haworth" : "Connecting Ridge (Shackleton rim)"));
+      await waitFor(() => expect(brief().querySelector(".brief-metrics")).not.toBeNull());
+      const dds = [...brief().querySelectorAll(".brief-metrics dd")].map((dd) => dd.textContent);
+      expect(dds, `${id} brief`).toEqual([`${expected.sun_pct} %`, `${num(row.longest_dark_h)} h`, `${num(row.earth_h_min)} h`]);
 
       // why text: every number it quotes is one of the box's figures (same rounding)
       const why = within(panelOf(id)).getByTestId("why").textContent!;

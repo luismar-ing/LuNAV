@@ -47,7 +47,7 @@ beforeEach(() => {
   failing.clear();
   const st = appStore.getState();
   st.setScreen("planner"); // the compare and live views live in the Mission Planner screen (A7)
-  st.setDrawerOpen(true); // calendar, tray and site section: the search panel (TR.2.b)
+  st.setDrawerOpen(true); // the comparison tray: the search panel (TR.2.b, A9)
   st.setViewMode("compare");
   for (const id of [...st.comparePlans]) st.unpinPlan(id);
   st.selectPlan(null);
@@ -80,23 +80,6 @@ describe("a simulated network error shows a message, and retry recovers", () => 
     expect(alert.textContent).toMatch(/Could not load the mission data\. The data could not be downloaded/);
     expect(within(alert).getByRole("button", { name: "Try again" })).toBeTruthy();
     act(() => appStore.setState({ load: prev }));
-  });
-
-  it("calendar: windows file offline → error with retry instead of an endless 'Loading…'", async () => {
-    failing.set(/windows\/.*_3d\.json$/, "offline");
-    render(<App />);
-    await waitFor(() => expect(screen.getByTestId("calendar-canvas")).toBeTruthy());
-    fireEvent.click(screen.getByRole("button", { name: "3 days" }));
-    const alert = await screen.findByRole("alert");
-    expect(alert.textContent).toMatch(/Could not load the calendar\./);
-    expect(alert.textContent).toMatch(/_3d\.json/);
-    // the 7-day cells and count are not left on screen under the "3 days" label
-    expect(appStore.getState().validCount).toBeNull();
-    expect(screen.queryByText(/plans meet the constraints/)).toBeNull();
-    failing.clear();
-    fireEvent.click(within(alert).getByRole("button", { name: "Try again" }));
-    await waitFor(() => expect(screen.queryByText(/Could not load the calendar/)).toBeNull());
-    expect(screen.queryByText("Loading mission data…")).toBeNull();
   });
 
   it("tray: a plan's series answers 500 → error with retry; the panel appears after the retry", async () => {
