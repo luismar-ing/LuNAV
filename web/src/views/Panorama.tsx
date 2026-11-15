@@ -72,6 +72,10 @@ export function Panorama({ data, timeMs }: Props) {
   const [from, to] = tracks === "day" ? [dayStart, Math.min(series.n, dayStart + perDay)] : [0, series.n];
   const discs = p ? discRadii(p) : null;
   const t = new Date(series.startMs + k * series.stepMin * 60_000).toISOString();
+  const below = [
+    ...(sun.vis && sun.el < 0 ? [{ body: STRINGS.panorama.sun, el: sun.el }] : []),
+    ...(earth.vis && earth.el < 0 ? [{ body: STRINGS.panorama.earth, el: earth.el }] : []),
+  ];
   const azTicks = p ? Array.from({ length: 24 }, (_, i) => i * 15).filter((a) => azToX(p, a) <= p.width) : [];
 
   return (
@@ -157,6 +161,13 @@ export function Panorama({ data, timeMs }: Props) {
           </dd>
         </div>
       </dl>
+      {/* B8 (H10): a body in view below 0° looks wrong unless you know why: the site stands high, so its terrain
+          horizon dips below the flat one. Shown only then, with the site's real elevation (sites.json). */}
+      {below.length > 0 && (
+        <p className="panorama-horizon-note" data-testid="horizon-note">
+          {STRINGS.panorama.belowZero(below, data.site.elevation_m)}
+        </p>
+      )}
     </div>
   );
 }

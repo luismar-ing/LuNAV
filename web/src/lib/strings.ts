@@ -8,7 +8,7 @@ import { round } from "./why";
 const hours = (h: number) => round(h, 1).replace(/\.0$/, "");
 
 export const STRINGS = {
-  appTitle: "PolePlanner",
+  appTitle: "LuNAV",
   appSubtitle: "Lunar south pole landing planner",
   loading: "Loading mission data…",
   loadError: "Could not load the mission data.",
@@ -137,7 +137,8 @@ export const STRINGS = {
     standTitle: "See the sky from 3 m above the ground: drag to look around, scroll to zoom",
     // planner redesign: time left at the site, what happens next, and the switch for the 2D view
     timeLeft: "Time left",
-    dayOf: (d: number, n: number) => `Time left · day ${d} of ${n}`,
+    // B10 (H11): the day of the stay is the clock at the site (mission controls); the card is just "Time left"
+    dayClock: (d: number, n: number) => `Day ${d} of ${n}`,
     sunLeft: "Sunlight left",
     sunBack: "Night · the Sun comes back in",
     sunsetAt: (when: string) => `Sunset ${when}`,
@@ -184,6 +185,8 @@ export const STRINGS = {
     fullDay: "Watch a full day",
     lookAround: "Look around 360°",
     lookHint: "Drag the sky to look around. Scroll to zoom.",
+    hideText: "Hide text",
+    showText: "Show text",
     skip: "Skip ahead",
     exit: "Exit to start",
     siteTabs: "Landing site",
@@ -209,6 +212,60 @@ export const STRINGS = {
       },
     },
   },
+  challenge: {
+    kicker: (level: number) => `Challenge · Level ${level}`,
+    open: "Take the challenge",
+    title: "Can your lander make it?",
+    back: "Back to the story",
+    mission: (stayDays: number, month: string) =>
+      `Your mission: keep the lander powered for ${stayDays} days. You may land on any day in ${month}. Pick a site and a landing day, then launch.`,
+    assumedTitle: "An illustrative lander, not data about any real mission. The sunlight and the nights are the site's real ones.",
+    lander: (kWh: number, loadW: number, solarW: number, fullH: string) =>
+      `Your lander: a ${kWh} kWh battery, a ${loadW} W load and ${solarW} W solar panels. A full battery lasts ${fullH} h of darkness.`,
+    siteStep: "1. Choose a landing site",
+    dayStep: (month: string) => `2. Choose a landing day in ${month}`,
+    dayLabel: (day: string, outcome: boolean | undefined) =>
+      outcome === undefined ? day : `${day}, ${outcome ? "the lander keeps its power" : "the lander loses power"}`,
+    launch: "Launch the mission",
+    hud: "Mission in progress",
+    landingOn: (day: string) => `Landing ${day}`,
+    stayDay: (day: number, of: number) => `Day ${day} of ${of}`,
+    battery: "Battery",
+    powerFull: "Full: sunlight on the panels covers the lander's 250 W, so the battery stays charged.",
+    powerCharging: "Charging: the panels give more power than the lander uses.",
+    powerDraining: "Draining: the Sun is hidden, so the lander runs on its battery.",
+    sunUp: "Sun up",
+    sunHidden: "Sun hidden by the terrain",
+    earthUp: "Earth in view",
+    earthHidden: "Earth out of view",
+    pickFirst: "Choose a site and a day first.",
+    loading: "Loading the site data…",
+    attempt: (n: number, site: string, day: string) => `Attempt ${n} · ${site} · landing ${day}`,
+    success: "Mission success",
+    failure: "Your lander lost power",
+    successText: (site: string, stayDays: number, minPct: number) =>
+      `The lander stayed powered for all ${stayDays} days at ${site}. The battery never dropped below ${minPct}%.`,
+    survivedNight: (h: string) => `It rode out a ${h} h night on stored energy.`,
+    noNight: "The Sun never set during the stay.",
+    failureText: (h: string) => `The battery ran empty for ${h} h.`,
+    nightInDark: (fullH: string) => `You landed in the middle of a ${fullH} h night: the Sun was already behind the terrain.`,
+    nightStarts: (fullH: string, day: number, inStayH: string | null) =>
+      `A ${fullH} h night began on day ${day}${inStayH ? `, ${inStayH} h of it during your stay` : ""}.`,
+    batteryLasts: (h: string) => `A full battery lasts ${h} h.`,
+    sunlight: (pct: string) => `Sunlight during the stay: ${pct}% of the time.`,
+    lesson: "At the lunar south pole, a single day's difference can decide whether a lander survives.",
+    tryAgain: "Try again",
+    pause: "Pause",
+    resume: "Resume",
+    stayBar: "Stay",
+    stayBarLabel: (day: number, of: number, pct: number) => `Stay progress: day ${day} of ${of}, ${pct}% of the way to the goal`,
+    stayStarts: "The stay starts at landing",
+    goal: (days: number) => `Day ${days} · goal`,
+    watchAgain: "Watch again",
+    mainMenu: "Main menu",
+    result: "Mission result",
+    powerLost: (when: string) => `Power lost · ${when}`,
+  },
   energy: {
     toggle: "Battery (assumed)",
     title: "Show an illustrative battery state of charge under each time ribbon: an ASSUMED lander (5000 Wh, 250 W load, 750 W panels) running on the site's own sunlight. Not data about any mission.",
@@ -221,7 +278,7 @@ export const STRINGS = {
     toggle: "Sunlight map",
     toggleTitle: "Show the average sunlight of the south polar region on the Moon during the landing (an optional step of the zoom)",
     legend: "Average sunlight, 18.6 years",
-    legendTitle: "LOLA average solar illumination, 85°S–90°S (NASA GSFC PGDA; Mazarico et al. 2011). Dark: almost never sunlit; orange: sunlit most of the time. Context only: the site figures come from PolePlanner's own one-year series.",
+    legendTitle: "LOLA average solar illumination, 85°S–90°S (NASA GSFC PGDA; Mazarico et al. 2011). Dark: almost never sunlit; orange: sunlit most of the time. Context only: the site figures come from LuNAV's own one-year series.",
     never: "never",
     always: "always",
   },
@@ -372,6 +429,11 @@ export const STRINGS = {
     link: "Earth link",
     noLink: "No Earth link",
     outside: "outside the plan window",
+    // B8 (H10): why a body can be in view below 0°. elevation_m is height above the LOLA reference sphere (1737.4 km)
+    belowZero: (bodies: { body: string; el: number }[], elevationM: number) => {
+      const list = bodies.map((b) => `${b.body} (${b.el.toFixed(2)}°)`).join(" and the ");
+      return `The ${list} ${bodies.length > 1 ? "are" : "is"} in view below 0°: this site stands ${Math.round(elevationM).toLocaleString("en-US")} m above the Moon's reference radius, and from this high ground the terrain horizon dips below the flat one.`;
+    },
   },
   timeControl: {
     label: "Mission time at the site",
@@ -414,6 +476,9 @@ export const STRINGS = {
   thumbs: {
     aria: "Other pinned plans, at the same time since arrival as the live plan",
     title: "Other plans · since arrival",
+    // B5: before the live plan lands (launch, transit) there is no "since arrival" yet
+    ariaBefore: "Other pinned plans",
+    titleBefore: "Other plans",
     empty: "Pin more plans in the tray to compare them here.",
     score: "Score",
     switch: (site: string, date: string, L: number) => `Show ${site} (arrival ${date}, ${L}-day window) in the 3D view`,
@@ -442,7 +507,7 @@ export const STRINGS = {
     open: "About & credits",
     title: "About & credits",
     close: "Close",
-    intro: "PolePlanner precomputes everything from public NASA data with a reproducible pipeline; the browser only filters and draws. Every Sun and Earth position is validated against JPL Horizons (docs/validation.md).",
+    intro: "LuNAV precomputes everything from public NASA data with a reproducible pipeline; the browser only filters and draws. Every Sun and Earth position is validated against JPL Horizons (docs/validation.md).",
     data: "Data sources",
     license: "Licence",
     notData: "What is not real data",

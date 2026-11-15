@@ -33,7 +33,6 @@ export function PlannerView({ tools }: { tools: ReactNode }) {
   const pinned = useApp((s) => s.comparePlans.length);
   const setDrawerOpen = useApp((s) => s.setDrawerOpen);
   const selectSite = useApp((s) => s.selectSite);
-  const trajectoryMode = useApp((s) => s.manifest?.params.trajectory_mode ?? "ILLUSTRATIVE");
   const [launched, setLaunched] = useState(false);
   const mission = viewMode === "live";
 
@@ -111,11 +110,7 @@ export function PlannerView({ tools }: { tools: ReactNode }) {
         </div>
       )}
       {mission && <MissionStage autoPlay={launched} />}
-      {trajectoryMode === "ILLUSTRATIVE" && !mission && (
-        <p className="planner-badge" title={STRINGS.panel.illustrativeTitle}>
-          <span className="badge illustrative">ILLUSTRATIVE</span> {STRINGS.live.illustrative}
-        </p>
-      )}
+      {/* B5: no ILLUSTRATIVE label while planning (no trajectory is drawn); the journey keeps its own (MissionStage) */}
       <ol className="phase-rail" aria-label={STRINGS.planner.phaseRail}>
         {(["plan", ...PLAY_PHASES] as const).map((p) => (
           <li key={p} aria-current={p === current ? "step" : undefined}>

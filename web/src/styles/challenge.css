@@ -1,0 +1,283 @@
+/* C3: the challenge screen ("Can your lander make it?"), opened from the Educator. Its own file so the shared
+   tokens.css stays untouched; only design tokens (CSS custom properties) are used. The sidebar reuses the
+   Mission Planner's .mission-sidebar. Outcomes read by shape (✓ / ✗) as well as colour (spec 9). */
+.challenge-screen {
+  position: relative;
+  height: 100vh;
+  min-height: 560px;
+  overflow: hidden;
+}
+.challenge-sidebar p {
+  margin: 0;
+}
+.challenge-title {
+  margin: 8px 0 0;
+  font-family: var(--font-serif);
+  font-weight: 400;
+  font-size: clamp(28px, 2.6vw, 40px);
+  line-height: 1.05;
+}
+.challenge-mission {
+  line-height: 1.5;
+}
+.challenge-lander {
+  color: var(--color-text-muted);
+  font-size: var(--font-sm);
+  line-height: 1.5;
+}
+.challenge-sites {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.challenge-sites button {
+  font: inherit;
+  color: var(--color-text-muted);
+  background: transparent;
+  border: 1px solid var(--color-border-strong);
+  border-radius: 999px;
+  padding: 8px 16px;
+  cursor: pointer;
+}
+.challenge-sites button:hover {
+  color: var(--color-text);
+  background: var(--glass-fill-hover);
+}
+.challenge-sites button[aria-pressed="true"] {
+  color: var(--color-bg);
+  background: var(--color-text);
+  border-color: var(--color-text);
+}
+.challenge-days {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 6px;
+}
+.challenge-day {
+  position: relative;
+  font: inherit;
+  font-variant-numeric: tabular-nums;
+  color: var(--color-text);
+  background: transparent;
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-sm);
+  height: 40px;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+}
+.challenge-day:hover {
+  background: var(--glass-fill-hover);
+}
+.challenge-day[aria-pressed="true"] {
+  color: var(--color-bg);
+  background: var(--color-text);
+  border-color: var(--color-text);
+}
+.challenge-day-mark {
+  font-size: 11px;
+  line-height: 1;
+}
+.challenge-day[data-outcome="ok"] {
+  border-color: var(--color-both);
+}
+.challenge-day[data-outcome="ok"]:not([aria-pressed="true"]) .challenge-day-mark {
+  color: var(--color-both);
+}
+.challenge-day[data-outcome="lost"]:not([aria-pressed="true"]) {
+  color: var(--color-text-muted);
+  border-style: dashed;
+}
+.challenge-hint {
+  margin: 8px 0 0;
+  color: var(--color-text-muted);
+  font-size: var(--font-sm);
+}
+.challenge-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+}
+.challenge-actions .challenge-hint {
+  margin: 0;
+}
+.challenge-verdict {
+  margin: 0;
+  font-family: var(--font-serif);
+  font-weight: 400;
+  font-size: var(--font-xxl);
+  line-height: 1.1;
+}
+.challenge-result[data-success="true"] .challenge-verdict {
+  color: var(--color-both);
+}
+.challenge-why {
+  font-size: var(--font-lg);
+  line-height: 1.4;
+}
+.challenge-sun,
+.challenge-lesson {
+  color: var(--color-text-muted);
+  font-size: var(--font-sm);
+}
+
+/* Launch, its hint and the way back, stacked at the foot of the sidebar */
+.challenge-launch {
+  margin-top: auto;
+  flex-direction: column;
+  align-items: stretch;
+}
+.challenge-launch .challenge-hint {
+  text-align: center;
+}
+
+/* The mission under way (HUD in place of the sidebar) */
+.mission-sidebar.challenge-hud {
+  bottom: auto;
+  max-height: calc(100% - 2 * clamp(12px, 2.2vh, 24px));
+}
+.challenge-phase {
+  font-size: var(--font-lg);
+}
+.challenge-meter {
+  height: 10px;
+  border-radius: 999px;
+  border: 1px solid var(--color-border-strong);
+  overflow: hidden;
+}
+.challenge-meter span {
+  display: block;
+  height: 100%;
+  background: var(--color-both);
+}
+.challenge-meter-value {
+  font-variant-numeric: tabular-nums;
+  font-size: var(--font-xl);
+}
+.challenge-power {
+  color: var(--color-text-muted);
+  font-size: var(--font-sm);
+  line-height: 1.5;
+}
+.challenge-sky {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: var(--font-sm);
+  color: var(--color-text-muted);
+}
+/* a filled dot while the body is up, an empty ring while it is hidden (shape as well as colour) */
+.challenge-sky li::before {
+  content: "";
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  margin-right: 8px;
+  border-radius: 50%;
+  border: 2px solid currentColor;
+  vertical-align: -1px;
+  box-sizing: border-box;
+}
+.challenge-sky li:first-child::before {
+  color: var(--color-sun);
+}
+.challenge-sky li:last-child::before {
+  color: var(--color-earth);
+}
+.challenge-sky li[data-on="true"] {
+  color: var(--color-text);
+}
+.challenge-sky li[data-on="true"]::before {
+  background: currentColor;
+}
+
+/* Power lost: the scene fades to dark behind the result, with the moment it happened (the 3D itself is untouched) */
+.challenge-blackout {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding-left: 400px;
+  background: rgb(5 7 13 / 0.78);
+  pointer-events: none;
+  animation: challenge-fade 1.2s ease-out both;
+}
+.challenge-blackout p {
+  margin: 0;
+  font-family: var(--font-serif);
+  font-size: clamp(28px, 3vw, 44px);
+  color: var(--color-text-muted);
+}
+@keyframes challenge-fade {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+:root[data-reduced-motion="true"] .challenge-blackout {
+  animation: none;
+}
+
+/* The result: the actions right under the verdict, the details after them. The shared .ribbon fills its parent's
+   height (it sits in fixed-height boxes elsewhere): here it keeps the height of its own drawing. */
+.challenge-result-actions .btn.primary {
+  flex: 1 1 100%;
+}
+.challenge-result .ribbon {
+  height: auto;
+}
+
+/* Speed, pause and skip while the mission plays */
+.challenge-controls {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+/* The stay from landing to the goal: lit stretches, days, and how far the mission has got */
+.challenge-staybar svg {
+  display: block;
+  width: 100%;
+  height: 22px;
+  margin-top: 6px;
+  border-radius: 4px;
+}
+.challenge-staybar .stay-night {
+  fill: var(--color-dark);
+}
+.challenge-staybar .stay-lit {
+  fill: var(--color-sun);
+  fill-opacity: 0.35;
+}
+.challenge-staybar .stay-done {
+  fill: var(--color-text);
+  fill-opacity: 0.18;
+}
+.challenge-staybar .stay-day {
+  stroke: var(--color-bg);
+  stroke-width: 1;
+  vector-effect: non-scaling-stroke;
+}
+.challenge-staybar .stay-now {
+  stroke: var(--color-text);
+  stroke-width: 2;
+  vector-effect: non-scaling-stroke;
+}
+.challenge-staybar-axis {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 4px;
+  color: var(--color-text-muted);
+  font-size: var(--font-sm);
+}

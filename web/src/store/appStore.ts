@@ -15,8 +15,8 @@ export type MissionPhase = "overview" | "launch" | "transit" | "landing" | "site
 export const MISSION_PHASES: readonly MissionPhase[] = ["overview", "launch", "transit", "landing", "site"];
 /** Screen mode (spec 8.0): compare (2D) or live (the selected plan in 3D). */
 export type ViewMode = "compare" | "live";
-/** Top-level screen (decision A7): the landing page and the two ways of using the app. */
-export type Screen = "landing" | "planner" | "educator";
+/** Top-level screen (decision A7): the landing page, the two ways of using the app, and the Educator's challenge (C3). */
+export type Screen = "landing" | "planner" | "educator" | "challenge";
 
 /** Spec 5.6 constraints; null = control disabled (not evaluated). */
 export interface Constraints {

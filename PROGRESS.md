@@ -3085,6 +3085,45 @@ Las trayectorias ILLUSTRATIVE, los datos SYNTHETIC y toda desviación de la spec
   - Siguen abiertos los de la entrada anterior (contexto WebGL, capturas).
 - **Siguiente tarea:** revisión del humano; después T5.2.e y la Fase 7.
 
+## AJUSTE · B5a: sin etiquetas fuera de lugar en la planificación y el viaje
+
+- **Tarea:** primera parte de B5 del plan de mejoras del 14-nov-2026 (persona B, hallazgo H13). La fecha legible (H12) va aparte, en B5b.
+- **Qué se hizo:**
+  - `views/PlannerView.tsx`: fuera la etiqueta ILLUSTRATIVE de la planificación (`planner-badge`). Mientras se planifica no se dibuja ninguna trayectoria, solo el mapa y los datos reales. El viaje conserva su propio chip ILLUSTRATIVE (`MissionStage.tsx`, `illustrative-label`). También se borraron el CSS de `.planner-badge` y su regla para teléfono.
+  - `panels2d/ThumbnailStrip.tsx`: antes de que aterrice el plan vivo (lanzamiento y tránsito), la tira dice «Other plans», sin reloj, con la etiqueta accesible «Other pinned plans». Desde la llegada vuelve a decir «Other plans · since arrival» con «Day N, HH:MM». Las miniaturas siguen esperando en el instante de llegada, como antes.
+  - `lib/strings.ts`: `thumbs.titleBefore` y `thumbs.ariaBefore`.
+  - No se movió `.plan-stage`: el hueco que dejaba la etiqueta se queda, para no tocar el ajuste sin scroll de A9.
+- **Cómo se verificó:**
+  ```
+  $ npm --prefix web run typecheck → sin errores
+  $ npm --prefix web test → 269 passed (45 archivos)
+  ```
+  - `tests/plannerSidebar.test.tsx`: sin «ILLUSTRATIVE» en la planificación.
+  - `tests/modeTransition.test.tsx`: título y etiqueta de la tira antes y después de la llegada; sin `thumb-clock` antes.
+  - Navegador (servidor de desarrollo, 1366×768, dos planes anclados): en la planificación no aparece ILLUSTRATIVE, sin scroll en la barra ni en la etapa, sin scroll horizontal. En el lanzamiento y el tránsito se ve «Other plans», sin reloj, con el chip ILLUSTRATIVE. En el sitio se ve «Other plans · since arrival» y «Day 1, 12:03». Sin errores en consola.
+- **Desviaciones de la spec / cambios en la guía:** ninguna. La regla «trayectoria no real = ILLUSTRATIVE» se sigue cumpliendo donde hay trayectoria.
+- **Problemas abiertos:** sigue el fallo intermitente de `integration.test.tsx` (T5.1.b) anotado en B1; esta vez pasó.
+- **Siguiente tarea:** B2 (Sol y Tierra juntos en la lista, el pin y el resumen).
+
+## AJUSTE · B1: hover legible en los botones primarios
+
+- **Tarea:** B1 del plan de mejoras del 14-nov-2026 (persona B, hallazgo H1).
+- **Qué se hizo:**
+  - `styles/tokens.css`: `.btn.primary:hover` fija `color: var(--color-bg)`. Antes heredaba de `.btn:hover` el color claro del acento (`#E6EDF7`) sobre el fondo blanco del hover, con un contraste de ~1,2:1. Afecta a «Launch», «Land at …», «Begin the journey», «Next chapter» y «Watch a full day».
+  - `.btn.ghost:hover` añade un relleno sutil (`--glass-fill-hover`, blanco al 8 %), no solo el borde. `.btn` anima también el fondo.
+  - `styles/tokens.ts`: token nuevo `GLASS.fillHover`, expuesto como `--glass-fill-hover`.
+  - Se revisaron todos los `:hover` de `tokens.css`. No hay otro caso de texto claro sobre fondo claro: en `.segmented button.on`, la regla `.on` va después que `:hover` y mantiene el texto oscuro.
+- **Cómo se verificó:**
+  ```
+  $ npm --prefix web run typecheck → sin errores
+  $ npm --prefix web test → 269 passed, 1 failed (integration.test.tsx T5.1.b, intermitente y ya presente en main; ver abajo)
+  ```
+  - `tests/tokens.test.ts`, prueba nueva: lee las reglas de `tokens.css`, resuelve las variables y exige ≥ 4,5:1 en `.btn.primary`, en su hover y en el hover ghost sobre el fondo, sobre el panel y sobre el vidrio con el peor fondo. Si se quita el arreglo, la prueba falla.
+  - Navegador (servidor de desarrollo, 1366×768), valores calculados con el puntero encima: «Launch» y «Land at …» quedan con texto `rgb(5,7,13)` sobre `rgb(255,255,255)`; «Search and compare» (ghost) queda con texto `rgb(230,237,247)` sobre `rgba(255,255,255,0.08)`. Sin errores en consola.
+- **Desviaciones de la spec / cambios en la guía:** ninguna.
+- **Problemas abiertos:** `tests/integration.test.tsx` › «3 plans: tray box, ribbon, why text and the site brief agree» falla de forma intermitente (no encuentra `/Longest dark:|No dark stretch/`). También falla en `main` (026042d) sin este cambio: de 3 corridas en la rama pasó 1. No depende de B1.
+- **Siguiente tarea:** B5a (quitar ILLUSTRATIVE de la planificación; «since arrival» solo tras la llegada).
+
 ## AJUSTE · Prueba de integración intermitente (cinta de tiempo)
 
 - **Tarea:** arreglo de pruebas fuera de las subtareas de A, B y C. La prueba «same figures in every view (T5.1.b) > 3 plans: tray box, ribbon, why text and the site brief agree» fallaba a veces con la suite completa, también en `main` (026042d): `Unable to find an element with the text: /Longest dark:|No dark stretch/`.
@@ -3355,3 +3394,119 @@ Las trayectorias ILLUSTRATIVE, los datos SYNTHETIC y toda desviación de la spec
 - **Desviaciones de la spec / cambios en la guía:** ninguna; la trayectoria sigue marcada ILLUSTRATIVE en la interfaz.
 - **Problemas abiertos:** la estela de 800 puntos uniformes en el tiempo dibuja cada vuelta baja con unos 22 segmentos; se ve poligonal de cerca.
 - **Siguiente tarea:** A6.
+
+## AJUSTE · B8: frase del horizonte bajo el panorama
+
+- **Tarea:** B8 del plan de mejoras del 14-nov-2026 (persona B, hallazgo H10). En Haworth, el 11-ene a las 00:00 UTC, el Sol está a −2,66° y el estado dice «Sunlit», sin explicación. Rama hecha sobre B7 (`b7-battery-and-neighbour-days`).
+- **Qué se hizo:**
+  - `views/Panorama.tsx`: archivo sin dueño en el reparto; el humano autorizó el cambio. Ninguna rama de A (`a1-sky-data` … `a6-textures`) lo toca a esta fecha.
+  - Bajo la lectura del panorama aparece una frase solo cuando el Sol o la Tierra están visibles con elevación < 0° en el instante del reloj. Ejemplo: «The Sun (-2.66°) is in view below 0°: this site stands 2,842 m above the Moon's reference radius, and from this high ground the terrain horizon dips below the flat one.».
+  - La altitud sale de `sites.json` (`elevation_m`).
+  - Redacción: el plan pedía «You're X m up». Se cambió porque `elevation_m` es la altura sobre la esfera de referencia de LOLA (1737,4 km), no sobre el terreno vecino. La frase no afirma más de lo que dicen los datos: el cuerpo se ve bajo 0° porque el horizonte del terreno en esa dirección está aún más bajo.
+  - `lib/strings.ts`: `panorama.belowZero`; `tokens.css`: `.panorama-horizon-note`.
+- **Cómo se verificó:**
+  ```
+  $ npm --prefix web run typecheck → sin errores
+  $ npm --prefix web test → 293 passed (48 archivos)
+  ```
+  - `tests/panorama.test.tsx`:
+    - Haworth 11-ene 00:00 UTC: Sol visible a −2,66° y frase con «2,842 m».
+    - Un instante con el Sol visible sobre 0° y la Tierra no visible bajo 0°: sin frase.
+  - Navegador (servidor de desarrollo, 1920×1080): «Land at Haworth» el 11-ene muestra la frase junto a «el -2.66°» y «☀ Sunlit». Sin errores en consola.
+- **Desviaciones de la spec / cambios en la guía:** la redacción cambia respecto al plan de mejoras (ver arriba). Confirmar con el equipo.
+- **Problemas abiertos:** A1 va a mover el panorama a la vista «Data»; la frase va dentro de `Panorama`, así que se mueve con él.
+- **Siguiente tarea:** B10 (un solo reloj visible; coordinar con A1).
+
+## AJUSTE · B10: un solo reloj visible
+
+- **Tarea:** B10 del plan de mejoras del 14-nov-2026 (persona B, hallazgo H11). En el sitio se veían dos relojes: «T+ 3d 00:00» (desde el lanzamiento, en los controles de misión) y «Time left · day 1 of 7» (en la tarjeta). Rama hecha sobre B8 (`b8-horizon-note`).
+- **Qué se hizo:**
+  - `lib/siteBrief.ts`: `stayDay(aterrizaje, fin, t)` da el día de la estancia (1 al aterrizar, como mucho la duración) o `null` antes del aterrizaje.
+  - `scene3d/MissionControls.tsx` (área de A; A1 no lo toca en `a1-sky-data`): el reloj de los controles, visible en las vistas Sky y Data, es el único.
+    - Durante el viaje sigue «T− …» o «T+ …» desde el lanzamiento; desde el aterrizaje muestra «Day N of 7».
+    - La fecha y hora pasan al formato único de B5b («Jan 1, 00:00 UTC», `lib/format.ts`), también en `aria-valuetext`.
+    - `missionClock` (`lib/mission.ts`) no cambia.
+  - `views/TimeLeft.tsx`: la tarjeta dice solo «Time left»; el día ya no se repite ahí.
+  - `lib/strings.ts`: `siteLayout.dayClock` sustituye a `siteLayout.dayOf`.
+- **Cómo se verificó:**
+  ```
+  $ npm --prefix web run typecheck → sin errores
+  $ npm --prefix web test → 294 passed (48 archivos); en una corrida falló la intermitente de integration.test.tsx (T5.1.b). Su arreglo está en fix-integration-ribbon-flake, sin merge.
+  ```
+  - `tests/siteBrief.test.ts`: `stayDay` antes del aterrizaje, al aterrizar, a mitad y en el último instante (día 7).
+  - `tests/plannerSidebar.test.tsx`: tras «Land at Haworth», el reloj dice «Day 1 of 7», no aparece «T+» ni «T−» en los controles, y la tarjeta dice «Time left».
+  - Navegador (servidor de desarrollo, 1366×768): lanzamiento «T− 05:00 · Dec 28, 23:55 UTC», tránsito «T+ 0d 02:00 · Dec 29, 02:00 UTC», sitio «Day 1 of 7 · Jan 1, 00:00 UTC» con la tarjeta «Time left». Sin errores en consola.
+- **Desviaciones de la spec / cambios en la guía:** ninguna.
+- **Problemas abiertos:**
+  - Al hacer merge con `a1-sky-data`: A1 cambia `SiteLayout.tsx` (usa `TimeLeft` como tarjeta compacta), `strings.ts` y `tokens.css`. Hay posibles conflictos de texto en esos dos archivos compartidos, no de lógica.
+  - En la vista Data, la lectura del panorama sigue mostrando «Time 2027-01-11 00:00 UTC» (la muestra de la serie, que se recorta a la ventana); conviene que A o B la pasen a `lib/format.ts`.
+- **Siguiente tarea:** todas las tareas de B (B1–B10) están en ramas. Falta revisión, PR y merge en orden.
+
+## AJUSTE · C1: publicación estática en GitHub Pages
+
+- **Tarea:** C1 del plan de mejoras del 14-nov-2026 (persona C) y T7.1.a de la guía: publicar la app en un hosting estático para tener una URL pública antes de la entrega.
+- **Qué se hizo:**
+  - `.github/workflows/deploy.yml` (nuevo): en cada push a `main` (y a mano desde Actions) instala con `npm --prefix web ci`, compila con `npm --prefix web run build -- --base=/LuNAV/` (el build ya incluye la revisión de tipos), añade `.nojekyll` y publica `web/dist` en la rama `deploy` con un commit a nombre de Jesus Rodríguez. Las pruebas no corren en este flujo, para que una prueba intermitente no bloquee la publicación.
+  - Hosting: GitHub Pages sirviendo la rama `deploy` (decisión A11). Se intentó primero el dominio y hosting gratuitos de la oferta de Space Apps (GoDaddy Registry / Porkbun, «Secure Static Hosting»), pero el código de verificación no llegó a ningún correo.
+  - `README.md`: enlace **Live app** y sección **Deployment**. `CLAUDE.md`: renglón de despliegue, filas «Probar el build de GitHub Pages» y «Publicar», y el flujo en el mapa de archivos.
+  - No cambia el código de la app: ya armaba todas sus rutas con `import.meta.env.BASE_URL`.
+- **Cómo se verificó:**
+  - Flujo: el merge de los PR #10 y #15 generó la rama `deploy` (`Build of f4f7b95`): `index.html` en la raíz con rutas `/LuNAV/...`, `.nojekyll`, `assets/`, `data/` (1 825 trayectorias) y `textures/`; 1 932 archivos, 24,4 MB.
+  - Local, como en Pages: `npm --prefix web run build -- --base=/LuNAV/` y `npm --prefix web run preview -- --base=/LuNAV/` → http://localhost:4173/LuNAV/. Portada, Mission Planner con el mapa y el 3D del sitio tras «Land at Connecting Ridge»: 38 peticiones, todas dentro de `/LuNAV/` y con respuesta 200 (incluido `data/terrain/_polar/`), ninguna a servidores externos ni a APIs, y sin errores en consola.
+- **Decisiones tomadas:** A11 (GitHub Pages con la rama `deploy`).
+- **Desviaciones de la spec / cambios en la guía:** ninguna. T7.1.a queda en `[!]` hasta que el dueño del repo active Pages.
+- **Problemas abiertos:**
+  - Activar Pages: Settings → Pages → Deploy from a branch → `deploy`, `/ (root)`. Hasta entonces la URL responde 404.
+  - Al activarlo, revisar la URL pública (T7.1.a) y medir en ella el rendimiento (T7.1.b: `perf.mjs` y `fps.mjs` aceptan la URL como argumento).
+  - El dominio de la oferta queda pendiente. Si se consigue, se conecta a Pages y se quita `--base` del flujo.
+- **Siguiente tarea:** C2 (README final con capturas).
+
+## AJUSTE · C1: URL pública verificada (T7.1.a cerrada)
+
+- **Tarea:** cierre de T7.1.a. El dueño del repo activó GitHub Pages.
+- **Qué se hizo:**
+  - Primero Pages se configuró con la rama `main`, y GitHub publicó el README con Jekyll en lugar de la app.
+  - Se corrigió a «Deploy from a branch → `deploy`, `/ (root)`».
+  - T7.1.a pasa a `[x]` en la guía.
+- **Cómo se verificó:** en https://luismar-ing.github.io/LuNAV/ cargan la portada (con el nombre LuNAV de C2), el Mission Planner con el mapa y, tras «Land at Connecting Ridge», el 3D del sitio. Todas las peticiones de la carga salen de `/LuNAV/` y responden 200: scripts, fuentes, texturas, `manifest`, `sites`, `plans`, ventanas, series, escena, trayectoria y terreno (incluido `data/terrain/_polar/`). No hay llamadas a APIs ni a servidores externos.
+- **Desviaciones de la spec / cambios en la guía:** ninguna.
+- **Problemas abiertos:** T7.1.b (medir el rendimiento en la URL pública con `perf.mjs` y `fps.mjs`).
+- **Siguiente tarea:** C3 (reto del Educator, nivel 1). Nueva numeración de C: C3 reto, C4 niveles 2 y 3, C5 capturas, C6 guion y demo.
+
+## AJUSTE · C3: reto «Can your lander make it?» (nivel 1)
+
+- **Tarea:** C3 (propuesta del equipo: modo reto en el Educator). Rama `c3-challenge`.
+- **Qué se hizo:**
+  - `lib/challenge.ts`: reglas y resultado. La misión fija el mes (marzo de 2027) y la estancia (7 días); el jugador elige sitio y día de llegada. Reutiliza `stayBattery` y `nightInStay` de `lib/siteBrief.ts`, así que el reto y el planificador dan siempre el mismo veredicto. `stayTrace` da la batería, el Sol y la Tierra muestra por muestra y el instante en que la batería se vacía.
+  - `views/Challenge.tsx`: pantalla propia (`screen: "challenge"`) sobre la única escena 3D, a la que se entra con «Take the challenge» en el capítulo 4 del Educator. Menú lateral con la misión, el lander ASSUMED, el sitio y los 31 días; el globo sigue el plan elegido. «Launch the mission» simula la misión en el 3D: viaje, descenso (más lento, para ver la llegada a la Luna) y estancia, con un panel de fase, día, batería, Sol y Tierra, una barra de la estancia hasta la meta (día 7) con sus tramos de luz reales, velocidad elegible (1, 3 y 6 h/s, 1 d/s), pausa y «Skip ahead». Si la batería se vacía, la simulación se detiene en ese instante y la escena se oscurece («Power lost · …»). Al final, el veredicto con su porqué, la cinta de tiempo de la estancia, «Try again», «Watch again» y «Main menu».
+  - Solo se marca (✓/✗) el día que el jugador ya intentó en cada sitio: el reto no revela las respuestas.
+  - `views/useMissionPlayback.ts` (reproducción compartida con el Educator) y `views/useScenePlan.ts` (la escena sigue al plan elegido). No se tocó `scene3d/` (ramas abiertas de A).
+  - Textos en la sección `challenge` de `strings.ts`; estilos en `styles/challenge.css`.
+- **Cómo se verificó:** `tests/challenge.test.ts` (reglas: días que funcionan en marzo por sitio 23/9/12/12/20 de 31; casos de Haworth 10 y 11 de enero y Nobile Rim 1 2 de marzo; instante sin energía, 17-ene 10:00 y 2-mar 20:00 UTC; paridad con `stayBattery` y con las ventanas precalculadas), `tests/challenge.view.test.tsx` (pantalla, vuelo, corte, reintento, repetición y menú) y `tests/challenge.flow.test.tsx` (entrada desde el Educator). Prueba manual en el navegador.
+- **Desviaciones de la spec / cambios en la guía:** ninguna. El fracaso ocurre siempre en la superficie, por la noche real del sitio; la trayectoria es ILLUSTRATIVE y no decide nada. El lander es el ASSUMED de `lib/energy.ts` (5 kWh, 250 W, 750 W) y se marca así en la pantalla.
+- **Problemas abiertos:** ninguno (lo del capítulo 4 del Educator se resolvió en C3b).
+- **Siguiente tarea:** C4 (niveles 2 y 3: Tierra ≥ 8 h cada día; lanzamiento retrasado 2 días).
+
+## AJUSTE · C3b: capítulo 4 del Educator y escena que sigue al plan
+
+- **Tarea:** C3b (hallazgos al probar C3). Rama `c3b-surface-view`.
+- **Qué se hizo:**
+  - Con Level B, el botón del capítulo 4 alterna entre «Stand on the site» y «Aerial view» (como en el panel del sitio). Antes decía «Look around 360°» y no hacía nada, porque la vista desde el sitio ya estaba activa. Sin Level B sigue abriendo el panorama 2D.
+  - «Hide text» / «Show text» en los capítulos 2 a 4: quita el texto grande del centro para ver la escena 3D completa; el título del capítulo, los botones y la etiqueta ILLUSTRATIVE se quedan. El capítulo 1 conserva su texto.
+  - Error corregido: un plan elegido mientras la escena 3D aún cargaba no le llegaba a la escena, que se quedaba con el plan con que arrancó. Al abrir el Educator (que elige el mejor plan del año), sobre todo después del reto, la nave volaba la trayectoria de otro día y no despegaba de la plataforma. `views/useScenePlan.ts` ahora entrega el plan en cuanto la escena está lista, y el Educator usa ese hook en lugar de su copia.
+- **Cómo se verificó:** `tests/educator.test.tsx` (alternar las vistas), `tests/educatorText.test.tsx` (ocultar y mostrar el texto) y `tests/useScenePlan.test.tsx` (plan entregado al terminar de cargar la escena). Prueba manual en el navegador: reto → menú principal → Educator, la nave despega desde la plataforma.
+- **Desviaciones de la spec / cambios en la guía:** ninguna. No se tocó `scene3d/`.
+- **Problemas abiertos:** ninguno.
+- **Siguiente tarea:** C4 (niveles 2 y 3 del reto).
+
+## AJUSTE · C3c: marcador del punto de aterrizaje
+
+- **Tarea:** C3c (petición del humano al revisar la vista aérea). Rama `c3c-landing-marker`.
+- **Qué se hizo:**
+  - `scene3d/terrain.ts`: `siteMarker` dibuja, relativo al sitio en el marco fijo a la Luna, un anillo plano sobre el suelo (140 m de radio) y una baliza vertical de 700 m en el punto de aterrizaje. Va dentro del grupo del terreno, así que aparece con él al acercarse al sitio; se dibuja encima del terreno (sin prueba de profundidad) para que ninguna loma lo tape. Motivo: en la vista aérea (1.5 km de altura, ~5 km atrás) el lander a su tamaño real de 100 m no se ve.
+  - `scene3d/renderer.ts`: una línea que oculta el marcador cuando se está de pie en el sitio (rodearía al observador).
+- **Cómo se verificó:** `tests/siteMarker.test.ts` (anillo plano a 10 m sobre el suelo y con el radio previsto, baliza a lo largo de la vertical local, sin prueba de profundidad, oculto de pie). En el navegador: capítulo 4 del Educator, «Aerial view» muestra el anillo y la baliza en el sitio; «Stand on the site» los oculta.
+- **Desviaciones de la spec / cambios en la guía:** ninguna. Es un marcador visual, sin datos nuevos.
+- **Decisiones tomadas:** los niveles 2 y 3 del reto (C4) quedan como trabajo futuro, por decisión del humano. Propuesta calculada con los datos: nivel 2 «Stay in touch» (batería y Tierra ≥ 8 h cada día) en julio de 2027, 26% de éxito a ciegas; nivel 3 «Launch slip» (la regla del nivel 2 con retraso de 0 a 2 días) en julio, 19%.
+- **Problemas abiertos:** la plataforma de lanzamiento genérica está en latitud 0°, longitud 0° (golfo de Guinea), por eso la nave parece salir de África; cambiarla a un puerto real obliga a regenerar las trayectorias y choca con A5. La Luna fuera del sitio usa una imagen de 4k sin relieve (A6). Ambos se coordinan con la persona A.
+- **Siguiente tarea:** C5 (capturas y README) y C6 (guion y demo).
