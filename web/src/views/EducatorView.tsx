@@ -1,8 +1,8 @@
-import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { fmtDay } from "../components/MissionSidebar";
 import { CHAPTERS, stepChapter } from "../lib/chapters";
 import { lookup } from "../lib/constraints";
-import { phaseAt, timelineOf, type MissionTimeline } from "../lib/mission";
+import { phaseAt } from "../lib/mission";
 import { Drawer } from "../components/Drawer";
 import { ErrorMessage } from "../components/ErrorMessage";
 import { describeError } from "../lib/errors";
@@ -10,10 +10,10 @@ import { Panorama } from "./Panorama";
 import { useSiteData } from "./useSiteData";
 import { STRINGS } from "../lib/strings";
 import { fmtMetric, round } from "../lib/why";
-import { sceneBridge } from "../scene3d/bridge";
 import { SceneHost } from "../scene3d/SceneHost";
 import { appStore, useApp } from "../store/appStore";
 import { useMissionPlayback } from "./useMissionPlayback";
+import { useScenePlan } from "./useScenePlan";
 
 const STRIP_DAYS = 21;
 const DAY_MS = 86_400_000;
@@ -48,8 +48,6 @@ export function EducatorView({ tools }: { tools: ReactNode }) {
   const index = useApp((s) => s.windowIndex[7]);
   const trajectoryMode = useApp((s) => s.manifest?.params.trajectory_mode ?? "ILLUSTRATIVE");
   const [chapter, setChapterState] = useState(0);
-  const [timeline, setTimeline] = useState<MissionTimeline | null>(null);
-  const shown = useRef<string | null>(appStore.getState().selectedPlanId);
   const c = CHAPTERS[chapter];
 
   const setChapter = (i: number) => {
@@ -68,25 +66,7 @@ export function EducatorView({ tools }: { tools: ReactNode }) {
   }, []);
 
   // the plan's timeline; while on the globe, the scene follows the chosen plan
-  useEffect(() => {
-    if (!plan) return;
-    let alive = true;
-    void appStore
-      .getState()
-      .data.trajectory(plan.trajectory_id)
-      .then((traj) => {
-        if (!alive) return;
-        const tl = timelineOf(plan, traj);
-        setTimeline(tl);
-        if (shown.current !== plan.id && sceneBridge.setPlan) {
-          sceneBridge.setPlan({ trajectory: traj, timeline: tl, siteId: plan.site_id });
-          shown.current = plan.id;
-        }
-      });
-    return () => {
-      alive = false;
-    };
-  }, [plan]);
+  const timeline = useScenePlan(plan);
 
   // each chapter opens at its own moment of the mission; the journey and the landing then play by themselves
   const { play, setPlay, skip } = useMissionPlayback(timeline);
