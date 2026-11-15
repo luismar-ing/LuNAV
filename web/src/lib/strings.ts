@@ -185,6 +185,8 @@ export const STRINGS = {
     fullDay: "Watch a full day",
     lookAround: "Look around 360°",
     lookHint: "Drag the sky to look around. Scroll to zoom.",
+    hideText: "Hide text",
+    showText: "Show text",
     skip: "Skip ahead",
     exit: "Exit to start",
     siteTabs: "Landing site",

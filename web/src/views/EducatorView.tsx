@@ -88,6 +88,10 @@ export function EducatorView({ tools }: { tools: ReactNode }) {
   const levelB = useApp((s) => s.levelB);
   const surfaceView = useApp((s) => s.surfaceView);
   const [panorama, setPanorama] = useState(false);
+  // "Hide text" (C3b): the caption in the middle of the screen steps aside so the 3D scene can be seen whole; the
+  // chapter title, the buttons and the ILLUSTRATIVE label stay. Chapter 1 keeps its text: it is where the plan is chosen.
+  const [textHidden, setTextHidden] = useState(false);
+  const showText = chapter === 0 || !textHidden;
   const lookAround = () => {
     // Level B: switch between standing on the site (drag the sky) and the aerial view, as in the site panel;
     // without it, the 2D 360° panorama (level A)
@@ -160,13 +164,18 @@ export function EducatorView({ tools }: { tools: ReactNode }) {
 
       {chapter > 0 && (
         <div className="edu-caption">
-          <p className="edu-caption-text" aria-live="polite">
-            {caption}
-          </p>
-          {c.id === "surface" && levelB && surfaceView && <p className="edu-hint">{STRINGS.educator.lookHint}</p>}
+          {showText && (
+            <p className="edu-caption-text" aria-live="polite">
+              {caption}
+            </p>
+          )}
+          {showText && c.id === "surface" && levelB && surfaceView && <p className="edu-hint">{STRINGS.educator.lookHint}</p>}
           <div className="edu-actions">
             <button type="button" className="btn pill" onClick={() => setChapter(stepChapter(chapter, -1))}>
               {STRINGS.educator.back}
+            </button>
+            <button type="button" className="btn pill ghost" aria-pressed={textHidden} onClick={() => setTextHidden(!textHidden)}>
+              {textHidden ? STRINGS.educator.showText : STRINGS.educator.hideText}
             </button>
             {play && (
               <button type="button" className="btn pill" onClick={skip}>
