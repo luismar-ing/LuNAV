@@ -3384,6 +3384,87 @@ Las trayectorias ILLUSTRATIVE, los datos SYNTHETIC y toda desviación de la spec
 - **Problemas abiertos:** falta oírlos con altavoces reales para ajustar el volumen (`LEVEL` en `sfx.ts`).
 - **Siguiente tarea:** A5.
 
+## AJUSTE · A3 · Cámara cómoda con touchpad, ratón y pellizco
+
+- **Tarea:** A3 del plan de mejoras del 14-nov-2026 (hallazgo H4).
+- **Qué se hizo:**
+  - `scene3d/cameraInput.ts` (nuevo):
+    - El zoom de la rueda es proporcional a `deltaY`: una muesca de ratón (100 px) ≈ ×1.13, parecido al ×1.1 fijo de antes, y los deltas pequeños del touchpad suman lo mismo.
+    - Admite `deltaMode` en líneas y páginas, y el pellizco (`ctrlKey` + rueda) con su propia sensibilidad.
+    - Cada evento se limita a ×1.35.
+    - El zoom entra suavizado en unos cuadros (τ = 90 ms). Un arrastre que se suelta en movimiento sigue girando y se frena (τ = 160 ms); si el puntero estaba quieto antes de soltar, no hay inercia. Con «Reduce motion» todo se aplica al instante.
+  - `scene3d/renderer.ts` usa ese módulo; «+» y «−» también entran suavizados.
+  - **Salto real encontrado y corregido:** a escala local (vista aérea del sitio, a unos 5 km) el mínimo de distancia era el 5 % del radio lunar dibujado a escala espacial (~520 km). El primer zoom lanzaba la cámara a ese mínimo: ×34 de golpe.
+    - Ahora el mínimo es 0.5 km a escala local.
+    - `CameraController.zoom` nunca empuja la cámara hacia fuera por el mínimo.
+  - El botón «Guided camera» (ya existente) devuelve el control al director y descarta el zoom o el giro pendientes. El texto de ayuda de la escena menciona el pellizco.
+- **Cómo se verificó:**
+  ```
+  $ npm --prefix web run typecheck → sin errores
+  $ npm --prefix web test → 276 passed (46 archivos)
+  ```
+  - `tests/camera.test.ts`, 7 pruebas nuevas:
+    - zoom proporcional;
+    - pellizco;
+    - suavizado sin saltos y sin pérdida;
+    - inercia que se detiene;
+    - sin inercia tras quedarse quieto;
+    - «Reduce motion»;
+    - el mínimo de distancia sin saltos.
+  - Chrome sin cabeza sobre el servidor de desarrollo (1366×768, escena real, vista aérea de Connecting Ridge, script temporal fuera del repo):
+
+    | Gesto | Resultado | Esperado | Paso máximo por cuadro |
+    |---|---|---|---|
+    | 40 eventos de touchpad de 3 px | ×1.1549 | ×1.1549 | 0.7 % (antes del arreglo: ×39.9, con un salto de ×34) |
+    | Una muesca de ratón | ×1.1275 | ×1.1275 | 3.7 % |
+    | Pellizco | ×0.6703 | ×0.6703 | — |
+
+    - Arrastre rápido de 0.48 rad: sigue girando 0.51 rad y se detiene.
+    - «Guided camera» devuelve el modo director.
+- **Desviaciones de la spec / cambios en la guía:** ninguna.
+- **Problemas abiertos:** el tacto final (sensibilidad, inercia) conviene probarlo con un touchpad real; las constantes están juntas en `cameraInput.ts`.
+- **Siguiente tarea:** A4.
+
+## AJUSTE · A1 · Vistas Sky y Data en el sitio
+
+- **Tarea:** A1 del plan de mejoras del 14-nov-2026 (hallazgo H2), decisión A10.
+- **Qué se hizo:**
+  - **Selector «Sky | Data»** junto a «Back to planning» (`views/MissionStage.tsx`, `SiteViewSwitch` en `views/SiteLayout.tsx`). Cada llegada abre en «Sky».
+  - **Sky:** el 3D a pantalla completa, la telemetría a la izquierda, la tarjeta «Time left» a la derecha (cifras de 36 px en lugar de 44) con «Site details and sources», «3D terrain shadows» y la vista aérea, y la barra de tiempo abajo.
+  - **Data:** la consola 2D a todo el ancho (panorama, cinta, pestañas «What happens next» y «Window metrics», «Site details and sources»). Se ocultan la telemetría y las miniaturas. La consola se ajusta a su contenido; si una tabla larga no cabe, se desplaza dentro de la consola y la barra de tiempo no se mueve.
+  - Las dos vistas leen `missionTime`, así que cambiar de vista conserva el instante.
+  - CSS (`styles/tokens.css`): una rejilla para cada vista (`:has(.site-layout[data-view="data"])`). Fuera la regla que hacía desplazarse la página en pantallas de menos de 860 px, la consola plegada y la regla de miniaturas que ya no aplica. `TimeLeft.tsx` no se tocó (sus textos son de B).
+- **Cómo se verificó:**
+  ```
+  $ npm --prefix web run typecheck → sin errores
+  $ npm --prefix web test → 269 passed (45 archivos), dos veces seguidas
+  ```
+  - Navegador (servidor de desarrollo, escena real), Connecting Ridge con «Land at»:
+    - 1366×768: barra de tiempo en y = 647–744 en las dos vistas, tarjeta sin recorte (`scrollHeight == clientHeight`), sin scroll de página ni del escenario.
+    - 1920×1080: barra de tiempo en y = 997–1056, igual sin scroll.
+    - Al cambiar de vista el reloj sigue en «T+ 3d 00:00».
+  - Pruebas actualizadas: `plannerSidebar.test.tsx` (flujo Sky → Data → Sky con el mismo `missionTime`; TR.2.e y T6.1.c pasan por «Data» para el panorama y las métricas) e `integration.test.tsx` (el panorama del sitio está en «Data»).
+  - `integration.test.tsx` T5.1.b: `main` ya espera la cinta (c960245); esta rama además espera la caja de métricas con `findBy…` (el mismo cambio de una línea está en las ramas de A1, A4 y A5).
+- **Desviaciones de la spec / cambios en la guía:** A10. El panorama y el 3D ya no se ven a la vez en el sitio; se pasa de uno a otro con un clic y en el mismo instante.
+- **Problemas abiertos:** el HMR del servidor de desarrollo sigue provocando pérdidas de contexto WebGL (ya anotado); con una recarga completa no pasa.
+- **Siguiente tarea:** A3.
+
+## AJUSTE · A2 · Etiqueta de escala tras salir del sitio
+
+- **Tarea:** A2 del plan de mejoras del 14-nov-2026 (hallazgo H3).
+- **Causa:** `sceneScale` vive en el store y sobrevivía a la escena. «Land at …» la deja en «local»; al volver a planificar la escena se desmonta, y al lanzar el renderizador nuevo arrancaba suponiendo «space» y no la volvía a reportar. La telemetría decía «Real scale» en el despegue y el tránsito.
+- **Qué se hizo:** `SceneHost` devuelve la escala a «space» al desmontar la escena, y el renderizador reporta su escala en el primer cuadro (`reportedScale` empieza en `null`).
+- **Cómo se verificó:**
+  ```
+  $ npm --prefix web run typecheck → sin errores
+  $ npm --prefix web test → 270 passed (46 archivos)
+  ```
+  - `tests/sceneScale.test.tsx` (nuevo): Land at → Back to planning → Launch; «Real scale» en el sitio y «Not to scale» en el lanzamiento. Sin el arreglo falla (queda «local»).
+  - Navegador (servidor de desarrollo, 1366×768, escena real): el mismo recorrido muestra «Real scale» en el sitio y «Not to scale» en el lanzamiento.
+- **Desviaciones de la spec / cambios en la guía:** ninguna.
+- **Problemas abiertos:** ninguno nuevo.
+- **Siguiente tarea:** A1.
+
 ## AJUSTE · B8: frase del horizonte bajo el panorama
 
 - **Tarea:** B8 del plan de mejoras del 14-nov-2026 (persona B, hallazgo H10). En Haworth, el 11-ene a las 00:00 UTC, el Sol está a −2,66° y el estado dice «Sunlit», sin explicación. Rama hecha sobre B7 (`b7-battery-and-neighbour-days`).
