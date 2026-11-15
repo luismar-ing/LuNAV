@@ -3794,3 +3794,32 @@ Las trayectorias ILLUSTRATIVE, los datos SYNTHETIC y toda desviación de la spec
   - Navegador (servidor de desarrollo, 1366×768): el logo carga (428×310 natural, 47×34 px en pantalla), centrado con el texto y sin recursos con error tras recargar.
 - **Desviaciones de la spec / cambios en la guía:** ninguna.
 - **Problemas abiertos:** ninguno.
+
+## AJUSTE · B13: viaje completo en 3D a una coordenada personalizada
+
+- **Tarea:** B13, plan «Opción 2: viaje completo» de la persona B (15-nov-2026). Rama `b13-custom-journey` desde `main` (que ya incluye B12). Decisión A14.
+- **Qué se hizo:**
+  - `lib/trajectoryBuilder.ts`: port de `pipeline/trajectory.py build()` (con la llegada de A5: hipérbola, captura, dos vueltas en órbita baja, órbita de descenso y descenso propulsado) sobre `scene/ephemeris.json` (`sceneStateAt`: Luna con Catmull-Rom, rotaciones con slerp). Mismas constantes, muestras (189) y fases; el último punto se fija al sitio. Replica el truncado a segundos enteros de `spice_utils.utc_to_et` (sin él, la diferencia era ~1 km en toda la llegada).
+  - `lib/virtualSite.ts`: sitio virtual de una coordenada (`custom_s885000_e450000`): 1 095 planes con los ids del contrato, horizonte, serie (§7), `daily` (port de `daily_aggregates`), ventanas con `score` en la escala de los cinco sitios (`add_scores`, recortado a [0, 1]), características (coordenada, altura, rasgos del nomenclátor de los cinco sitios; pendiente «not available»), terreno ENU lod0/lod1 (port de `surface_up_m` sobre el relieve reducido; sin lod2) y la trayectoria.
+  - `lib/data.ts`: `registerVirtualSite` / `unregisterVirtualSite` / `virtualSite`; cada lector (`horizon`, `timeseries`, `daily`, `windows`, `siteFeatures`, `trajectory`, `terrain`) sirve el sitio virtual validado con los esquemas zod y con la misma caché.
+  - `store/appStore.ts`: `customSite`, `addCustomSite`, `removeCustomSite` (uno a la vez; sus planes entran en `plansById`, no en `plans` ni en `sites`, que siguen siendo los cinco) y el selector `siteOf`. `MissionStage`, `LiveView`, `SiteBrief`, `MissionSidebar` y `loadPlanData` lo usan.
+  - `components/CustomSite.tsx`: «Launch to this point» (crea el sitio, selecciona el plan de la llegada y estancia del panel, cierra el cajón y lanza, como `launch()` de `PlannerView`) y «Land here» (como `land()`).
+  - `components/ApproxBadge.tsx`: APPROXIMATE en `TimeLeft`, el panel del sitio y la escena (chip junto a ILLUSTRATIVE). La ficha de telemetría dice «Custom site · lat°, lon°».
+- **Cómo se verificó:**
+  ```
+  $ npm --prefix web run typecheck → sin errores
+  $ npm --prefix web test → Test Files 63 passed (63), Tests 428 passed (428)
+  $ npm --prefix web run build -- --base=/LuNAV/ → built in 2.98s
+  ```
+  - `tests/trajectoryBuilder.test.ts`: 5 sitios × 6 fechas (1-ene, …, 31-dic) frente a `trajectory/*.json`: mismos `t_s` (±0,1 s), fases e id; posición máx. 0,67 km (transferencia, interpolación horaria) y ≤ 0,17 km en la llegada; último punto en el sitio. La escena cubre del lanzamiento más temprano (29-dic-2026) al aterrizaje más tardío + 14 días.
+  - `tests/virtualSite.test.ts`: con la máscara de 40 m de cada sitio, `daily` > 97 % de días idénticos y serie ≤ 0,01°; `score` idéntico a 4 decimales en las tres L; terreno frente a los lod publicados: RMS 1,8/2,1/2,7/3,0/1,9 m (lod0) y 1,6–2,0 m (lod1); todos los archivos del sitio virtual pasan los esquemas por el `DataStore`; el store añade y quita el sitio; Sol y Tierra de la escena frente a `skyFrom` en (−88,5°, 45°): 0,019° y 0,000°.
+  - `tests/customJourney.test.tsx` (SceneHost simulado): «Launch to this point» entra en `live` con la trayectoria del sitio virtual y reproduce desde la cuenta atrás; «Jump to → Transit / Landing / At the site» llegan a cada fase; «Back to planning» conserva el sitio; «Land here» abre el sitio en la llegada; elegir después un sitio candidato mantiene día y estancia.
+  - Navegador (servidor de desarrollo, 1366×768): (−88,5°, 45°) → despegue con ILLUSTRATIVE y APPROXIMATE, descenso, sitio de pie y en vista aérea con el relieve reducido; sin errores en consola; de vuelta, el resumen del sitio personalizado y «Land at Custom site».
+- **Decisiones tomadas:** A14 (propuesta del agente, revisable).
+- **Desviaciones de la spec / cambios en la guía:** ninguna en las definiciones de 5.x. La trayectoria sigue siendo ILLUSTRATIVE; el terreno cercano del punto no tiene el nivel de 40 m (se dice en la interfaz).
+- **Problemas abiertos:**
+  - No se ejecutaron `npm run fps` ni `npm run perf` (necesitan `preview` y reescriben `docs/performance.md`); tampoco la pasada a 1920×1080 ni con «Reduce motion» en el navegador.
+  - El mapa de la Luna del planificador no dibuja un marcador del punto personalizado cuando su plan está seleccionado.
+  - Si se fusiona otro cambio de `pipeline/trajectory.py`, `tests/trajectoryBuilder.test.ts` fallará hasta portarlo.
+  - Educator y el reto «Can your lander make it?» quedan fuera de alcance (solo los cinco sitios).
+- **Siguiente tarea:** revisión de la persona B; coordinar con A (escena) y C (README).
