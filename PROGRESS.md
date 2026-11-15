@@ -3315,3 +3315,44 @@ Las trayectorias ILLUSTRATIVE, los datos SYNTHETIC y toda desviación de la spec
 - **Desviaciones de la spec / cambios en la guía:** ninguna. La batería sigue marcada ASSUMED (T6.4.a).
 - **Problemas abiertos:** el día anterior al 1-ene y el posterior al último día de llegada no tienen datos (fila «outside the data»).
 - **Siguiente tarea:** B8 (frase del horizonte; necesita el visto bueno para tocar `views/Panorama.tsx`).
+
+## AJUSTE · A3 · Cámara cómoda con touchpad, ratón y pellizco
+
+- **Tarea:** A3 del plan de mejoras del 14-nov-2026 (hallazgo H4).
+- **Qué se hizo:**
+  - `scene3d/cameraInput.ts` (nuevo):
+    - El zoom de la rueda es proporcional a `deltaY`: una muesca de ratón (100 px) ≈ ×1.13, parecido al ×1.1 fijo de antes, y los deltas pequeños del touchpad suman lo mismo.
+    - Admite `deltaMode` en líneas y páginas, y el pellizco (`ctrlKey` + rueda) con su propia sensibilidad.
+    - Cada evento se limita a ×1.35.
+    - El zoom entra suavizado en unos cuadros (τ = 90 ms). Un arrastre que se suelta en movimiento sigue girando y se frena (τ = 160 ms); si el puntero estaba quieto antes de soltar, no hay inercia. Con «Reduce motion» todo se aplica al instante.
+  - `scene3d/renderer.ts` usa ese módulo; «+» y «−» también entran suavizados.
+  - **Salto real encontrado y corregido:** a escala local (vista aérea del sitio, a unos 5 km) el mínimo de distancia era el 5 % del radio lunar dibujado a escala espacial (~520 km). El primer zoom lanzaba la cámara a ese mínimo: ×34 de golpe.
+    - Ahora el mínimo es 0.5 km a escala local.
+    - `CameraController.zoom` nunca empuja la cámara hacia fuera por el mínimo.
+  - El botón «Guided camera» (ya existente) devuelve el control al director y descarta el zoom o el giro pendientes. El texto de ayuda de la escena menciona el pellizco.
+- **Cómo se verificó:**
+  ```
+  $ npm --prefix web run typecheck → sin errores
+  $ npm --prefix web test → 276 passed (46 archivos)
+  ```
+  - `tests/camera.test.ts`, 7 pruebas nuevas:
+    - zoom proporcional;
+    - pellizco;
+    - suavizado sin saltos y sin pérdida;
+    - inercia que se detiene;
+    - sin inercia tras quedarse quieto;
+    - «Reduce motion»;
+    - el mínimo de distancia sin saltos.
+  - Chrome sin cabeza sobre el servidor de desarrollo (1366×768, escena real, vista aérea de Connecting Ridge, script temporal fuera del repo):
+
+    | Gesto | Resultado | Esperado | Paso máximo por cuadro |
+    |---|---|---|---|
+    | 40 eventos de touchpad de 3 px | ×1.1549 | ×1.1549 | 0.7 % (antes del arreglo: ×39.9, con un salto de ×34) |
+    | Una muesca de ratón | ×1.1275 | ×1.1275 | 3.7 % |
+    | Pellizco | ×0.6703 | ×0.6703 | — |
+
+    - Arrastre rápido de 0.48 rad: sigue girando 0.51 rad y se detiene.
+    - «Guided camera» devuelve el modo director.
+- **Desviaciones de la spec / cambios en la guía:** ninguna.
+- **Problemas abiertos:** el tacto final (sensibilidad, inercia) conviene probarlo con un touchpad real; las constantes están juntas en `cameraInput.ts`.
+- **Siguiente tarea:** A4.
