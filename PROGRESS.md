@@ -3315,3 +3315,19 @@ Las trayectorias ILLUSTRATIVE, los datos SYNTHETIC y toda desviación de la spec
 - **Desviaciones de la spec / cambios en la guía:** ninguna. La batería sigue marcada ASSUMED (T6.4.a).
 - **Problemas abiertos:** el día anterior al 1-ene y el posterior al último día de llegada no tienen datos (fila «outside the data»).
 - **Siguiente tarea:** B8 (frase del horizonte; necesita el visto bueno para tocar `views/Panorama.tsx`).
+
+## AJUSTE · A2 · Etiqueta de escala tras salir del sitio
+
+- **Tarea:** A2 del plan de mejoras del 14-nov-2026 (hallazgo H3).
+- **Causa:** `sceneScale` vive en el store y sobrevivía a la escena. «Land at …» la deja en «local»; al volver a planificar la escena se desmonta, y al lanzar el renderizador nuevo arrancaba suponiendo «space» y no la volvía a reportar. La telemetría decía «Real scale» en el despegue y el tránsito.
+- **Qué se hizo:** `SceneHost` devuelve la escala a «space» al desmontar la escena, y el renderizador reporta su escala en el primer cuadro (`reportedScale` empieza en `null`).
+- **Cómo se verificó:**
+  ```
+  $ npm --prefix web run typecheck → sin errores
+  $ npm --prefix web test → 270 passed (46 archivos)
+  ```
+  - `tests/sceneScale.test.tsx` (nuevo): Land at → Back to planning → Launch; «Real scale» en el sitio y «Not to scale» en el lanzamiento. Sin el arreglo falla (queda «local»).
+  - Navegador (servidor de desarrollo, 1366×768, escena real): el mismo recorrido muestra «Real scale» en el sitio y «Not to scale» en el lanzamiento.
+- **Desviaciones de la spec / cambios en la guía:** ninguna.
+- **Problemas abiertos:** ninguno nuevo.
+- **Siguiente tarea:** A1.
