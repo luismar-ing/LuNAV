@@ -16,22 +16,22 @@ import { NextEvents, TimeLeft } from "./TimeLeft";
 import { useTimeseries } from "./useTimeseries";
 
 /**
- * Arrival at the site in the Mission Planner (decision A7: layout of B3; planner redesign: REDIS screen 3 in the
- * 3C style). The 3D sky stays on top; the "Time left" card on the right counts down to the next sunset and
- * Earthset (with "Site details" for the full panel of spec 8.6: location, daily values, nearby features, each with
- * its source); the bottom console holds the 360° horizon panorama (8.4, level A) and the time ribbon on the mission
- * clock, and beside them what happens next and the window metrics against the other pinned plans (★ = best).
- * "Hide 2D view" folds the console away so the 3D site can be seen whole.
+ * Arrival at the site in the Mission Planner (decision A7; planner redesign: REDIS screen 3 in the 3C style;
+ * A10: two views). "Sky" keeps the 3D site full screen with the compact "Time left" card (countdowns to the next
+ * sunset and Earthset, "Site details" for the full panel of spec 8.6) and the time bar. "Data" gives the whole width
+ * to the 360° horizon panorama (8.4, level A), the time ribbon, what happens next and the window metrics against
+ * the other pinned plans (★ = best). Both read the same mission clock, so switching keeps the instant.
  * `display: contents`: its parts take their places in the journey's grid (MissionStage).
  */
-export function SiteLayout() {
+export type SiteView = "sky" | "data";
+
+export function SiteLayout({ view }: { view: SiteView }) {
   const missionTime = useApp((s) => s.missionTime);
   const compareTime = useApp((s) => s.compareTime);
   const limit = useApp((s) => s.constraints.maxDarkH);
   const { plan, site, pinned, error, retry } = useSiteData();
   const series = useTimeseries(plan?.site.id);
   const [details, setDetails] = useState(false);
-  const [show2d, setShow2d] = useState(true);
   const [tab, setTab] = useState<"next" | "metrics">("next");
   const levelB = useApp((s) => s.levelB);
   const setLevelB = useApp((s) => s.setLevelB);
@@ -41,11 +41,14 @@ export function SiteLayout() {
   const best = plan
     ? bestBadges([plan.metrics, ...others.map((p) => p.metrics)])[0]
     : new Set<never>();
-  const endMs = plan ? plan.series.startMs + plan.plan.window_days * 86_400_000 : 0;
+  const endMs = plan
+    ? plan.series.startMs + plan.plan.window_days * 86_400_000
+    : 0;
 
   return (
     <section
       className="site-layout"
+      data-view={view}
       data-testid="live-site"
       aria-labelledby="live-site-title"
     >
@@ -66,56 +69,81 @@ export function SiteLayout() {
       )}
       {plan && site && missionTime !== null && (
         <>
-          <aside
-            className="site-card glass"
-            aria-label={STRINGS.siteLayout.timeLeft}
-          >
-            {series.error !== null && <ErrorMessage what={STRINGS.errors.site} info={describeError(series.error)} onRetry={series.retry} />}
-            {series.error === null && !series.ts && <p className="site-card-label">{STRINGS.loading}</p>}
-            {series.ts && <TimeLeft plan={plan} ts={series.ts} timeMs={missionTime} limitH={limit} />}
-            <div className="site-card-actions">
-              <button
-                type="button"
-                className="btn ghost"
-                onClick={() => setDetails(true)}
-              >
-                {STRINGS.siteLayout.details}
-              </button>
-              {/* T6.1.c: Level B can be turned off; the MVP scene and every 2D view stay as they are */}
-              <button
-                type="button"
-                className="btn ghost"
-                aria-pressed={levelB}
-                title={STRINGS.siteLayout.levelBTitle}
-                onClick={() => setLevelB(!levelB)}
-              >
-                <span aria-hidden="true">{levelB ? "■" : "□"}</span>{" "}
-                {STRINGS.siteLayout.levelB}
-              </button>
-              {/* TR.3.a: the first-person sky (Level B) or the aerial framing of the site */}
-              {levelB && (
+          {view === "sky" && (
+            <aside
+              className="site-card glass"
+              aria-label={STRINGS.siteLayout.timeLeft}
+            >
+              {series.error !== null && (
+                <ErrorMessage
+                  what={STRINGS.errors.site}
+                  info={describeError(series.error)}
+                  onRetry={series.retry}
+                />
+              )}
+              {series.error === null && !series.ts && (
+                <p className="site-card-label">{STRINGS.loading}</p>
+              )}
+              {series.ts && (
+                <TimeLeft
+                  plan={plan}
+                  ts={series.ts}
+                  timeMs={missionTime}
+                  limitH={limit}
+                />
+              )}
+              <div className="site-card-actions">
                 <button
                   type="button"
                   className="btn ghost"
-                  title={STRINGS.siteLayout.standTitle}
-                  onClick={() => setSurfaceView(!surfaceView)}
+                  onClick={() => setDetails(true)}
                 >
-                  {surfaceView
-                    ? STRINGS.siteLayout.aerial
-                    : STRINGS.siteLayout.stand}
+                  {STRINGS.siteLayout.details}
                 </button>
-              )}
-            </div>
-          </aside>
-          {show2d ? (
+                {/* T6.1.c: Level B can be turned off; the MVP scene and every 2D view stay as they are */}
+                <button
+                  type="button"
+                  className="btn ghost"
+                  aria-pressed={levelB}
+                  title={STRINGS.siteLayout.levelBTitle}
+                  onClick={() => setLevelB(!levelB)}
+                >
+                  <span aria-hidden="true">{levelB ? "■" : "□"}</span>{" "}
+                  {STRINGS.siteLayout.levelB}
+                </button>
+                {/* TR.3.a: the first-person sky (Level B) or the aerial framing of the site */}
+                {levelB && (
+                  <button
+                    type="button"
+                    className="btn ghost"
+                    title={STRINGS.siteLayout.standTitle}
+                    onClick={() => setSurfaceView(!surfaceView)}
+                  >
+                    {surfaceView
+                      ? STRINGS.siteLayout.aerial
+                      : STRINGS.siteLayout.stand}
+                  </button>
+                )}
+              </div>
+            </aside>
+          )}
+          {view === "data" && (
             <div className="site-console glass" data-testid="site-console">
               <div className="site-console-main">
                 <Panorama data={plan} timeMs={missionTime} />
-                <TimeRibbon series={plan.series} compareTime={compareTime} thin />
+                <TimeRibbon
+                  series={plan.series}
+                  compareTime={compareTime}
+                  thin
+                />
               </div>
               <div className="site-side">
                 <div className="site-side-head">
-                  <div className="site-tabs" role="tablist" aria-label={STRINGS.siteLayout.side}>
+                  <div
+                    className="site-tabs"
+                    role="tablist"
+                    aria-label={STRINGS.siteLayout.side}
+                  >
                     {(["next", "metrics"] as const).map((t) => (
                       <button
                         key={t}
@@ -130,32 +158,54 @@ export function SiteLayout() {
                           if (e.key === "ArrowRight" || e.key === "ArrowLeft") {
                             const next = t === "next" ? "metrics" : "next";
                             setTab(next);
-                            document.getElementById(`site-tab-${next}`)?.focus();
+                            document
+                              .getElementById(`site-tab-${next}`)
+                              ?.focus();
                           }
                         }}
                       >
-                        {t === "next" ? STRINGS.siteLayout.next : STRINGS.siteLayout.metrics}
+                        {t === "next"
+                          ? STRINGS.siteLayout.next
+                          : STRINGS.siteLayout.metrics}
                       </button>
                     ))}
                   </div>
-                  <button type="button" className="btn ghost pill console-toggle" title={STRINGS.siteLayout.hide2dTitle} onClick={() => setShow2d(false)}>
-                    {STRINGS.siteLayout.hide2d}
+                  <button
+                    type="button"
+                    className="btn ghost pill console-toggle"
+                    onClick={() => setDetails(true)}
+                  >
+                    {STRINGS.siteLayout.details}
                   </button>
                 </div>
-                <div role="tabpanel" id="site-panel-next" aria-labelledby="site-tab-next" hidden={tab !== "next"}>
-                  {series.ts ? <NextEvents ts={series.ts} timeMs={missionTime} endMs={endMs} /> : <p className="muted-note">{STRINGS.loading}</p>}
+                <div
+                  role="tabpanel"
+                  id="site-panel-next"
+                  aria-labelledby="site-tab-next"
+                  hidden={tab !== "next"}
+                >
+                  {series.ts ? (
+                    <NextEvents
+                      ts={series.ts}
+                      timeMs={missionTime}
+                      endMs={endMs}
+                    />
+                  ) : (
+                    <p className="muted-note">{STRINGS.loading}</p>
+                  )}
                 </div>
-                <div role="tabpanel" id="site-panel-metrics" aria-labelledby="site-tab-metrics" hidden={tab !== "metrics"}>
+                <div
+                  role="tabpanel"
+                  id="site-panel-metrics"
+                  aria-labelledby="site-tab-metrics"
+                  hidden={tab !== "metrics"}
+                >
                   <MetricsBox metrics={plan.metrics} best={best} />
-                  {others.length > 0 && <CompareTable plan={plan} others={others} />}
+                  {others.length > 0 && (
+                    <CompareTable plan={plan} others={others} />
+                  )}
                 </div>
               </div>
-            </div>
-          ) : (
-            <div className="site-console-folded">
-              <button type="button" className="btn ghost pill console-toggle" onClick={() => setShow2d(true)}>
-                {STRINGS.siteLayout.show2d}
-              </button>
             </div>
           )}
           {/* rendered in the Mission Planner's root layer: above the journey panels (which may scroll) and
@@ -230,6 +280,35 @@ function CompareTable({
           ))}
         </tbody>
       </table>
+    </div>
+  );
+}
+
+/** A10: the switch between the site's two views (beside "Back to planning", the same place in both). */
+export function SiteViewSwitch({
+  view,
+  onChange,
+}: {
+  view: SiteView;
+  onChange(v: SiteView): void;
+}) {
+  return (
+    <div
+      className="site-view-switch glass"
+      role="group"
+      aria-label={STRINGS.siteLayout.viewSwitch}
+    >
+      {(["sky", "data"] as const).map((v) => (
+        <button
+          key={v}
+          type="button"
+          aria-pressed={view === v}
+          title={STRINGS.siteLayout.viewTitle[v]}
+          onClick={() => onChange(v)}
+        >
+          {STRINGS.siteLayout.viewName[v]}
+        </button>
+      ))}
     </div>
   );
 }
