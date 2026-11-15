@@ -3795,6 +3795,34 @@ Las trayectorias ILLUSTRATIVE, los datos SYNTHETIC y toda desviación de la spec
 - **Desviaciones de la spec / cambios en la guía:** ninguna.
 - **Problemas abiertos:** ninguno.
 
+## AJUSTE · Home con la propuesta A («Horizon»)
+
+- **Tarea:** petición del humano. De las 3 propuestas para Home (lienzo de diseño, página «Round 5 · Home»), la A, con dos cambios pedidos: el hover conserva el movimiento de antes y se quitan el horizonte y el Sol del fondo.
+- **Qué se hizo:**
+  - **Título** «Where do we land next?» en Instrument Serif (`--font-serif`), de 56 a 112 px. El tamaño depende del ancho y del alto (`min(7.4vw, 12vh)`) para que a 1366×768 las tarjetas queden a la vista. `text-wrap: balance` lo reparte en «Where do we / land next?».
+  - Sin frase bajo el título: la de la propuesta (Haworth, 10 frente a 11 ene) se quitó a petición del humano.
+  - **Tarjetas en el color de su modo:** Educator en el azul de la Tierra, Mission Planner en el ámbar del Sol.
+    - La luz que sigue al puntero (`SpotlightCard`) y el ascenso de 2 px se conservan; ahora la luz es del color del modo.
+    - Al pasar el cursor, el borde y un leve tinte toman ese color, y el título y «Enter» su tono claro.
+    - La flecha avanza 4 px y un disco del color sube sobre una línea de horizonte dentro de la tarjeta.
+    - Con el teclado (`:focus-visible`) se ve igual.
+    - Títulos de tarjeta en Instrument Serif.
+  - **Colores:** dos tokens nuevos en `styles/tokens.ts`, `sunLight` (`#FFD08A`) y `earthLight` (`#A9D2FF`).
+  - **Fuera** el horizonte de Haworth y el Sol y la Tierra de fondo que tenía la propuesta.
+  - **Icono de la pestaña:** `web/public/favicon.svg` es ahora el logo del equipo con fondo oscuro (`constelacion-oscura-fondo.svg`, copia sin cambios), en lugar del icono de PolePlanner.
+- **Cómo se verificó:**
+  ```
+  $ npm --prefix web run typecheck → sin errores
+  $ npm --prefix web test → 401 passed
+  ```
+  - Navegador, a 1366×768 y 1920×1080: sin scroll; el título mide 92 px y 112 px.
+  - Chrome sin cabeza con el puntero en dos puntos de cada tarjeta:
+    - `--spot-x/--spot-y` siguen al puntero y la tarjeta sube 2 px;
+    - el borde queda en `rgb(74,163,255)` / `rgb(255,179,71)` y el título en `rgb(169,210,255)` / `rgb(255,208,138)`;
+    - el disco sube 10 px y en la tarjeta inactiva no se asoma su resplandor.
+- **Desviaciones de la spec / cambios en la guía:** ninguna.
+- **Problemas abiertos:** ninguno.
+
 ## AJUSTE · B13: viaje completo en 3D a una coordenada personalizada
 
 - **Tarea:** B13, plan «Opción 2: viaje completo» de la persona B (15-nov-2026). Rama `b13-custom-journey` desde `main` (que ya incluye B12). Decisión A14.

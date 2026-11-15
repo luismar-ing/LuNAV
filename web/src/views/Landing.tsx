@@ -56,6 +56,9 @@ export function Landing({ tools, onCredits }: { tools?: ReactNode; onCredits(): 
                 <path d="M5 12h14M13 6l6 6-6 6" />
               </svg>
             </span>
+            {/* the card's own horizon: on hover its body (the Earth or the Sun) rises above it */}
+            <span className="mode-card-disc" aria-hidden="true" />
+            <span className="mode-card-horizon" aria-hidden="true" />
           </SpotlightCard>
         ))}
       </nav>
