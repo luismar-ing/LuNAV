@@ -3627,12 +3627,13 @@ button.brief-day-btn:hover {
 }
 
 /* legend of the lit polar map (T6.2.b): the same ramp the map is drawn with, dark to Sun orange */
+/* the legend's sample of the two contour lines (A8): thin above, bold below */
 .polar-ramp {
   display: inline-block;
-  width: 64px;
-  height: 8px;
-  border-radius: 4px;
-  background: linear-gradient(90deg, var(--color-bg), var(--color-sun));
+  width: 26px;
+  height: 4px;
+  border-top: 1px solid var(--color-sun);
+  border-bottom: 2px solid var(--color-sun);
 }
 
 button.scene-chip {

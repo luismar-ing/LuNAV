@@ -1,9 +1,10 @@
 /**
  * Lit polar map as a step of the zoom (T6.2.b, spec 8.3): the published LOLA average illumination of 85°S-90°S
  * (PGDA, Mazarico et al. 2011; pipeline/illumination_map.py) laid on the Moon's south pole as a disc. It is a
- * child of the Moon mesh, so it follows the Moon's position, orientation and scale. Unlit, in the Sun's colour:
- * dark = (almost) never sunlit, orange = sunlit most of the time. It shows while the camera closes in on the pole
- * during the landing and fades out before the real terrain takes over. Context only, never a site metric.
+ * child of the Moon mesh, so it follows the Moon's position, orientation and scale. A8: no fill, only contour lines
+ * in the Sun's colour around the ground sunlit at least half the time (thin) and 70 % of the time (bold), so the
+ * Moon keeps its own colour underneath. It shows while the camera closes in on the pole during the landing and
+ * fades out before the real terrain takes over. Context only, never a site metric.
  */
 import * as THREE from "three";
 import type { MissionTimeline } from "../lib/mission";
@@ -20,7 +21,42 @@ export interface PolarMapHeader {
 
 /** The disc floats this fraction of the radius above the drawn sphere (no depth fighting with it). */
 export const POLAR_MAP_LIFT = 1.002;
-const OPACITY = 0.75; // some of the relief shows through the data layer
+const OPACITY = 1; // lines only (A8): the relief shows between them
+
+/** A8: contour levels (fraction of the time sunlit, 18.6-year average) and the weight of each line. */
+export const CONTOURS = [
+  { level: 0.5, weight: 0.65 },
+  { level: 0.7, weight: 1 },
+] as const;
+
+/**
+ * Replaces three.js's `map_fragment`: instead of tinting the disc by the map, keep only thin lines where the
+ * average sunlight crosses each level (about 2 px wide on screen, from the value's own screen-space slope), so
+ * the area itself stays clear. The map is read a little blurred (mip bias) so the lines follow the ridges, not
+ * every pixel of noise.
+ */
+export function polarContourChunk(levels: readonly { level: number; weight: number }[] = CONTOURS): string {
+  const lines = levels
+    .map(({ level, weight }) => `  lines = max( lines, ${weight.toFixed(3)} * ( 1.0 - smoothstep( 1.0, 2.2, abs( v - ${level.toFixed(3)} ) / w ) ) );`)
+    .join("\n");
+  return `#ifdef USE_MAP
+  float v = texture2D( map, vMapUv, 1.0 ).r;
+  float w = max( fwidth( v ), 1e-4 );
+  float lines = 0.0;
+${lines}
+  diffuseColor.a *= lines;
+#endif`;
+}
+
+/** The disc's material: the Sun's colour, transparent, drawn as contour lines (polarContourChunk). */
+export function polarMapMaterial(): THREE.MeshBasicMaterial {
+  const material = new THREE.MeshBasicMaterial({ color: COLORS.sun, transparent: true, opacity: 0, depthWrite: false, side: THREE.DoubleSide });
+  material.onBeforeCompile = (shader) => {
+    shader.fragmentShader = shader.fragmentShader.replace("#include <map_fragment>", polarContourChunk());
+  };
+  material.customProgramCacheKey = () => "polar-map-contours";
+  return material;
+}
 
 const smoothstep = (x: number) => {
   const t = Math.min(1, Math.max(0, x));
@@ -81,7 +117,7 @@ export function polarMapOpacity(tl: MissionTimeline, t: number, lambda: number):
 /** Loads the header and the map image (an extra: on any failure the scene simply has no map). */
 export function createPolarMap(baseUrl: string, sphereR: number): THREE.Mesh {
   // double-sided: the disc's winding is whatever the ring order gives, and it is only ever seen from outside
-  const material = new THREE.MeshBasicMaterial({ color: COLORS.sun, transparent: true, opacity: 0, depthWrite: false, side: THREE.DoubleSide });
+  const material = polarMapMaterial();
   const mesh = new THREE.Mesh(new THREE.BufferGeometry(), material);
   mesh.name = "polar-map";
   mesh.visible = false;

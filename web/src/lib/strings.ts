@@ -283,8 +283,8 @@ export const STRINGS = {
   polarMap: {
     toggle: "Sunlight map",
     toggleTitle: "Show the average sunlight of the south polar region on the Moon during the landing (an optional step of the zoom)",
-    legend: "Average sunlight, 18.6 years",
-    legendTitle: "LOLA average solar illumination, 85°S–90°S (NASA GSFC PGDA; Mazarico et al. 2011). Dark: almost never sunlit; orange: sunlit most of the time. Context only: the site figures come from LuNAV's own one-year series.",
+    legend: "Sunlit 50% / 70% of the time",
+    legendTitle: "LOLA average solar illumination, 85°S–90°S (NASA GSFC PGDA; Mazarico et al. 2011). The lines surround the ground sunlit at least half the time (thin) and 70% of the time (bold), on average over 18.6 years. Context only: the site figures come from LuNAV's own one-year series.",
     never: "never",
     always: "always",
   },
