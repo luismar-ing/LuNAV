@@ -3871,6 +3871,24 @@ Las trayectorias ILLUSTRATIVE, los datos SYNTHETIC y toda desviación de la spec
 - **Problemas abiertos:** el calendario sigue mostrando solo las filas de los cinco sitios; el mapa de la Luna no marca los puntos fijados.
 - **Siguiente tarea:** revisión de la persona B.
 
+## AJUSTE · A8 · Contornos de luz en el polo
+
+- **Tarea:** petición del humano: al llegar a la Luna, el polo aparecía teñido de amarillo. Elegido en la pregunta de aclaración: «contornos de luz», sin relleno.
+- **Qué se hizo** (`scene3d/polarMap.ts`): la capa «Sunlight map» (iluminación media de LOLA, 85°S–90°S) ya no rellena el disco con el color del Sol.
+  - `polarMapMaterial()` reemplaza el fragmento `map_fragment` de three.js por `polarContourChunk()`: líneas de unos 2 px donde la iluminación media cruza el 50 % (fina) y el 70 % (gruesa).
+  - El grosor se calcula con la pendiente del valor en pantalla (`fwidth`), y el mapa se lee algo suavizado para que las líneas sigan las crestas y no el ruido.
+  - El resto del disco es transparente, así que la Luna conserva su color.
+  - La leyenda dice «Sunlit 50% / 70% of the time», con una muestra de las dos líneas; el texto largo explica qué rodea cada una.
+- **Cómo se verificó:**
+  ```
+  $ npm --prefix web run typecheck → sin errores
+  $ npm --prefix web test → 430 passed (nueva en polarMap.test.ts)
+  ```
+  - La prueba nueva comprueba que el fragmento tiene los dos niveles, que no tiñe el color, que el material sustituye `map_fragment` y que sigue en el color del Sol.
+  - Escena real (Chrome sin cabeza, llegada de Connecting Ridge): en la órbita baja se ven líneas ámbar alrededor de las crestas iluminadas, sin relleno y sin errores de sombreado en consola.
+- **Desviaciones de la spec / cambios en la guía:** ninguna (sigue siendo contexto, nunca una métrica del sitio).
+- **Problemas abiertos:** el mapa de LOLA es ruidoso a esa escala; las líneas salen en tramos. Si se quieren más continuas, habría que suavizar el mapa en el pipeline.
+
 ## AJUSTE · A7 · Despegue desde Cabo Cañaveral al mediodía
 
 - **Tarea:** petición del humano: el cohete salía del lado oscuro de la Tierra y desde el mar. Decisión A16.
