@@ -3420,3 +3420,29 @@ Las trayectorias ILLUSTRATIVE, los datos SYNTHETIC y toda desviación de la spec
   - Al activarlo, revisar la URL pública (T7.1.a) y medir en ella el rendimiento (T7.1.b: `perf.mjs` y `fps.mjs` aceptan la URL como argumento).
   - El dominio de la oferta queda pendiente. Si se consigue, se conecta a Pages y se quita `--base` del flujo.
 - **Siguiente tarea:** C2 (README final con capturas).
+
+## AJUSTE · C1: URL pública verificada (T7.1.a cerrada)
+
+- **Tarea:** cierre de T7.1.a. El dueño del repo activó GitHub Pages.
+- **Qué se hizo:**
+  - Primero Pages se configuró con la rama `main`, y GitHub publicó el README con Jekyll en lugar de la app.
+  - Se corrigió a «Deploy from a branch → `deploy`, `/ (root)`».
+  - T7.1.a pasa a `[x]` en la guía.
+- **Cómo se verificó:** en https://luismar-ing.github.io/LuNAV/ cargan la portada (con el nombre LuNAV de C2), el Mission Planner con el mapa y, tras «Land at Connecting Ridge», el 3D del sitio. Todas las peticiones de la carga salen de `/LuNAV/` y responden 200: scripts, fuentes, texturas, `manifest`, `sites`, `plans`, ventanas, series, escena, trayectoria y terreno (incluido `data/terrain/_polar/`). No hay llamadas a APIs ni a servidores externos.
+- **Desviaciones de la spec / cambios en la guía:** ninguna.
+- **Problemas abiertos:** T7.1.b (medir el rendimiento en la URL pública con `perf.mjs` y `fps.mjs`).
+- **Siguiente tarea:** C3 (reto del Educator, nivel 1). Nueva numeración de C: C3 reto, C4 niveles 2 y 3, C5 capturas, C6 guion y demo.
+
+## AJUSTE · C3: reto «Can your lander make it?» (nivel 1)
+
+- **Tarea:** C3 (propuesta del equipo: modo reto en el Educator). Rama `c3-challenge`.
+- **Qué se hizo:**
+  - `lib/challenge.ts`: reglas y resultado. La misión fija el mes (marzo de 2027) y la estancia (7 días); el jugador elige sitio y día de llegada. Reutiliza `stayBattery` y `nightInStay` de `lib/siteBrief.ts`, así que el reto y el planificador dan siempre el mismo veredicto. `stayTrace` da la batería, el Sol y la Tierra muestra por muestra y el instante en que la batería se vacía.
+  - `views/Challenge.tsx`: pantalla propia (`screen: "challenge"`) sobre la única escena 3D, a la que se entra con «Take the challenge» en el capítulo 4 del Educator. Menú lateral con la misión, el lander ASSUMED, el sitio y los 31 días; el globo sigue el plan elegido. «Launch the mission» simula la misión en el 3D: viaje, descenso (más lento, para ver la llegada a la Luna) y estancia, con un panel de fase, día, batería, Sol y Tierra, una barra de la estancia hasta la meta (día 7) con sus tramos de luz reales, velocidad elegible (1, 3 y 6 h/s, 1 d/s), pausa y «Skip ahead». Si la batería se vacía, la simulación se detiene en ese instante y la escena se oscurece («Power lost · …»). Al final, el veredicto con su porqué, la cinta de tiempo de la estancia, «Try again», «Watch again» y «Main menu».
+  - Solo se marca (✓/✗) el día que el jugador ya intentó en cada sitio: el reto no revela las respuestas.
+  - `views/useMissionPlayback.ts` (reproducción compartida con el Educator) y `views/useScenePlan.ts` (la escena sigue al plan elegido). No se tocó `scene3d/` (ramas abiertas de A).
+  - Textos en la sección `challenge` de `strings.ts`; estilos en `styles/challenge.css`.
+- **Cómo se verificó:** `tests/challenge.test.ts` (reglas: días que funcionan en marzo por sitio 23/9/12/12/20 de 31; casos de Haworth 10 y 11 de enero y Nobile Rim 1 2 de marzo; instante sin energía, 17-ene 10:00 y 2-mar 20:00 UTC; paridad con `stayBattery` y con las ventanas precalculadas), `tests/challenge.view.test.tsx` (pantalla, vuelo, corte, reintento, repetición y menú) y `tests/challenge.flow.test.tsx` (entrada desde el Educator). Prueba manual en el navegador.
+- **Desviaciones de la spec / cambios en la guía:** ninguna. El fracaso ocurre siempre en la superficie, por la noche real del sitio; la trayectoria es ILLUSTRATIVE y no decide nada. El lander es el ASSUMED de `lib/energy.ts` (5 kWh, 250 W, 750 W) y se marca así en la pantalla.
+- **Problemas abiertos:** en el capítulo 4 del Educator, «Look around 360°» no cambia nada con Level B (la vista desde el sitio ya está activa) y el texto tapa la escena; se hará aparte, con un botón que alterne la vista y otro que oculte el texto.
+- **Siguiente tarea:** C4 (niveles 2 y 3: Tierra ≥ 8 h cada día; lanzamiento retrasado 2 días).
