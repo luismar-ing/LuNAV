@@ -136,8 +136,9 @@
 }
 
 /* The mission under way (HUD in place of the sidebar) */
-.challenge-hud {
+.mission-sidebar.challenge-hud {
   bottom: auto;
+  max-height: calc(100% - 2 * clamp(12px, 2.2vh, 24px));
 }
 .challenge-phase {
   font-size: var(--font-lg);
@@ -226,4 +227,57 @@
 }
 :root[data-reduced-motion="true"] .challenge-blackout {
   animation: none;
+}
+
+/* The result: the actions right under the verdict, the details after them. The shared .ribbon fills its parent's
+   height (it sits in fixed-height boxes elsewhere): here it keeps the height of its own drawing. */
+.challenge-result-actions .btn.primary {
+  flex: 1 1 100%;
+}
+.challenge-result .ribbon {
+  height: auto;
+}
+
+/* Speed, pause and skip while the mission plays */
+.challenge-controls {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+/* The stay from landing to the goal: lit stretches, days, and how far the mission has got */
+.challenge-staybar svg {
+  display: block;
+  width: 100%;
+  height: 22px;
+  margin-top: 6px;
+  border-radius: 4px;
+}
+.challenge-staybar .stay-night {
+  fill: var(--color-dark);
+}
+.challenge-staybar .stay-lit {
+  fill: var(--color-sun);
+  fill-opacity: 0.35;
+}
+.challenge-staybar .stay-done {
+  fill: var(--color-text);
+  fill-opacity: 0.18;
+}
+.challenge-staybar .stay-day {
+  stroke: var(--color-bg);
+  stroke-width: 1;
+  vector-effect: non-scaling-stroke;
+}
+.challenge-staybar .stay-now {
+  stroke: var(--color-text);
+  stroke-width: 2;
+  vector-effect: non-scaling-stroke;
+}
+.challenge-staybar-axis {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 4px;
+  color: var(--color-text-muted);
+  font-size: var(--font-sm);
 }

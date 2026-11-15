@@ -85,8 +85,21 @@ describe("Challenge screen (C3)", () => {
     expect(appStore.getState().missionPhase).toBe("site");
     expect(hud.getByText("Sun hidden by the terrain")).toBeTruthy();
     expect(hud.getByText(/^Draining: the Sun is hidden/)).toBeTruthy();
-    fireEvent.click(hud.getByRole("button", { name: "Skip ahead" }));
-    await waitFor(() => expect(screen.getByTestId("challenge").dataset.stage).toBe("done"));
+    // the stay bar from landing to the goal, and the time controls (3 h/s by default during the stay)
+    expect(hud.getByRole("img", { name: /^Stay progress: day 1 of 7, \d+% of the way to the goal$/ })).toBeTruthy();
+    expect(hud.getByText("Day 7 · goal")).toBeTruthy();
+    expect(hud.getByRole("button", { name: "3 h/s" }).getAttribute("aria-pressed")).toBe("true");
+    fireEvent.click(hud.getByRole("button", { name: "Pause" }));
+    const paused = appStore.getState().missionTime;
+    await new Promise((r) => setTimeout(r, 150));
+    expect(appStore.getState().missionTime).toBe(paused);
+    expect(screen.getByTestId("challenge").dataset.stage).toBe("stay");
+    fireEvent.click(hud.getByRole("button", { name: "1 d/s" }));
+    expect(hud.getByRole("button", { name: "1 d/s" }).getAttribute("aria-pressed")).toBe("true");
+    fireEvent.click(hud.getByRole("button", { name: "Resume" }));
+    await waitFor(() => expect(appStore.getState().missionTime!).toBeGreaterThan(paused!));
+    // at 1 d/s the 20 h the battery lasts go by in under a second
+    await waitFor(() => expect(screen.getByTestId("challenge").dataset.stage).toBe("done"), { timeout: 3000 });
     expect(appStore.getState().missionTime).toBe(Date.parse("2027-03-02T20:00:00Z"));
 
     // the end: the scene goes dark at that moment and the result says why, from the real night

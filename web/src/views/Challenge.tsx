@@ -3,7 +3,8 @@ import { evaluate, LEVEL_1, monthDays, stayTrace, traceAt, type ChallengeResult,
 import { ASSUMED_BATTERY } from "../lib/energy";
 import { fmtDay, fmtUtc } from "../lib/format";
 import { sliceWindow } from "../lib/planData";
-import { stayDay } from "../lib/siteBrief";
+import { phaseAt } from "../lib/mission";
+import { stayDay, visibleSpans } from "../lib/siteBrief";
 import { STRINGS } from "../lib/strings";
 import { num } from "../lib/why";
 import { TimeRibbon } from "../panels2d/TimeRibbon";
@@ -17,13 +18,15 @@ import { useTimeseries } from "./useTimeseries";
 
 const T = STRINGS.challenge;
 /**
- * Mission hours per second of playback: the trip to the Moon (a few seconds), the descent from lunar arrival to
- * touchdown (slow, as in the Educator's landing chapter, so the arrival at the Moon can be seen) and the stay
- * (7 days in about 17 s).
+ * Mission hours per second of playback, until the player picks a speed: the trip to the Moon (about 10 s), the
+ * descent from lunar arrival to touchdown (slow, as in the Educator's landing chapter, so the arrival at the Moon
+ * can be seen) and the stay (7 days in about a minute, so a night that drains the battery can be followed).
  */
-const FLIGHT_HPS = 8;
-const LANDING_HPS = 1.5;
-const STAY_HPS = 10;
+const FLIGHT_HPS = 6;
+const LANDING_HPS = 1;
+const STAY_HPS = 3;
+/** Speeds the player can choose (hours of mission per second), as in the Mission Planner's controls. */
+const SPEEDS = [1, 3, 6, 24] as const;
 
 /** Read by the scene every frame: while the player chooses, the globe shows the launch pad (planning view). */
 const stageNow = { planning: true };
@@ -34,6 +37,14 @@ const monthName = (month: string) => new Date(`${month}-01T00:00:00Z`).toLocaleD
 
 /** Choosing, flying (launch to landing), the stay at the site, and the end (stay over or power lost). */
 type Stage = "pick" | "flight" | "stay" | "done";
+
+/** A stretch of the mission played in one go: up to `to` (epoch ms) at `hps` hours per second by default. */
+interface Segment {
+  to: number;
+  hps: number;
+}
+/** The mission's stretches: trip, descent and stay; the stage follows the one under way. */
+const stageOf = (seg: number): Stage => (seg < 0 ? "pick" : seg < 2 ? "flight" : seg === 2 ? "stay" : "done");
 
 interface Run {
   siteId: string;
@@ -57,14 +68,28 @@ export function Challenge({ tools }: { tools: ReactNode }) {
   const month = monthName(level.month);
   const [siteId, setSiteId] = useState<string | null>(null);
   const [day, setDay] = useState<string | null>(null);
-  const [stage, setStage] = useState<Stage>("pick");
+  const [seg, setSeg] = useState(-1); // stretch under way (-1: choosing; 3: over)
+  const stage = stageOf(seg);
+  const [speed, setSpeed] = useState<number | null>(null); // the player's speed, once chosen
+  const [paused, setPaused] = useState(false);
   const [run, setRun] = useState<Run | null>(null);
   // the player's own attempts, site by site (only the days tried are marked: the answers are never revealed)
   const [tried, setTried] = useState<Record<string, Record<string, boolean>>>({});
   const [attempts, setAttempts] = useState(0);
   const timeline = useScenePlan(plan);
   const { ts } = useTimeseries(siteId ?? undefined);
-  const { play, setPlay, skip } = useMissionPlayback(timeline);
+  const { play, setPlay } = useMissionPlayback(timeline);
+  const segments = useMemo<Segment[]>(
+    () =>
+      run && timeline
+        ? [
+            { to: timeline.lunarArrivalMs, hps: FLIGHT_HPS },
+            { to: timeline.landingMs, hps: LANDING_HPS },
+            { to: run.trace.powerLostMs ?? timeline.endMs, hps: STAY_HPS }, // the stay stops where the power runs out
+          ]
+        : [],
+    [run, timeline],
+  );
 
   // the chosen site and day are the mission's plan (the 7-day plan of that site and arrival day)
   const planId = siteId && day ? `${siteId}_${day.replace(/-/g, "")}_${level.stayDays}d` : null;
@@ -88,8 +113,8 @@ export function Challenge({ tools }: { tools: ReactNode }) {
     stageNow.planning = false; // the camera leaves the globe view for the mission
     appStore.getState().setMissionTime(timeline.startMs);
     appStore.getState().setMissionPhase("launch");
-    setStage("flight");
-    setPlay({ to: timeline.lunarArrivalMs, hoursPerSecond: FLIGHT_HPS });
+    setPaused(false);
+    setSeg(0);
   };
   const launch = () => {
     if (!ready || !ts || !siteId || !day) return;
@@ -101,24 +126,32 @@ export function Challenge({ tools }: { tools: ReactNode }) {
     fly();
   };
   const tryAgain = () => {
-    setStage("pick"); // the clock goes back to the countdown and the camera to the globe (effect above)
+    setSeg(-1); // the clock goes back to the countdown and the camera to the globe (effect above)
     setRun(null);
   };
 
-  // the trip runs into the descent and the descent into the stay; the stay ends at its last hour or where the
-  // battery runs empty
+  // each stretch plays at its own speed, or the player's, unless paused
   useEffect(() => {
-    if (play || !timeline || !run) return;
-    if (stage === "flight" && (appStore.getState().missionTime ?? 0) < timeline.landingMs) {
-      setPlay({ to: timeline.landingMs, hoursPerSecond: LANDING_HPS });
-    } else if (stage === "flight") {
-      setStage("stay");
-      setPlay({ to: run.trace.powerLostMs ?? timeline.endMs, hoursPerSecond: STAY_HPS });
-    } else if (stage === "stay") {
-      setStage("done");
-      setTried((t) => ({ ...t, [run.siteId]: { ...t[run.siteId], [run.day]: run.result.success } }));
-    }
-  }, [play, stage, timeline, run, setPlay]);
+    const cur = segments[seg];
+    if (cur) setPlay(paused ? null : { to: cur.to, hoursPerSecond: speed ?? cur.hps });
+  }, [seg, segments, speed, paused, setPlay]);
+  // a stretch that reaches its end runs into the next one: trip, descent, stay, end
+  useEffect(() => {
+    const cur = segments[seg];
+    if (play || paused || !cur) return;
+    if ((appStore.getState().missionTime ?? 0) >= cur.to) setSeg(seg + 1);
+  }, [play, paused, seg, segments]);
+  const skip = () => {
+    const cur = segments[seg];
+    if (!cur || !timeline) return;
+    appStore.getState().setMissionTime(cur.to);
+    appStore.getState().setMissionPhase(phaseAt(timeline, cur.to));
+    setSeg(seg + 1);
+  };
+  // the day just tried is marked on the calendar (only the player's own attempts)
+  useEffect(() => {
+    if (seg === 3 && run) setTried((t) => ({ ...t, [run.siteId]: { ...t[run.siteId], [run.day]: run.result.success } }));
+  }, [seg, run]);
 
   // Esc leaves for the start page, as in the Educator
   useEffect(() => {
@@ -228,7 +261,11 @@ export function Challenge({ tools }: { tools: ReactNode }) {
             trace={run.trace}
             landingMs={timeline.landingMs}
             endMs={timeline.endMs}
-            onSkip={play ? skip : null}
+            speed={speed ?? segments[seg]?.hps ?? STAY_HPS}
+            onSpeed={setSpeed}
+            paused={paused}
+            onPause={() => setPaused((p) => !p)}
+            onSkip={skip}
           />
         )
       )}
@@ -249,6 +286,10 @@ function MissionHud({
   trace,
   landingMs,
   endMs,
+  speed,
+  onSpeed,
+  paused,
+  onPause,
   onSkip,
 }: {
   siteName: string;
@@ -256,7 +297,11 @@ function MissionHud({
   trace: StayTrace;
   landingMs: number;
   endMs: number;
-  onSkip: (() => void) | null;
+  speed: number;
+  onSpeed(hps: number): void;
+  paused: boolean;
+  onPause(): void;
+  onSkip(): void;
 }) {
   const t = useApp((s) => s.missionTime) ?? landingMs;
   const phase = useApp((s) => s.missionPhase);
@@ -289,14 +334,63 @@ function MissionHud({
           <li data-on={at.earth}>{at.earth ? T.earthUp : T.earthHidden}</li>
         </ul>
       )}
-      {onSkip && (
+      <StayBar trace={trace} landingMs={landingMs} endMs={endMs} t={t} />
+      <div className="challenge-controls">
+        <div className="segmented" role="group" aria-label={STRINGS.mission.speed}>
+          {SPEEDS.map((s) => (
+            <button key={s} type="button" aria-pressed={speed === s} className={speed === s ? "on" : ""} onClick={() => onSpeed(s)}>
+              {STRINGS.mission.speedLabel(s)}
+            </button>
+          ))}
+        </div>
         <div className="challenge-actions">
+          <button type="button" className="btn pill" aria-pressed={paused} onClick={onPause}>
+            {paused ? T.resume : T.pause}
+          </button>
           <button type="button" className="btn pill" onClick={onSkip}>
             {STRINGS.educator.skip}
           </button>
         </div>
-      )}
+      </div>
     </aside>
+  );
+}
+
+/**
+ * The stay as a bar from landing to the last day (the goal): its sunlit stretches from the site's real series, the
+ * days, and how far the mission has got. A mission that loses its power stops part of the way along.
+ */
+function StayBar({ trace, landingMs, endMs, t }: { trace: StayTrace; landingMs: number; endMs: number; t: number }) {
+  const n = trace.sun.length;
+  const days = Math.round((endMs - landingMs) / 86_400_000);
+  const lit = useMemo(() => visibleSpans(trace.sun, 0, n), [trace, n]);
+  const f = Math.min(1, Math.max(0, (t - landingMs) / (endMs - landingMs)));
+  const day = stayDay(landingMs, endMs, t);
+  return (
+    <div className="challenge-staybar">
+      <p className="sidebar-label">{T.stayBar}</p>
+      <svg
+        viewBox="0 0 100 10"
+        preserveAspectRatio="none"
+        role="img"
+        aria-label={day ? T.stayBarLabel(day.day, days, Math.round(f * 100)) : T.stayStarts}
+        data-progress={f.toFixed(3)}
+      >
+        <rect className="stay-night" x={0} y={0} width={100} height={10} />
+        {lit.map((sp) => (
+          <rect key={sp.from} className="stay-lit" x={sp.from * 100} y={0} width={(sp.to - sp.from) * 100} height={10} />
+        ))}
+        <rect className="stay-done" x={0} y={0} width={f * 100} height={10} />
+        {Array.from({ length: days - 1 }, (_, i) => (
+          <line key={i} className="stay-day" x1={((i + 1) * 100) / days} x2={((i + 1) * 100) / days} y1={0} y2={10} />
+        ))}
+        <line className="stay-now" x1={f * 100} x2={f * 100} y1={0} y2={10} />
+      </svg>
+      <div className="challenge-staybar-axis">
+        <span>{day ? T.stayDay(day.day, days) : T.stayStarts}</span>
+        <span>{T.goal(days)}</span>
+      </div>
+    </div>
   );
 }
 
@@ -333,9 +427,7 @@ function ResultPanel({
         {explain(r, siteName, stayDays)}
       </p>
       <p className="challenge-sun">{T.sunlight(num(r.sunPct))}</p>
-      <TimeRibbon series={series} compareTime={0} thin />
-      <p className="challenge-lesson">{T.lesson}</p>
-      <div className="challenge-actions challenge-launch">
+      <div className="challenge-actions challenge-result-actions">
         <button type="button" className="btn primary pill" onClick={onTryAgain}>
           {T.tryAgain}
         </button>
@@ -346,6 +438,8 @@ function ResultPanel({
           {T.mainMenu}
         </button>
       </div>
+      <TimeRibbon series={series} compareTime={0} thin />
+      <p className="challenge-lesson">{T.lesson}</p>
     </aside>
   );
 }
