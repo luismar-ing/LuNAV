@@ -9,6 +9,7 @@ import { describe, expect, it } from "vitest";
 import type { Plan, SceneEphemeris, Trajectory } from "../src/lib/contract";
 import { parseInstant } from "../src/lib/contract";
 import { timelineOf, type MissionTimeline } from "../src/lib/mission";
+import { CameraMotion, MAX_STEP, wheelZoom } from "../src/scene3d/cameraInput";
 import { CameraController, directorPose, hopPose, planningPose, reducedMotionPose, SWITCH_MS, sitePose, switchEase, type DirectorInput, type Pose } from "../src/scene3d/cameraDirector";
 import { indexEphemeris, rotate, sceneStateAt } from "../src/scene3d/ephemeris";
 import { padUp } from "../src/scene3d/launch";
@@ -205,5 +206,95 @@ describe("planning globe (TR.2.a, design A2)", () => {
     }
     expect(len(sub(prev.position, to.position))).toBeLessThan(1e-9);
     expect(worst).toBeLessThan(6);
+  });
+});
+
+/* ------------------------------------------------------------------ A3: comfortable manual camera */
+
+describe("camera input (A3): proportional zoom, pinch, easing and inertia", () => {
+  const frames = (m: CameraMotion, n: number, reduced = false) => Array.from({ length: n }, () => m.step(1000 / 60, reduced));
+
+  it("the wheel zoom follows the scroll: one mouse notch ≈ the old ×1.1, a touchpad's small deltas add up to the same", () => {
+    const notch = Math.exp(wheelZoom({ deltaY: 100, deltaMode: 0, ctrlKey: false }));
+    expect(notch).toBeGreaterThan(1.1);
+    expect(notch).toBeLessThan(1.15);
+    expect(wheelZoom({ deltaY: -100, deltaMode: 0, ctrlKey: false })).toBeCloseTo(-Math.log(notch), 12);
+    // 50 touchpad events of 2 px: each one tiny, together one notch
+    const small = wheelZoom({ deltaY: 2, deltaMode: 0, ctrlKey: false });
+    expect(Math.exp(small)).toBeLessThan(1.003);
+    expect(50 * small).toBeCloseTo(Math.log(notch), 12);
+    // lines (Firefox) count as 16 px; a huge delta is capped per event
+    expect(wheelZoom({ deltaY: 3, deltaMode: 1, ctrlKey: false })).toBeCloseTo(48 * 0.0012, 12);
+    expect(wheelZoom({ deltaY: 5000, deltaMode: 0, ctrlKey: false })).toBe(MAX_STEP);
+  });
+
+  it("a pinch (ctrlKey + wheel) zooms with its small deltas", () => {
+    const pinch = wheelZoom({ deltaY: -10, deltaMode: 0, ctrlKey: true });
+    expect(Math.exp(pinch)).toBeCloseTo(1 / Math.exp(0.1), 12); // ×1.1 closer for 10 px
+    expect(Math.abs(pinch)).toBeGreaterThan(Math.abs(wheelZoom({ deltaY: -10, deltaMode: 0, ctrlKey: false })) * 5);
+  });
+
+  it("the zoom eases in over a few frames, with no jump and nothing lost", () => {
+    const m = new CameraMotion();
+    m.addZoom(0.3);
+    const steps = frames(m, 60).map((s) => s.zoom);
+    expect(Math.max(...steps)).toBeLessThan(0.06); // at most a fifth of it in one frame at 60 fps
+    expect(steps.reduce((a, b) => a + b, 0)).toBeCloseTo(0.3, 9);
+    expect(m.idle).toBe(true);
+    for (let i = 1; i < 10; i++) expect(steps[i]).toBeLessThanOrEqual(steps[i - 1] + 1e-12); // a smooth decay
+  });
+
+  it("a drag released in motion coasts and stops; one that stopped first does not move on", () => {
+    const m = new CameraMotion();
+    m.grab();
+    for (let t = 0; t <= 160; t += 16) m.track(0.02, 0, t); // 0.02 rad per 16 ms
+    m.release(170);
+    const spin = frames(m, 180).map((s) => s.yaw);
+    expect(spin[0]).toBeGreaterThan(0);
+    expect(spin[0]).toBeLessThan(0.03); // no more than the drag's own speed
+    expect(spin.reduce((a, b) => a + b, 0)).toBeLessThan(0.5); // it slows down and stops
+    expect(m.idle).toBe(true);
+
+    const held = new CameraMotion();
+    held.grab();
+    for (let t = 0; t <= 160; t += 16) held.track(0.02, 0, t);
+    held.release(400); // the pointer stood still before letting go
+    expect(frames(held, 10).every((s) => s.yaw === 0)).toBe(true);
+  });
+
+  it("reduced motion: the zoom applies at once and nothing coasts", () => {
+    const m = new CameraMotion();
+    for (let t = 0; t <= 64; t += 16) m.track(0.02, 0, t);
+    m.release(70);
+    m.addZoom(-0.2);
+    const [first, ...rest] = frames(m, 5, true);
+    expect(first.zoom).toBeCloseTo(-0.2, 12);
+    expect(first.yaw).toBe(0);
+    expect(rest.every((s) => s.zoom === 0 && s.yaw === 0)).toBe(true);
+  });
+
+  it("the closest-approach floor never pushes the camera out in one jump", () => {
+    const { tl, input } = setup("haworth_20270309_7d");
+    const i = input(tl.lunarArrivalMs + 3 * 3_600_000);
+    const c = new CameraController();
+    c.cancel(directorPose(tl, i), [0, 0, 0], i.moon);
+    const d0 = c.orbit!.dist;
+    const floor = d0 * 10; // a camera already closer than the floor (the site at real scale)
+    c.zoom(1.01, floor); // a tiny zoom out stays tiny
+    expect(c.orbit!.dist).toBeCloseTo(d0 * 1.01, 9);
+    c.zoom(0.5, floor); // a zoom in stops where it is
+    expect(c.orbit!.dist).toBeCloseTo(d0 * 1.01, 9);
+    c.zoom(0.5, d0 / 4); // otherwise it zooms in as asked…
+    expect(c.orbit!.dist).toBeCloseTo(d0 * 0.505, 9);
+    c.zoom(0.1, d0 / 4); // …down to the floor
+    expect(c.orbit!.dist).toBeCloseTo(d0 / 4, 9);
+  });
+
+  it("the guided camera drops what was left (stop)", () => {
+    const m = new CameraMotion();
+    m.addZoom(0.3);
+    m.stop();
+    expect(m.idle).toBe(true);
+    expect(frames(m, 3).every((s) => s.zoom === 0)).toBe(true);
   });
 });
