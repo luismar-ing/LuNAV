@@ -3401,3 +3401,22 @@ Las trayectorias ILLUSTRATIVE, los datos SYNTHETIC y toda desviación de la spec
   - Al hacer merge con `a1-sky-data`: A1 cambia `SiteLayout.tsx` (usa `TimeLeft` como tarjeta compacta), `strings.ts` y `tokens.css`. Hay posibles conflictos de texto en esos dos archivos compartidos, no de lógica.
   - En la vista Data, la lectura del panorama sigue mostrando «Time 2027-01-11 00:00 UTC» (la muestra de la serie, que se recorta a la ventana); conviene que A o B la pasen a `lib/format.ts`.
 - **Siguiente tarea:** todas las tareas de B (B1–B10) están en ramas. Falta revisión, PR y merge en orden.
+
+## AJUSTE · C1: publicación estática en GitHub Pages
+
+- **Tarea:** C1 del plan de mejoras del 14-nov-2026 (persona C) y T7.1.a de la guía: publicar la app en un hosting estático para tener una URL pública antes de la entrega.
+- **Qué se hizo:**
+  - `.github/workflows/deploy.yml` (nuevo): en cada push a `main` (y a mano desde Actions) instala con `npm --prefix web ci`, compila con `npm --prefix web run build -- --base=/LuNAV/` (el build ya incluye la revisión de tipos), añade `.nojekyll` y publica `web/dist` en la rama `deploy` con un commit a nombre de Jesus Rodríguez. Las pruebas no corren en este flujo, para que una prueba intermitente no bloquee la publicación.
+  - Hosting: GitHub Pages sirviendo la rama `deploy` (decisión A11). Se intentó primero el dominio y hosting gratuitos de la oferta de Space Apps (GoDaddy Registry / Porkbun, «Secure Static Hosting»), pero el código de verificación no llegó a ningún correo.
+  - `README.md`: enlace **Live app** y sección **Deployment**. `CLAUDE.md`: renglón de despliegue, filas «Probar el build de GitHub Pages» y «Publicar», y el flujo en el mapa de archivos.
+  - No cambia el código de la app: ya armaba todas sus rutas con `import.meta.env.BASE_URL`.
+- **Cómo se verificó:**
+  - Flujo: el merge de los PR #10 y #15 generó la rama `deploy` (`Build of f4f7b95`): `index.html` en la raíz con rutas `/LuNAV/...`, `.nojekyll`, `assets/`, `data/` (1 825 trayectorias) y `textures/`; 1 932 archivos, 24,4 MB.
+  - Local, como en Pages: `npm --prefix web run build -- --base=/LuNAV/` y `npm --prefix web run preview -- --base=/LuNAV/` → http://localhost:4173/LuNAV/. Portada, Mission Planner con el mapa y el 3D del sitio tras «Land at Connecting Ridge»: 38 peticiones, todas dentro de `/LuNAV/` y con respuesta 200 (incluido `data/terrain/_polar/`), ninguna a servidores externos ni a APIs, y sin errores en consola.
+- **Decisiones tomadas:** A11 (GitHub Pages con la rama `deploy`).
+- **Desviaciones de la spec / cambios en la guía:** ninguna. T7.1.a queda en `[!]` hasta que el dueño del repo active Pages.
+- **Problemas abiertos:**
+  - Activar Pages: Settings → Pages → Deploy from a branch → `deploy`, `/ (root)`. Hasta entonces la URL responde 404.
+  - Al activarlo, revisar la URL pública (T7.1.a) y medir en ella el rendimiento (T7.1.b: `perf.mjs` y `fps.mjs` aceptan la URL como argumento).
+  - El dominio de la oferta queda pendiente. Si se consigue, se conecta a Pages y se quita `--base` del flujo.
+- **Siguiente tarea:** C2 (README final con capturas).
