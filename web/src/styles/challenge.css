@@ -138,3 +138,70 @@
   color: var(--color-text-muted);
   font-size: var(--font-sm);
 }
+
+/* Launch, its hint and the way back, stacked at the foot of the sidebar */
+.challenge-launch {
+  margin-top: auto;
+  flex-direction: column;
+  align-items: stretch;
+}
+.challenge-launch .challenge-hint {
+  text-align: center;
+}
+
+/* The mission under way (HUD in place of the sidebar) */
+.challenge-hud {
+  bottom: auto;
+}
+.challenge-phase {
+  font-size: var(--font-lg);
+}
+.challenge-meter {
+  height: 10px;
+  border-radius: 999px;
+  border: 1px solid var(--color-border-strong);
+  overflow: hidden;
+}
+.challenge-meter span {
+  display: block;
+  height: 100%;
+  background: var(--color-both);
+}
+.challenge-meter-value {
+  font-variant-numeric: tabular-nums;
+  font-size: var(--font-xl);
+}
+.challenge-sky {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: var(--font-sm);
+  color: var(--color-text-muted);
+}
+/* a filled dot while the body is up, an empty ring while it is hidden (shape as well as colour) */
+.challenge-sky li::before {
+  content: "";
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  margin-right: 8px;
+  border-radius: 50%;
+  border: 2px solid currentColor;
+  vertical-align: -1px;
+  box-sizing: border-box;
+}
+.challenge-sky li:first-child::before {
+  color: var(--color-sun);
+}
+.challenge-sky li:last-child::before {
+  color: var(--color-earth);
+}
+.challenge-sky li[data-on="true"] {
+  color: var(--color-text);
+}
+.challenge-sky li[data-on="true"]::before {
+  background: currentColor;
+}

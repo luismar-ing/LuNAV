@@ -8,7 +8,7 @@
  * in the challenge and in the planner.
  */
 import { parseInstant, type Timeseries } from "./contract";
-import { ASSUMED_BATTERY, batteryHours } from "./energy";
+import { ASSUMED_BATTERY, batteryHours, batteryRun } from "./energy";
 import { nightInStay, stayBattery } from "./siteBrief";
 
 const DAY_MS = 86_400_000;
@@ -92,4 +92,39 @@ export function evaluate(ts: Timeseries, arrivalDay: string, stayDays: number): 
 /** Which arrival days of a level's month keep the lander alive at one site: revealed after each attempt. */
 export function monthOutcomes(ts: Timeseries, level: ChallengeLevel): Record<string, boolean> {
   return Object.fromEntries(monthDays(level).map((d) => [d, evaluate(ts, d, level.stayDays)?.success ?? false]));
+}
+
+/**
+ * The stay sample by sample, for playing it in the 3D scene: the ASSUMED battery's state of charge at the end of
+ * each sample (the same run as stayBattery), the Sun and the Earth seen from the site, and the instant the battery
+ * first runs empty (null if it never does). Null outside the series.
+ */
+export interface StayTrace {
+  startMs: number;
+  stepMs: number;
+  soc: Float32Array;
+  sun: number[];
+  earth: number[];
+  powerLostMs: number | null;
+}
+
+export function stayTrace(ts: Timeseries, arrivalDay: string, stayDays: number): StayTrace | null {
+  const startMs = parseInstant(`${arrivalDay}T00:00:00Z`);
+  const stepMs = ts.step_min * 60_000;
+  const k0 = Math.round((startMs - parseInstant(ts.start_utc)) / stepMs);
+  const n = Math.round((stayDays * DAY_MS) / stepMs);
+  if (k0 < 0 || k0 + n > ts.n) return null;
+  const sun = ts.sun_vis.slice(k0, k0 + n);
+  const { soc } = batteryRun(sun, ts.step_min);
+  const empty = soc.findIndex((x) => x <= 0);
+  return { startMs, stepMs, soc, sun, earth: ts.earth_vis.slice(k0, k0 + n), powerLostMs: empty < 0 ? null : startMs + (empty + 1) * stepMs };
+}
+
+/** The stay at an instant: battery state of charge (full before landing), and whether the Sun and the Earth are up. */
+export function traceAt(trace: StayTrace, t: number): { soc: number; sun: boolean; earth: boolean } {
+  const n = trace.soc.length;
+  const i = Math.floor((t - trace.startMs) / trace.stepMs); // sample under way at t
+  const k = Math.min(Math.max(i, 0), n - 1);
+  // the charge at t is the one left at the end of the previous sample (full at landing)
+  return { soc: i <= 0 ? 1 : trace.soc[Math.min(i, n) - 1], sun: trace.sun[k] === 1, earth: trace.earth[k] === 1 };
 }

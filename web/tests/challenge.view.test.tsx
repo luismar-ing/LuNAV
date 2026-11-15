@@ -57,6 +57,34 @@ describe("Challenge screen (C3)", () => {
     expect(screen.getByRole("button", { name: "Nobile Rim 1" }).getAttribute("aria-pressed")).toBe("true");
   });
 
+  it("'Launch' flies the mission and plays the stay; it stops where the battery runs empty", async () => {
+    render(<App />);
+    act(() => appStore.getState().setScreen("challenge"));
+    const launch = screen.getByRole("button", { name: "Launch the mission" }) as HTMLButtonElement;
+    expect(launch.disabled).toBe(true);
+    fireEvent.click(screen.getByRole("button", { name: "Nobile Rim 1" }));
+    fireEvent.click(screen.getByRole("button", { name: "Mar 2, 2027" }));
+    await waitFor(() => expect(launch.disabled).toBe(false));
+    fireEvent.click(launch);
+
+    // the flight: the sidebar gives way to the mission's panel, the battery is full until landing
+    const hud = within(screen.getByTestId("challenge-hud"));
+    expect(screen.getByTestId("challenge").dataset.stage).toBe("flight");
+    expect(hud.getByRole("heading", { name: "Nobile Rim 1" })).toBeTruthy();
+    expect(hud.getByRole("meter", { name: "Battery" }).getAttribute("aria-valuenow")).toBe("100");
+    fireEvent.click(hud.getByRole("button", { name: "Skip ahead" }));
+
+    // the stay: it landed in the dark, so the battery runs empty 20 h after landing (Mar 2, 20:00 UTC)
+    await waitFor(() => expect(screen.getByTestId("challenge").dataset.stage).toBe("stay"));
+    expect(appStore.getState().missionPhase).toBe("site");
+    expect(hud.getByText("Sun hidden by the terrain")).toBeTruthy();
+    fireEvent.click(hud.getByRole("button", { name: "Skip ahead" }));
+    await waitFor(() => expect(screen.getByTestId("challenge").dataset.stage).toBe("done"));
+    expect(appStore.getState().missionTime).toBe(Date.parse("2027-03-02T20:00:00Z"));
+    expect(hud.getByRole("meter", { name: "Battery" }).getAttribute("aria-valuenow")).toBe("0");
+    expect(hud.queryByRole("button", { name: "Skip ahead" })).toBeNull();
+  });
+
   it("'Back to the story' returns to the Educator; Esc leaves for the start page", () => {
     render(<App />);
     act(() => appStore.getState().setScreen("challenge"));

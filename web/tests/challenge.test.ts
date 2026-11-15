@@ -2,7 +2,7 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
-import { evaluate, LEVEL_1, monthDays, monthOutcomes } from "../src/lib/challenge";
+import { evaluate, LEVEL_1, monthDays, monthOutcomes, stayTrace, traceAt } from "../src/lib/challenge";
 import type { Timeseries, WindowRow } from "../src/lib/contract";
 import { stayBattery } from "../src/lib/siteBrief";
 
@@ -70,5 +70,34 @@ describe("challenge result", () => {
         expect(r.sunPct).toBeCloseTo(w.sun_pct, 1);
       }
     }
+  });
+});
+
+describe("the stay, sample by sample (played in the 3D scene)", () => {
+  const at = (iso: string) => Date.parse(iso);
+
+  it("Haworth, Jan 11 2027: the battery runs empty 20 h into the night that begins on day 6", () => {
+    const tr = stayTrace(series("haworth"), "2027-01-11", 7)!;
+    expect(tr.powerLostMs).toBe(at("2027-01-17T10:00:00Z"));
+    expect(tr.soc).toHaveLength(7 * 48);
+    expect(traceAt(tr, at("2027-01-11T00:00:00Z")).soc).toBe(1);
+    expect(traceAt(tr, at("2027-01-17T10:00:00Z")).soc).toBe(0);
+    expect(traceAt(tr, at("2027-01-17T09:00:00Z")).soc).toBeGreaterThan(0);
+    expect(traceAt(tr, at("2027-01-17T10:00:00Z")).sun).toBe(false);
+  });
+
+  it("Nobile Rim 1, Mar 2 2027: landing in the dark, the battery lasts 20 h", () => {
+    expect(stayTrace(series("nobile_rim_1"), "2027-03-02", 7)!.powerLostMs).toBe(at("2027-03-02T20:00:00Z"));
+  });
+
+  it("a lander that survives never loses power; the trace agrees with the result for every March day", () => {
+    expect(stayTrace(series("haworth"), "2027-01-10", 7)!.powerLostMs).toBeNull();
+    for (const site of SITES) {
+      const ts = series(site);
+      for (const day of monthDays(LEVEL_1)) {
+        expect(stayTrace(ts, day, 7)!.powerLostMs === null).toBe(evaluate(ts, day, 7)!.success);
+      }
+    }
+    expect(stayTrace(series("haworth"), "2029-01-01", 7)).toBeNull();
   });
 });
