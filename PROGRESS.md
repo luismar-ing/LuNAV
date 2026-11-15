@@ -3121,3 +3121,25 @@ Las trayectorias ILLUSTRATIVE, los datos SYNTHETIC y toda desviación de la spec
   - A 1366×650 el sidebar desborda 8 px. El panel ya desbordaba 31 px en `main` (con B2, 23 px).
   - Pendiente de confirmar con el equipo: criterio estricto (cualquier hueco de Tierra cuenta) frente a una tolerancia.
 - **Siguiente tarea:** B3 (cifra única de noche).
+
+## AJUSTE · B3: una sola cifra de noche, con contexto
+
+- **Tarea:** B3 del plan de mejoras del 14-nov-2026 (persona B, hallazgo H8). La lista decía «34 h night» (la parte dentro de la estancia, de `windows`) y «Time left» decía «Then 36.5 h of night» (la noche completa, de la serie de un año), sin explicar la diferencia. Rama hecha sobre B2 (`b2-sun-earth-verdict`) porque cambia sus mismos textos.
+- **Qué se hizo:**
+  - `lib/siteBrief.ts`: `nightInStay(ts, inicio, horas)` replica `longest_run_in_windows` del pipeline. Toma cada racha oscura de la serie, la recorta a la estancia y se queda con la más larga, y además devuelve la noche completa (`fullH`, con `fullKnown = false` si toca el borde de la serie). `overlapH()` calcula la parte de una noche dentro de la estancia.
+  - Lista del sidebar: «34 h night in stay». No carga la serie de los 5 sitios (~2 MB).
+  - Frase del panel: «34 h of night in the stay, with the Earth in view the whole time.».
+  - Métrica «Longest night» del panel: «34 h» y, al lado en pequeño, «of 36.5 h» (en `title`, la explicación completa). Solo aparece cuando la noche sigue antes o después de la estancia. El bloque usa grid para que las tres métricas sigan en una línea.
+  - «Time left» (`TimeLeft.tsx`, solo textos): «Then a 36.5 h night, 34 h of it in your stay.» cuando la noche cruza el fin de la estancia; si cae entera dentro, sigue «Then N h of night.». El aviso «over your limit» se compara ahora con la parte dentro de la estancia, que es la cifra que filtra el límite (`longest_dark_h`).
+- **Cómo se verificó:**
+  ```
+  $ npm --prefix web run typecheck → sin errores
+  $ npm --prefix web test → 278 passed (46 archivos)
+  ```
+  - `tests/siteBrief.test.ts`, paridad con el pipeline: `nightInStay(...).inStayH` es igual a `longest_dark_h` en los 5 sitios × 365 llegadas × estancias de 3, 7 y 14 días. Haworth 11-ene (7 d): 34 h de una noche de 36,5 h que empieza el 16-ene a las 14:00 UTC (la puesta de sol de la cuenta atrás).
+  - `tests/plannerSidebar.test.tsx`: lista «34 h night in stay», panel «of 36.5 h», frase y «Then a 36.5 h night, 34 h of it in your stay.».
+  - `tests/integration.test.tsx` (T5.1.b): las métricas del panel se comparan sin la nota.
+  - Navegador (servidor de desarrollo), Haworth 11-ene: las tres vistas dicen lo mismo con contexto. Sin scroll a 1366×768 y 1920×1080, métricas en una línea, sin errores en consola.
+- **Desviaciones de la spec / cambios en la guía:** ninguna. Las métricas siguen siendo las de la spec 5; solo se añade contexto.
+- **Problemas abiertos:** «Earth link left 15 d 20 h» en una estancia de 7 días (H9) lo resuelve B4. Siguen los pendientes de B2 (1280×720, criterio estricto).
+- **Siguiente tarea:** B4 (topar las cuentas regresivas a la estancia).

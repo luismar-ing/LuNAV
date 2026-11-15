@@ -5,7 +5,7 @@ import { lookup } from "../lib/constraints";
 import { parseInstant } from "../lib/contract";
 import { describeError } from "../lib/errors";
 import { distanceKm, fmtDuration, type Change } from "../lib/moonMap";
-import { planVerdict, readAt, visibleSpans, type Span } from "../lib/siteBrief";
+import { nightInStay, planVerdict, readAt, visibleSpans, type Span } from "../lib/siteBrief";
 import { STRINGS } from "../lib/strings";
 import { fmtMetric, num, round } from "../lib/why";
 import { useApp } from "../store/appStore";
@@ -35,6 +35,7 @@ export function SiteBrief({ onLand }: { onLand(): void }) {
     const n = Math.round((stayH * 60) / ts.step_min);
     return { sun: visibleSpans(ts.sun_vis, reading.k, n), earth: visibleSpans(ts.earth_vis, reading.k, n) };
   }, [ts, reading, plan, stayH]);
+  const night = useMemo(() => (ts && plan ? nightInStay(ts, arrivalMs, stayH) : null), [ts, plan, arrivalMs, stayH]);
 
   if (!plan || !site) return null;
   const day = plan.arrival_utc.slice(0, 10);
@@ -85,9 +86,15 @@ export function SiteBrief({ onLand }: { onLand(): void }) {
             <dt>{STRINGS.planner.sunlight}</dt>
             <dd>{fmtMetric("sun_pct", m.sun_pct)} %</dd>
           </div>
-          <div>
+          <div className={night && night.fullH > night.inStayH ? "brief-metric-split" : undefined}>
             <dt>{STRINGS.planner.longestNight}</dt>
             <dd data-tone={m.longest_dark_h > 0 ? "night" : "lit"}>{num(m.longest_dark_h)} h</dd>
+            {/* B3: when the night runs past the start or end of the stay, its whole length beside the part inside */}
+            {night && night.fullH > night.inStayH && (
+              <dd className="brief-metric-note" data-testid="brief-night-of" title={STRINGS.planner.nightOfTitle(night.inStayH, night.fullH, night.fullKnown)}>
+                {STRINGS.planner.nightOf(night.fullH, night.fullKnown)}
+              </dd>
+            )}
           </div>
           <div>
             <dt>{STRINGS.planner.earthWorst}</dt>

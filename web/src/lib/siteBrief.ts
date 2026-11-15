@@ -3,7 +3,7 @@
  * tracks over the stay, the countdowns and the list of what happens next.
  * Everything is built from the site's own one-year series and window metrics; nothing is made up to fill a gap.
  */
-import type { Timeseries, WindowRow } from "./contract";
+import { parseInstant, type Timeseries, type WindowRow } from "./contract";
 import { nextChange, sampleIndex, type Change } from "./moonMap";
 
 /** Sun over the stay: no night at all, or at least one stretch behind the terrain. */
@@ -37,6 +37,61 @@ export function planVerdict(row: Pick<WindowRow, "longest_dark_h" | "earth_h_mea
 export interface Span {
   from: number;
   to: number;
+}
+
+/**
+ * The longest night inside a stay, and the whole night it belongs to (B3, finding H8). The window metric
+ * `longest_dark_h` is the longest dark run of the year clipped to the stay (pipeline/windows.py,
+ * longest_run_in_windows); the countdowns read the same run unclipped. Both figures come from here so they can be
+ * shown together ("34 h of a 36.5 h night") instead of as two unrelated numbers.
+ */
+export interface StayNight {
+  /** hours of that night inside the stay: equals the window's longest_dark_h */
+  inStayH: number;
+  /** hours of the whole night, before and after the stay included */
+  fullH: number;
+  /** false when the night runs into the start or end of the one-year series, so fullH is a lower bound */
+  fullKnown: boolean;
+  /** instants (ms) where the whole night starts and ends */
+  startMs: number;
+  endMs: number;
+}
+
+/** Longest night clipped to [startMs, startMs + stayH) and its full extent in the series; null when the stay has no night. */
+export function nightInStay(ts: Pick<Timeseries, "start_utc" | "step_min" | "n" | "sun_vis">, startMs: number, stayH: number): StayNight | null {
+  const k0 = Math.max(0, sampleIndex(ts, startMs));
+  const k1 = Math.min(ts.n, k0 + Math.round((stayH * 60) / ts.step_min));
+  let best: { inStay: number; a: number; b: number } | null = null;
+  let k = k0;
+  while (k < k1) {
+    if (ts.sun_vis[k] !== 0) {
+      k++;
+      continue;
+    }
+    let a = k; // the whole run, outside the stay too
+    while (a > 0 && ts.sun_vis[a - 1] === 0) a--;
+    let b = k;
+    while (b < ts.n && ts.sun_vis[b] === 0) b++;
+    const inStay = Math.min(b, k1) - Math.max(a, k0);
+    if (!best || inStay > best.inStay) best = { inStay, a, b };
+    k = b;
+  }
+  if (!best) return null;
+  const h = ts.step_min / 60;
+  const t0 = parseInstant(ts.start_utc);
+  const stepMs = ts.step_min * 60_000;
+  return {
+    inStayH: best.inStay * h,
+    fullH: (best.b - best.a) * h,
+    fullKnown: best.a > 0 && best.b < ts.n,
+    startMs: t0 + best.a * stepMs,
+    endMs: t0 + best.b * stepMs,
+  };
+}
+
+/** Hours of the night [nightStartMs, nightEndMs) that fall inside the stay [stayStartMs, stayEndMs). */
+export function overlapH(nightStartMs: number, nightEndMs: number, stayStartMs: number, stayEndMs: number): number {
+  return Math.max(0, Math.min(nightEndMs, stayEndMs) - Math.max(nightStartMs, stayStartMs)) / 3_600_000;
 }
 
 /** Runs of visibility over `n` samples from `k`, as fractions of the stay. */

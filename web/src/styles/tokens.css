@@ -2421,6 +2421,26 @@ input[type="range"] {
   font-variant-numeric: tabular-nums;
 }
 
+/* B3: "34 h of 36.5 h" on one line: the figure inside the stay, then the whole night in small type */
+.brief-metric-split {
+  display: grid; /* grid, not wrapping flex: its width is max(label, figure + note), so the row of metrics fits */
+  grid-template-columns: auto auto;
+  justify-content: start;
+  align-items: baseline;
+  column-gap: 6px;
+}
+
+.brief-metric-split dt {
+  grid-column: 1 / -1;
+}
+
+.brief-metrics dd.brief-metric-note {
+  font-family: var(--font-family);
+  font-size: 13px;
+  color: var(--color-text-muted);
+  cursor: help;
+}
+
 .brief-metrics dd[data-tone="night"] {
   color: var(--color-sun);
 }

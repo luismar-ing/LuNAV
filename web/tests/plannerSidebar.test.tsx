@@ -177,7 +177,10 @@ describe("Mission Planner sidebar (A2)", () => {
     expect(within(map).getByText("52 km")).toBeTruthy(); // to Malapert Massif, the nearest other site
 
     // the sidebar names each site's night for these dates (same data as REDIS); the brief has no sentence (A9)
-    await waitFor(() => expect(sidebar().getByRole("button", { name: /^Haworth/ }).textContent).toContain("34 h night"));
+    // B3: one night, one figure in context: 34 h of the 36.5 h night fall inside the 7-day stay
+    await waitFor(() => expect(sidebar().getByRole("button", { name: /^Haworth/ }).textContent).toContain("34 h night in stay"));
+    expect((await screen.findByTestId("brief-night-of")).textContent).toBe("of 36.5 h");
+    expect(screen.getByTestId("brief-verdict").textContent).toBe("34 h of night in the stay, with the Earth in view the whole time.");
     expect(screen.queryByTestId("brief-story")).toBeNull();
     expect(within(screen.getByTestId("brief-others")).getAllByRole("listitem")[0].textContent).toMatch(/^Malapert Massif52 km\+20\.2 % sun$/);
 
@@ -191,7 +194,7 @@ describe("Mission Planner sidebar (A2)", () => {
     const sun = await within(site).findByTestId("countdown-sun", {}, { timeout: 5000 });
     expect(sun.textContent).toContain("5 d 14 h");
     expect(sun.textContent).toContain("Sunset 16 Jan, 14:00 UTC");
-    expect(sun.textContent).toContain("Then 36.5 h of night.");
+    expect(sun.textContent).toContain("Then a 36.5 h night, 34 h of it in your stay.");
     expect(within(site).getByTestId("countdown-earth").textContent).toContain("Earthset 26 Jan, 20:30 UTC");
     expect(within(site).getByTestId("next-events").querySelector("li")?.textContent).toMatch(/^5 d 14 hSunset/);
 

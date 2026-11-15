@@ -1,7 +1,7 @@
 import type { Timeseries } from "../lib/contract";
 import { fmtDuration, fmtUtc, type Change } from "../lib/moonMap";
 import type { PlanData } from "../lib/planData";
-import { readAt, upcoming, visibleSpans, type Span } from "../lib/siteBrief";
+import { overlapH, readAt, upcoming, visibleSpans, type Span } from "../lib/siteBrief";
 import { STRINGS } from "../lib/strings";
 import { num } from "../lib/why";
 
@@ -27,8 +27,12 @@ export function TimeLeft({ plan, ts, timeMs, limitH }: { plan: PlanData; ts: Tim
     const t = at(c);
     if (c.visible) {
       if (t === null || t >= endMs) return STRINGS.siteLayout.sunStays;
-      const over = limitH !== null && c.lastsH !== null && c.lastsH > limitH ? `${num(c.lastsH - limitH)} h` : null;
-      return STRINGS.siteLayout.nightThen(c.lastsH === null ? STRINGS.siteLayout.noData : `${num(c.lastsH)} h`, over);
+      if (c.lastsH === null) return STRINGS.siteLayout.nightThen(STRINGS.siteLayout.noData, null, null);
+      // B3: a night that runs past the end of the stay says how much of it falls inside, the figure the list shows;
+      // the user's limit applies to that same part (it is the window metric longest_dark_h)
+      const inStayH = overlapH(t, t + c.lastsH * 3_600_000, startMs, endMs);
+      const over = limitH !== null && inStayH > limitH ? `${num(inStayH - limitH)} h` : null;
+      return STRINGS.siteLayout.nightThen(`${num(c.lastsH)} h`, inStayH < c.lastsH ? `${num(inStayH)} h` : null, over);
     }
     return t !== null && t < endMs ? STRINGS.siteLayout.sunBackInStay : STRINGS.siteLayout.sunBackAfter;
   };

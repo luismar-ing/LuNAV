@@ -55,7 +55,8 @@ export const STRINGS = {
     searchTitle: "Search and compare plans",
     // planner redesign (REDIS + 3C): night length of each site for the chosen dates, Moon map and site brief
     // B2: the Sun and the Earth together, so a plan without Earth contact never reads as a good one
-    statusSun: (darkH: number) => (darkH === 0 ? "Sunlit all stay" : `${hours(darkH)} h night`),
+    // B3: the window's longest night is the part inside the stay; say so, the countdowns show the whole night
+    statusSun: (darkH: number) => (darkH === 0 ? "Sunlit all stay" : `${hours(darkH)} h night in stay`),
     statusEarth: (earth: "all" | "gaps" | "none", gapH: number) =>
       earth === "all" ? "Earth all stay" : earth === "none" ? "No Earth all stay" : `Earth gap ${hours(gapH)} h`,
     verdict: (sun: "lit" | "night", earth: "all" | "gaps" | "none", darkH: number, gapH: number) => {
@@ -65,9 +66,9 @@ export const STRINGS = {
           : earth === "none"
             ? "Sunlit all stay, but no direct Earth contact at any time."
             : `Sunlit all stay, but up to ${hours(gapH)} h without direct Earth contact.`;
-      const night = `A ${hours(darkH)} h night`;
+      const night = `${hours(darkH)} h of night in the stay`;
       return earth === "all"
-        ? `${night}, with the Earth in view the whole stay.`
+        ? `${night}, with the Earth in view the whole time.`
         : earth === "none"
           ? `${night} and no direct Earth contact at any time.`
           : `${night} and up to ${hours(gapH)} h without direct Earth contact.`;
@@ -90,6 +91,10 @@ export const STRINGS = {
     noChange: "beyond the data",
     sunlight: "Sunlight",
     longestNight: "Longest night",
+    // B3: "34 h of 36.5 h": the part of the night inside the stay, then the whole night
+    nightOf: (fullH: number, known: boolean) => `of ${known ? "" : "≥ "}${hours(fullH)} h`,
+    nightOfTitle: (inH: number, fullH: number, known: boolean) =>
+      `${hours(inH)} h of a ${known ? "" : "≥ "}${hours(fullH)} h night fall inside the stay; the rest is before or after it.`,
     earthWorst: "Earth, worst day",
     others: "Same day, other sites",
     sameLight: "same light",
@@ -116,7 +121,9 @@ export const STRINGS = {
     sunBack: "Night · the Sun comes back in",
     sunsetAt: (when: string) => `Sunset ${when}`,
     sunriseAt: (when: string) => `Sunrise ${when}`,
-    nightThen: (night: string, over: string | null) => `Then ${night} of night${over ? `, ${over} over your limit` : ""}.`,
+    // B3: "Then a 36.5 h night, 34 h of it in your stay." when the night runs past the end of the stay
+    nightThen: (night: string, inStay: string | null, over: string | null) =>
+      `${inStay ? `Then a ${night} night, ${inStay} of it in your stay` : `Then ${night} of night`}${over ? `, ${over} over your limit` : ""}.`,
     sunStays: "The Sun stays up for the rest of the stay.",
     sunBackInStay: "The Sun comes back before the stay ends.",
     sunBackAfter: "The Sun comes back after the stay ends.",
