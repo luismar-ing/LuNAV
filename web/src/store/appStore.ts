@@ -9,6 +9,7 @@ import type { CellRange } from "../lib/calendar";
 import { buildWindowIndex, type WindowIndex } from "../lib/constraints";
 import type { Manifest, Plan, Site } from "../lib/contract";
 import { DataStore } from "../lib/data";
+import { createVirtualSite } from "../lib/virtualSite";
 
 export const MAX_COMPARE = 5; // spec 4.1, 8.5
 export type MissionPhase = "overview" | "launch" | "transit" | "landing" | "site";
@@ -56,6 +57,12 @@ export interface AppState {
   /** Point the panel opens on (a click on the Moon map); null = the selected site's coordinates. */
   customAt: { lat: number; lon: number } | null;
   openCustomAt(lat: number, lon: number): void;
+  /** B13 (decision A14): the custom coordinate made a site of its own, so it can be flown to like the five
+   *  candidates. One at a time; its plans join plansById (not `plans` or `sites`, which stay the five candidates). */
+  customSite: Site | null;
+  /** Builds and registers the virtual site of a point; resolves to its id, or null outside the terrain data. */
+  addCustomSite(lat: number, lon: number): Promise<string | null>;
+  removeCustomSite(): void;
   viewMode: ViewMode;
   setViewMode(mode: ViewMode): void;
   /** Reduced motion (spec 9, T5.2.b): no camera flights or animated transitions. Starts from the system setting. */
@@ -158,6 +165,30 @@ export function createAppStore(data: DataStore = DataStore.forPage()) {
     customAt: null,
     openCustomAt(lat, lon) {
       set({ customOpen: true, customAt: { lat, lon }, drawerOpen: false, finderOpen: false });
+    },
+    customSite: null,
+    async addCustomSite(lat, lon) {
+      const { data, manifest, customSite } = get();
+      if (!manifest) return null;
+      const made = await createVirtualSite(data, lat, lon);
+      if (!made) return null;
+      if (customSite?.id === made.site.id) return made.site.id;
+      if (customSite) get().removeCustomSite();
+      data.registerVirtualSite(made.provider);
+      const plansById = new Map(get().plansById);
+      for (const p of made.plans) plansById.set(p.id, p);
+      set({ customSite: made.site, plansById });
+      return made.site.id;
+    },
+    removeCustomSite() {
+      const { customSite, data } = get();
+      if (!customSite) return;
+      const prefix = `${customSite.id}_`;
+      const plansById = new Map([...get().plansById].filter(([id]) => !id.startsWith(prefix)));
+      const sel = get().selectedPlanId;
+      data.unregisterVirtualSite(customSite.id);
+      set({ customSite: null, plansById, comparePlans: get().comparePlans.filter((id) => !id.startsWith(prefix)) });
+      if (sel?.startsWith(prefix)) get().selectPlan(defaultPlanId(get()));
     },
     viewMode: "compare",
     reducedMotion: typeof window !== "undefined" && typeof window.matchMedia === "function" && window.matchMedia("(prefers-reduced-motion: reduce)").matches,
@@ -332,6 +363,12 @@ export function createAppStore(data: DataStore = DataStore.forPage()) {
       set({ notice: null });
     },
   }));
+}
+
+/** A site by id: one of the five candidates or the custom site (B13). */
+export function siteOf(st: Pick<AppState, "sites" | "customSite">, id: string | undefined | null): Site | undefined {
+  if (!id) return undefined;
+  return st.sites.find((s) => s.id === id) ?? (st.customSite?.id === id ? st.customSite : undefined);
 }
 
 /** The single application store (one DataStore, one cache). */

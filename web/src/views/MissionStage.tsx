@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { ApproxBadge } from "../components/ApproxBadge";
 import { ErrorMessage } from "../components/ErrorMessage";
 import { Telemetry } from "../components/Telemetry";
 import { describeError } from "../lib/errors";
@@ -9,7 +10,8 @@ import { ThumbnailStrip } from "../panels2d/ThumbnailStrip";
 import { MissionControls } from "../scene3d/MissionControls";
 import { ScaleIndicator } from "../scene3d/ScaleIndicator";
 import { LOCAL_SCALE, SPACE_SCALE } from "../scene3d/scale";
-import { useApp } from "../store/appStore";
+import { siteOf, useApp } from "../store/appStore";
+import { isCustomSiteId } from "../lib/virtualSite";
 import { SiteLayout, SiteViewSwitch, type SiteView } from "./SiteLayout";
 
 /**
@@ -20,7 +22,7 @@ import { SiteLayout, SiteViewSwitch, type SiteView } from "./SiteLayout";
 export function MissionStage({ autoPlay }: { autoPlay: boolean }) {
   const data = useApp((s) => s.data);
   const plan = useApp((s) => (s.selectedPlanId ? s.plansById.get(s.selectedPlanId) : undefined));
-  const site = useApp((s) => s.sites.find((x) => x.id === plan?.site_id));
+  const site = useApp((s) => siteOf(s, plan?.site_id));
   const missionPhase = useApp((s) => s.missionPhase);
   const sceneScale = useApp((s) => s.sceneScale);
   const pinned = useApp((s) => s.comparePlans.length);
@@ -89,6 +91,13 @@ export function MissionStage({ autoPlay }: { autoPlay: boolean }) {
             <p className="scene-chip" data-testid="illustrative-label" title={`${STRINGS.live.illustrative}. ${STRINGS.panel.illustrativeTitle}`}>
               <span className="badge illustrative">ILLUSTRATIVE</span>
               <span className="visually-hidden">{STRINGS.live.illustrative}</span>
+            </p>
+          )}
+          {/* B13: a custom site's horizon and terrain come from the reduced relief */}
+          {plan && isCustomSiteId(plan.site_id) && (
+            <p className="scene-chip" data-testid="approx-scene" title={STRINGS.custom.approxScene}>
+              <ApproxBadge siteId={plan.site_id} testId="approx-scene-badge" />
+              <span className="visually-hidden">{STRINGS.custom.approxScene}</span>
             </p>
           )}
           <ScaleIndicator mode={scale} compact />

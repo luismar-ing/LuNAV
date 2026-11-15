@@ -1,3 +1,4 @@
+import { ApproxBadge } from "../components/ApproxBadge";
 import type { Daily, SiteFeatures } from "../lib/contract";
 import type { PlanData } from "../lib/planData";
 import { STRINGS } from "../lib/strings";
@@ -46,7 +47,10 @@ export function SitePanel({ plan, features, daily, pinned }: Props) {
   return (
     <article className="site-panel" data-testid="site-panel" aria-label={STRINGS.sitePanel.aria(plan.site.name)}>
       <section>
-        <h3>{STRINGS.sitePanel.location}</h3>
+        <h3>
+          {STRINGS.sitePanel.location}
+          <ApproxBadge siteId={plan.site.id} testId="approx-site-panel" />
+        </h3>
         <dl className="kv">
           {features.attributes.map((a) => {
             const text = attributeText(a);
