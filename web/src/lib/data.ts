@@ -31,6 +31,8 @@ import {
   type Windows,
 } from "./contract";
 
+import { parseLevel, parseSky, type CustomTerrain, type CustomTerrainHeader, type SkyData, type SkyHeader, type TerrainLevelHeader } from "./customSite";
+
 export type DataErrorKind = "network" | "parse" | "validation" | "consistency";
 
 /** Typed loading error: what failed, on which file, and the zod issues when relevant. */
@@ -215,6 +217,42 @@ export class DataStore {
     return this.load("scene/ephemeris.json", SceneEphemerisSchema, (s) => {
       if (s.frame !== m.params.scene_frame || s.moon_frame !== m.params.moon_frame) this.fail("scene/ephemeris.json", "frames differ from the manifest"); // §14.10
     });
+  }
+
+  /** B12: Sun and Earth vectors (MOON_ME, from the Moon centre) for any observer: sky/sky.json + moon_me.bin. */
+  sky(): Promise<SkyData> {
+    const key = "sky/sky.json";
+    const cached = this.cache.get(key);
+    if (cached) return cached as Promise<SkyData>;
+    const p = (async () => {
+      const header = (await this.raw(key, "json")) as SkyHeader & { bin_file: string; byte_length: number };
+      const buf = (await this.raw(`sky/${header.bin_file}`, "buffer")) as ArrayBuffer;
+      if (buf.byteLength !== header.byte_length) this.fail(`sky/${header.bin_file}`, `${buf.byteLength} bytes, header says ${header.byte_length}`);
+      return parseSky(header, buf);
+    })();
+    p.catch(() => this.cache.delete(key));
+    this.cache.set(key, p);
+    return p;
+  }
+
+  /** B12: LOLA relief reduced to 160 m and 400 m around the pole (terrain_custom/), to trace any point's horizon. */
+  terrainCustom(): Promise<CustomTerrain> {
+    const key = "terrain_custom/terrain.json";
+    const cached = this.cache.get(key);
+    if (cached) return cached as Promise<CustomTerrain>;
+    const p = (async () => {
+      const header = (await this.raw(key, "json")) as CustomTerrainHeader;
+      const level = async (h: TerrainLevelHeader) => {
+        const buf = (await this.raw(`terrain_custom/${h.bin_file}`, "buffer")) as ArrayBuffer;
+        if (buf.byteLength !== h.byte_length) this.fail(`terrain_custom/${h.bin_file}`, `${buf.byteLength} bytes, header says ${h.byte_length}`);
+        return parseLevel(h, buf, header.height_scale_m);
+      };
+      const [fine, coarse] = await Promise.all([level(header.fine), level(header.coarse)]);
+      return { header, fine, coarse };
+    })();
+    p.catch(() => this.cache.delete(key));
+    this.cache.set(key, p);
+    return p;
   }
 
   /** Lit polar map header (the Mission Planner's Moon map): extent of the south polar stereographic image. */

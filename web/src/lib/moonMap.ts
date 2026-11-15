@@ -33,6 +33,15 @@ export function mapFraction(ext: MapExtent, latDeg: number, lonDeg: number): { f
   return { fx: (x - ext.left) / (ext.right - ext.left), fy: (ext.top - y) / (ext.top - ext.bottom) };
 }
 
+/** B12: the inverse of mapFraction: latitude and longitude (deg, longitude in [-180, 180)) of a point of the map image. */
+export function fractionToLatLon(ext: MapExtent, fx: number, fy: number): { lat: number; lon: number } {
+  const x = ext.left + fx * (ext.right - ext.left);
+  const y = ext.top - fy * (ext.top - ext.bottom);
+  const c = 2 * Math.atan(Math.hypot(x, y) / (2 * MOON_RADIUS_M));
+  const lon = (Math.atan2(x, y) * 180) / Math.PI;
+  return { lat: -90 + (c * 180) / Math.PI, lon: ((lon + 540) % 360) - 180 };
+}
+
 /** Great-circle distance (km) between two points on the 1737.4 km sphere. */
 export function distanceKm(a: { lat: number; lon: number }, b: { lat: number; lon: number }): number {
   const r = Math.PI / 180;

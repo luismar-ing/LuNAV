@@ -30,7 +30,7 @@ function openPicker(input: HTMLInputElement) {
  * Earth at the chosen site, B6), length of stay, landing site and "Launch". Every control
  * changes the selected plan, which the Moon map, the site brief and every other view follow.
  */
-export function MissionSidebar({ onLaunch, onOpenSearch, onOpenFinder }: { onLaunch(): void; onOpenSearch(): void; onOpenFinder(): void }) {
+export function MissionSidebar({ onLaunch, onOpenSearch, onOpenFinder, onOpenCustom }: { onLaunch(): void; onOpenSearch(): void; onOpenFinder(): void; onOpenCustom(): void }) {
   const plan = useApp((s) => (s.selectedPlanId ? s.plansById.get(s.selectedPlanId) : undefined));
   const sites = useApp((s) => s.sites);
   const plansById = useApp((s) => s.plansById);
@@ -168,9 +168,15 @@ export function MissionSidebar({ onLaunch, onOpenSearch, onOpenFinder }: { onLau
       </section>
 
       <section className="sidebar-block" aria-labelledby="site-label">
-        <h2 id="site-label" className="sidebar-label">
-          {STRINGS.planner.site}
-        </h2>
+        {/* B12: any point from 85°S to the pole, next to the label so the sidebar keeps its height (A9) */}
+        <div className="sidebar-label-row">
+          <h2 id="site-label" className="sidebar-label">
+            {STRINGS.planner.site}
+          </h2>
+          <button type="button" className="link-btn" onClick={onOpenCustom} title={STRINGS.custom.openTitle} data-testid="open-custom">
+            {STRINGS.custom.open}
+          </button>
+        </div>
         <ul className="site-list">
           {sites.map((s) => {
             const m = index ? lookup(index, s.id, arrival) : null;
