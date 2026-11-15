@@ -3,6 +3,10 @@
  * (spec 9) without touching components.
  */
 import { round } from "./why";
+
+/** Hours as the planner writes them: one decimal, "34" rather than "34.0". */
+const hours = (h: number) => round(h, 1).replace(/\.0$/, "");
+
 export const STRINGS = {
   appTitle: "PolePlanner",
   appSubtitle: "Lunar south pole landing planner",
@@ -35,9 +39,15 @@ export const STRINGS = {
     arrivalInput: "Arrival date (UTC)",
     prevDay: "Previous day",
     nextDay: "Next day",
-    strip: (site: string) => `Arrival days around the chosen date, coloured by the combined score at ${site}`,
+    // B6: each day marked for the Sun (night or not) and the Earth (all stay, gaps, none); the score stays in the label
+    strip: (site: string) => `Arrival days around the chosen date at ${site}: the Sun on top, the Earth below`,
     dayCell: (day: string, score: string | null) => (score === null ? day : `${day}, score ${score}`),
-    stripHint: "Brighter days score higher for this site.",
+    dayCellFull: (day: string, sun: string, earth: string, score: string) => `${day}: ${sun} · ${earth} · score ${score}`,
+    legendNoNight: "no night",
+    legendNight: "night",
+    legendEarthAll: "Earth all stay",
+    legendEarthGaps: "gaps",
+    legendEarthNone: "no Earth",
     stay: "Stay on the surface",
     days: (d: number) => `${d} days`,
     site: "Landing site",
@@ -50,7 +60,25 @@ export const STRINGS = {
     closeSearch: "Close",
     searchTitle: "Search and compare plans",
     // planner redesign (REDIS + 3C): night length of each site for the chosen dates, Moon map and site brief
-    status: (darkH: number) => (darkH === 0 ? "Sunlit all stay" : `${round(darkH, 1).replace(/\.0$/, "")} h night`),
+    // B2: the Sun and the Earth together, so a plan without Earth contact never reads as a good one
+    // B3: the window's longest night is the part inside the stay; say so, the countdowns show the whole night
+    statusSun: (darkH: number) => (darkH === 0 ? "Sunlit all stay" : `${hours(darkH)} h night in stay`),
+    statusEarth: (earth: "all" | "gaps" | "none", gapH: number) =>
+      earth === "all" ? "Earth all stay" : earth === "none" ? "No Earth all stay" : `Earth gap ${hours(gapH)} h`,
+    verdict: (sun: "lit" | "night", earth: "all" | "gaps" | "none", darkH: number, gapH: number) => {
+      if (sun === "lit")
+        return earth === "all"
+          ? "Sunlight and direct Earth contact for the whole stay."
+          : earth === "none"
+            ? "Sunlit all stay, but no direct Earth contact at any time."
+            : `Sunlit all stay, but up to ${hours(gapH)} h without direct Earth contact.`;
+      const night = `${hours(darkH)} h of night in the stay`;
+      return earth === "all"
+        ? `${night}, with the Earth in view the whole time.`
+        : earth === "none"
+          ? `${night} and no direct Earth contact at any time.`
+          : `${night} and up to ${hours(gapH)} h without direct Earth contact.`;
+    },
     map: "Moon map: landing sites on the average sunlight of the south pole",
     mapCaption: (km: number) =>
       `Average sunlight over 18.6 years (LOLA, Mazarico et al. 2011). Brighter ground sees the Sun more often. The pole is at the centre; the map is ${km} km across.`,
@@ -66,9 +94,18 @@ export const STRINGS = {
     lastDay: (d: number) => `Day ${d}`,
     setsIn: "Sets in",
     risesIn: "Rises in",
+    // B4: "Up all stay · sets 26 Jan" when the next change is after the stay
+    up: "Up",
+    down: "Down",
+    allStay: "all stay",
+    changeAfter: (visible: boolean, day: string) => `${visible ? "sets" : "rises"} ${day}`,
     noChange: "beyond the data",
     sunlight: "Sunlight",
     longestNight: "Longest night",
+    // B3: "34 h of 36.5 h": the part of the night inside the stay, then the whole night
+    nightOf: (fullH: number, known: boolean) => `of ${known ? "" : "≥ "}${hours(fullH)} h`,
+    nightOfTitle: (inH: number, fullH: number, known: boolean) =>
+      `${hours(inH)} h of a ${known ? "" : "≥ "}${hours(fullH)} h night fall inside the stay; the rest is before or after it.`,
     earthWorst: "Earth, worst day",
     others: "Same day, other sites",
     sameLight: "same light",
@@ -95,16 +132,21 @@ export const STRINGS = {
     sunBack: "Night · the Sun comes back in",
     sunsetAt: (when: string) => `Sunset ${when}`,
     sunriseAt: (when: string) => `Sunrise ${when}`,
-    nightThen: (night: string, over: string | null) => `Then ${night} of night${over ? `, ${over} over your limit` : ""}.`,
-    sunStays: "The Sun stays up for the rest of the stay.",
+    // B3: "Then a 36.5 h night, 34 h of it in your stay." when the night runs past the end of the stay
+    nightThen: (night: string, inStay: string | null, over: string | null) =>
+      `${inStay ? `Then a ${night} night, ${inStay} of it in your stay` : `Then ${night} of night`}${over ? `, ${over} over your limit` : ""}.`,
     sunBackInStay: "The Sun comes back before the stay ends.",
-    sunBackAfter: "The Sun comes back after the stay ends.",
     earthLeft: "Earth link left",
     earthBack: "No Earth link · it comes back in",
+    // B4: a change after the end of the stay is not counted down; its date is a side note
+    allStay: "All stay",
+    restOfStay: "Rest of stay",
+    afterYouLeave: "after you leave",
+    sunDown: "Night",
+    earthDown: "No Earth link",
     earthsetAt: (when: string) => `Earthset ${when}`,
     earthriseAt: (when: string) => `Earthrise ${when}`,
     gapThen: (gap: string) => `Then ${gap} without direct contact.`,
-    noLoss: "No loss of contact during the stay.",
     noData: "beyond the data",
     next: "What happens next",
     metrics: "Window metrics",

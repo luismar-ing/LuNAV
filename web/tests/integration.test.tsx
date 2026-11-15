@@ -269,7 +269,7 @@ describe("same figures in every view (T5.1.b)", () => {
       act(() => appStore.getState().selectPlan(id));
       await waitFor(() => expect(within(brief()).getByRole("heading", { level: 2 }).textContent).toBe(plan(id).site_id === "haworth" ? "Haworth" : "Connecting Ridge (Shackleton rim)"));
       await waitFor(() => expect(brief().querySelector(".brief-metrics")).not.toBeNull());
-      const dds = [...brief().querySelectorAll(".brief-metrics dd")].map((dd) => dd.textContent);
+      const dds = [...brief().querySelectorAll(".brief-metrics dd:not(.brief-metric-note)")].map((dd) => dd.textContent);
       expect(dds, `${id} brief`).toEqual([`${expected.sun_pct} %`, `${num(row.longest_dark_h)} h`, `${num(row.earth_h_min)} h`]);
 
       // why text: every number it quotes is one of the box's figures (same rounding)

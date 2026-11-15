@@ -1,4 +1,5 @@
 import type { PlanData } from "../lib/planData";
+import { fmtDay } from "../lib/format";
 import type { ElevationScale } from "../lib/scale";
 import { STRINGS } from "../lib/strings";
 import { HorizonSilhouette } from "./HorizonSilhouette";
@@ -28,7 +29,7 @@ export function PlanPanel({ data, scale, trajectoryMode, selected, exaggeration,
   return (
     <article
       className={`plan-panel${selected ? " selected" : ""}`}
-      aria-label={STRINGS.panel.aria(site.name, plan.arrival_utc.slice(0, 10), plan.window_days)}
+      aria-label={STRINGS.panel.aria(site.name, fmtDay(plan.arrival_utc), plan.window_days)}
       data-testid="plan-panel"
       data-plan-id={plan.id}
       data-scale={`${scale.minDeg}:${scale.maxDeg}`}
@@ -37,7 +38,7 @@ export function PlanPanel({ data, scale, trajectoryMode, selected, exaggeration,
         <button type="button" className="plan-panel-title" onClick={onSelect} aria-pressed={selected}>
           <span className="plan-site">{site.name}</span>
           <span className="plan-meta">
-            {STRINGS.arrival} {plan.arrival_utc.slice(0, 10)} · {STRINGS.windowDays(plan.window_days)}
+            {STRINGS.arrival} {fmtDay(plan.arrival_utc)} · {STRINGS.windowDays(plan.window_days)}
           </span>
         </button>
         {trajectoryMode === "ILLUSTRATIVE" && (
