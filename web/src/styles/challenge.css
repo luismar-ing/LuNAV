@@ -25,28 +25,32 @@
   font-size: var(--font-sm);
   line-height: 1.5;
 }
-.challenge-sites {
+/* B14: the landing point, any coordinate from 85°S (a click on the map or typed) */
+.challenge-point-form {
   display: flex;
-  flex-wrap: wrap;
   gap: 8px;
 }
-.challenge-sites button {
-  font: inherit;
-  color: var(--color-text-muted);
-  background: transparent;
-  border: 1px solid var(--color-border-strong);
-  border-radius: 999px;
-  padding: 8px 16px;
-  cursor: pointer;
+.challenge-point-form .nl-input {
+  flex: 1;
+  min-width: 0;
 }
-.challenge-sites button:hover {
+.challenge-sidebar .point-picker {
+  margin: 0;
+  display: grid;
+  gap: 6px;
+  justify-items: center;
+}
+.challenge-sidebar .point-picker-disc {
+  max-width: 220px;
+}
+.challenge-point {
+  margin: 0;
+  min-height: 1.4em;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
   color: var(--color-text);
-  background: var(--glass-fill-hover);
-}
-.challenge-sites button[aria-pressed="true"] {
-  color: var(--color-bg);
-  background: var(--color-text);
-  border-color: var(--color-text);
 }
 .challenge-days {
   display: grid;

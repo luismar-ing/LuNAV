@@ -224,11 +224,20 @@ export const STRINGS = {
     title: "Can your lander make it?",
     back: "Back to the story",
     mission: (stayDays: number, month: string) =>
-      `Your mission: keep the lander powered for ${stayDays} days. You may land on any day in ${month}. Pick a site and a landing day, then launch.`,
+      `Your mission: keep the lander powered for ${stayDays} days. You may land anywhere from 85°S to the pole, on any day in ${month}. Pick a point on the Moon and a landing day, then launch.`,
     assumedTitle: "An illustrative lander, not data about any real mission. The sunlight and the nights are the site's real ones.",
     lander: (kWh: number, loadW: number, solarW: number, fullH: string) =>
       `Your lander: a ${kWh} kWh battery, a ${loadW} W load and ${solarW} W solar panels. A full battery lasts ${fullH} h of darkness.`,
-    siteStep: "1. Choose a landing site",
+    siteStep: "1. Choose a landing point on the Moon",
+    // B14: the landing point is any custom coordinate (decision A15)
+    pointIntro: "Click the map or type a coordinate. The rings are the five candidate sites; brighter ground sees the Sun more often.",
+    pointLabel: "Latitude, longitude",
+    pointPlaceholder: "e.g. -88.5, 45 or 88.5S 45E",
+    pointUse: "Use",
+    pointInvalid: "Write the latitude and the longitude, e.g. -88.5, 45.",
+    pointOutside: "Outside the terrain data: choose a latitude from 85°S to the pole.",
+    pointBusy: "Computing the Sun, the Earth and the horizon at this point…",
+    pointApproxTitle: "The horizon at a custom point is traced over the LOLA relief reduced to 160 m (APPROXIMATE).",
     dayStep: (month: string) => `2. Choose a landing day in ${month}`,
     dayLabel: (day: string, outcome: boolean | undefined) =>
       outcome === undefined ? day : `${day}, ${outcome ? "the lander keeps its power" : "the lander loses power"}`,
@@ -244,8 +253,8 @@ export const STRINGS = {
     sunHidden: "Sun hidden by the terrain",
     earthUp: "Earth in view",
     earthHidden: "Earth out of view",
-    pickFirst: "Choose a site and a day first.",
-    loading: "Loading the site data…",
+    pickFirst: "Choose a point and a day first.",
+    loading: "Loading the point's data…",
     attempt: (n: number, site: string, day: string) => `Attempt ${n} · ${site} · landing ${day}`,
     success: "Mission success",
     failure: "Your lander lost power",

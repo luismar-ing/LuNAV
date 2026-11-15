@@ -1,6 +1,7 @@
 /**
  * "Can your lander make it?" (C3): the challenge at the end of the Educator's story. A mission fixes the month and
- * the length of the stay; the player picks a landing site and an arrival day, and learns at once whether an ASSUMED
+ * the length of the stay; the player picks a landing point (any coordinate from 85°S, made a virtual site: B14,
+ * decision A15) and an arrival day, and learns at once whether an ASSUMED
  * lander (lib/energy.ts) keeps its power for the whole stay, and why.
  *
  * Nothing new is computed here: the battery and the night come from the same helpers as the Mission Planner's site
@@ -24,7 +25,8 @@ export interface ChallengeLevel {
 /**
  * Level 1: survive a week in March 2027. With the real data a blind pick works about half the time
  * (7-day stays that keep the assumed battery above empty: 23, 9, 12, 12 and 20 of 31 days, site by site), so the
- * site and the day both matter.
+ * site and the day both matter. With any point (B14) the place matters even more: most of the polar ground loses power
+ * on every March day (e.g. 0 of 31 at -88°, 45°), while near Connecting Ridge (-89.45°, -137.1°) 19 of 31 days work.
  */
 export const LEVEL_1: ChallengeLevel = { id: 1, month: "2027-03", stayDays: 7 };
 

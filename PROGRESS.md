@@ -3842,3 +3842,21 @@ Las trayectorias ILLUSTRATIVE, los datos SYNTHETIC y toda desviación de la spec
 - **Desviaciones de la spec / cambios en la guía:** ninguna. El `score` del punto está en la escala de los cinco sitios (A14).
 - **Problemas abiertos:** el calendario sigue mostrando solo las filas de los cinco sitios; el mapa de la Luna no marca los puntos fijados.
 - **Siguiente tarea:** revisión de la persona B.
+
+## AJUSTE · B14: el reto del Educador con un punto personalizado
+
+- **Tarea:** B14, petición del humano (15-nov-2026): en el reto «Can your lander make it?» el jugador elige un punto propio de la Luna en vez de uno de los cinco sitios. Rama `b14-challenge-custom-point`, desde `b13-custom-journey` (necesita el sitio virtual de B13). Decisión A15.
+- **Qué se hizo:**
+  - `views/Challenge.tsx`: el paso 1 es «Choose a landing point on the Moon»: el selector `PointPicker` (mapa de luz media de LOLA de 85°S al polo, con los cinco sitios como anillos de referencia) y un campo de coordenadas. Cada punto se convierte en sitio virtual con `addCustomSite`; una elección posterior gana a una anterior. Mensajes para texto inválido y para puntos al norte de 85°S. El nombre del punto («Custom site · lat°, lon°») y APPROXIMATE aparecen al elegirlo; el panel de la misión y el resultado usan ese nombre.
+  - El resto del reto no cambia: `lib/challenge.ts` evalúa la serie del sitio virtual con las mismas reglas, y la escena vuela la trayectoria ILLUSTRATIVE calculada en el navegador.
+  - `lib/strings.ts`: textos del paso 1 y de la misión; `styles/challenge.css`: estilos del selector en la barra lateral.
+- **Cómo se verificó:**
+  ```
+  $ npm --prefix web run typecheck → sin errores
+  $ npm --prefix web test → Test Files 63 passed (63), Tests 429 passed (429)
+  ```
+  - `tests/challenge.view.test.tsx`, reescrito: el selector y los 31 días; texto inválido y punto fuera de 85°S rechazados; el punto y el día forman el plan `custom_…_AAAAMMDD_7d`; lanzar, saltar fases y parar exactamente donde la batería se vacía (instante sacado de la serie del punto); «Try again» marca solo el día probado; un día bueno termina en éxito; «Watch again» no cuenta como intento. Los días esperados salen de `monthOutcomes` sobre la serie del punto (−89,45°, −137,1°: 19 de 31 días buenos).
+  - Navegador (servidor de desarrollo): Educador → «Take the challenge» → clic en el mapa elige (−89,987°, 133,153°) → 15 de marzo → el vuelo arranca con la batería y la barra de la estancia.
+- **Desviaciones de la spec / cambios en la guía:** ninguna en las definiciones. La dificultad cambia: muchos puntos no tienen ningún día bueno en marzo (medido en 10 puntos: 0 a 19 de 31).
+- **Problemas abiertos:** no hay pista de qué zonas funcionan aparte del mapa de luz media; quizá convenga una ayuda («prueba cerca de las crestas iluminadas») si el reto resulta demasiado difícil. La rama depende de B13 (PR pendiente).
+- **Siguiente tarea:** revisión del humano.

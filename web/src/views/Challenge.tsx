@@ -1,4 +1,7 @@
-import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { ApproxBadge } from "../components/ApproxBadge";
+import { PointPicker } from "../components/PointPicker";
+import { parseCoordinates } from "../lib/customSite";
 import { evaluate, LEVEL_1, monthDays, stayTrace, traceAt, type ChallengeResult, type StayTrace } from "../lib/challenge";
 import { ASSUMED_BATTERY } from "../lib/energy";
 import { fmtDay, fmtUtc } from "../lib/format";
@@ -10,7 +13,7 @@ import { num } from "../lib/why";
 import { TimeRibbon } from "../panels2d/TimeRibbon";
 import { SceneHost } from "../scene3d/SceneHost";
 import type { Timeseries } from "../lib/contract";
-import { appStore, useApp } from "../store/appStore";
+import { appStore, siteOf, useApp } from "../store/appStore";
 import "../styles/challenge.css";
 import { useMissionPlayback } from "./useMissionPlayback";
 import { useScenePlan } from "./useScenePlan";
@@ -55,18 +58,25 @@ interface Run {
 
 /**
  * "Can your lander make it?" (C3), opened from the Educator's last chapter: its own screen over the one 3D scene.
- * The mission fixes the month and the stay; in the sidebar the player picks a landing site and an arrival day, and
+ * The mission fixes the month and the stay; in the sidebar the player picks a landing point anywhere from 85°S to the
+ * pole (B14, decision A15: a click on the Moon map or a typed coordinate, made a virtual site as in the Mission
+ * Planner's custom coordinates, lib/virtualSite) and an arrival day, and
  * the globe follows that plan (Earth with the launch pad, the Moon and the Sun from SPICE). "Launch" flies the
  * mission in the scene and plays the stay at the site with the ASSUMED battery, which stops the mission where the
  * battery runs empty: the cause is the site's real night, never the (ILLUSTRATIVE) flight.
  */
 export function Challenge({ tools }: { tools: ReactNode }) {
-  const sites = useApp((s) => s.sites);
   const plan = useApp((s) => (s.selectedPlanId ? s.plansById.get(s.selectedPlanId) : undefined));
   const level = LEVEL_1;
   const days = useMemo(() => monthDays(level), [level]);
   const month = monthName(level.month);
   const [siteId, setSiteId] = useState<string | null>(null);
+  // the landing point (B14): what the player chose, its text, and whether its virtual site is being built
+  const [point, setPoint] = useState<{ lat: number; lon: number } | null>(null);
+  const [text, setText] = useState("");
+  const [pointMsg, setPointMsg] = useState<string | null>(null);
+  const [pointBusy, setPointBusy] = useState(false);
+  const pickToken = useRef(0);
   const [day, setDay] = useState<string | null>(null);
   const [seg, setSeg] = useState(-1); // stretch under way (-1: choosing; 3: over)
   const stage = stageOf(seg);
@@ -162,7 +172,28 @@ export function Challenge({ tools }: { tools: ReactNode }) {
     return () => window.removeEventListener("keydown", onKey);
   }, []);
 
-  const site = sites.find((s) => s.id === (run?.siteId ?? siteId));
+  const site = useApp((s) => siteOf(s, run?.siteId ?? siteId));
+
+  // a point becomes a site of its own (its horizon, a year of Sun and Earth flags, its plans); a later pick wins
+  const pickPoint = async (lat: number, lon: number) => {
+    const c = { lat: Number(lat.toFixed(4)), lon: Number(lon.toFixed(4)) };
+    const token = ++pickToken.current;
+    setPoint(c);
+    setText(`${c.lat}, ${c.lon}`);
+    setPointMsg(null);
+    setPointBusy(true);
+    setSiteId(null);
+    try {
+      const id = await appStore.getState().addCustomSite(c.lat, c.lon);
+      if (token !== pickToken.current) return;
+      if (id) setSiteId(id);
+      else setPointMsg(T.pointOutside);
+    } catch (e) {
+      if (token === pickToken.current) setPointMsg((e as Error).message);
+    } finally {
+      if (token === pickToken.current) setPointBusy(false);
+    }
+  };
 
   return (
     <div className="challenge-screen" data-testid="challenge" data-stage={stage}>
@@ -193,13 +224,29 @@ export function Challenge({ tools }: { tools: ReactNode }) {
             <h3 id="challenge-site" className="sidebar-label">
               {T.siteStep}
             </h3>
-            <div className="challenge-sites" role="group" aria-labelledby="challenge-site">
-              {sites.map((s) => (
-                <button key={s.id} type="button" aria-pressed={s.id === siteId} onClick={() => setSiteId(s.id)}>
-                  {s.name}
-                </button>
-              ))}
-            </div>
+            <p className="challenge-hint">{T.pointIntro}</p>
+            <form
+              className="challenge-point-form"
+              onSubmit={(e) => {
+                e.preventDefault();
+                const c = parseCoordinates(text);
+                if (!c) return setPointMsg(T.pointInvalid);
+                void pickPoint(c.lat, c.lon);
+              }}
+            >
+              <label htmlFor="challenge-coords" className="visually-hidden">
+                {T.pointLabel}
+              </label>
+              <input id="challenge-coords" className="nl-input" value={text} placeholder={T.pointPlaceholder} onChange={(e) => setText(e.target.value)} aria-describedby="challenge-point-status" />
+              <button type="submit" className="btn pill">
+                {T.pointUse}
+              </button>
+            </form>
+            <PointPicker lat={point?.lat ?? null} lon={point?.lon ?? null} limitDeg={-85} onPick={(lat, lon) => void pickPoint(lat, lon)} />
+            <p id="challenge-point-status" className="challenge-point" role="status" aria-live="polite" data-testid="challenge-point">
+              {pointBusy ? T.pointBusy : pointMsg ?? (site && siteId ? site.name : "")}
+              {!pointBusy && site && siteId && <ApproxBadge siteId={siteId} testId="challenge-approx" />}
+            </p>
           </section>
 
           <section className="sidebar-block" aria-labelledby="challenge-day">
@@ -235,7 +282,7 @@ export function Challenge({ tools }: { tools: ReactNode }) {
             <button type="button" className="btn primary pill" disabled={!ready} onClick={launch}>
               {T.launch}
             </button>
-            {!ready && <span className="challenge-hint">{!siteId || !day ? T.pickFirst : T.loading}</span>}
+            {!ready && <span className="challenge-hint">{pointBusy ? T.pointBusy : !siteId || !day ? T.pickFirst : T.loading}</span>}
             <button type="button" className="btn ghost pill" onClick={() => appStore.getState().setScreen("educator")}>
               {T.back}
             </button>
