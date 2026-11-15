@@ -85,6 +85,11 @@ export class AmbientSound {
     return this.playing && this.ctx?.state === "running";
   }
 
+  /** The audio context while sound is on and audible, else null: the mission cues (sfx.ts, A4) share it. */
+  get liveContext(): AudioContextLike | null {
+    return this.audible ? this.ctx : null;
+  }
+
   /** The sound button: turns sound on (and starts it, this is a gesture) or off; the choice is remembered.
    *  While sound is on but still held back by the browser, pressing it starts the sound instead of muting. */
   toggle(): void {

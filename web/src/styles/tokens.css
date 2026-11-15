@@ -2779,16 +2779,54 @@ button.brief-day-btn:hover {
   pointer-events: none;
 }
 
-/* at the site (B3 layout, A3 style): the sky stays on top, metrics card right, console and dock below */
+/* at the site (A10): "Sky" is the 3D site full screen with the "Time left" card on the right and the time bar
+   below; "Data" gives the whole width to the 2D console. The time bar stays in view in both, without scrolling. */
 .mission-stage.at-site {
   grid-template-columns: minmax(240px, 300px) minmax(0, 1fr) minmax(0, 320px);
-  grid-template-rows: auto minmax(0, 1fr) auto auto;
-  /* the card spans the sky's rows, so its height never squeezes the console (the 2D panorama) */
+  grid-template-rows: auto minmax(0, 1fr) auto;
   grid-template-areas:
     "head . card"
     "thumbs . card"
+    "dock dock dock";
+}
+
+.mission-stage.at-site:has(.site-layout[data-view="data"]) {
+  grid-template-rows: minmax(0, 1fr) auto;
+  grid-template-areas:
     "console console console"
     "dock dock dock";
+}
+
+.mission-stage.at-site:has(.site-layout[data-view="data"]) :is(.mission-head, .mission-thumbs) {
+  display: none;
+}
+
+/* the switch between the two views, beside "Back to planning" */
+.site-view-switch {
+  display: flex;
+  padding: 3px;
+  border-radius: 999px;
+}
+
+.site-view-switch button {
+  padding: 6px 20px;
+  border: 0;
+  border-radius: 999px;
+  background: none;
+  color: var(--color-text-muted);
+  font: inherit;
+  font-size: var(--font-sm);
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.site-view-switch button:hover {
+  color: var(--color-text);
+}
+
+.site-view-switch button[aria-pressed="true"] {
+  background: var(--color-text);
+  color: var(--color-bg);
 }
 
 .mission-stage > * {
@@ -2803,10 +2841,16 @@ button.brief-day-btn:hover {
   gap: 12px;
 }
 
-.mission-back {
+.mission-topbar {
   position: absolute;
   top: 24px;
   left: 24px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.mission-back {
   display: inline-flex;
   align-items: center;
   gap: 8px;
@@ -2942,12 +2986,6 @@ button.brief-day-btn:hover {
   }
 }
 
-/* at the site the comparison table (same plans, same clock) takes over from the thumbnails, which would
-   only fit clipped next to the console */
-.mission-stage.at-site:has(.site-compare-mini) .mission-thumbs {
-  display: none;
-}
-
 /* the card's actions side by side */
 .site-card-actions {
   display: flex;
@@ -2986,9 +3024,11 @@ button.brief-day-btn:hover {
   padding: 14px 18px;
   display: grid;
   grid-template-columns: minmax(0, 2fr) minmax(0, 1fr);
+  align-self: start; /* hugs its content: the sky shows below a short console */
   gap: var(--space-lg);
-  max-height: 46vh;
-  overflow-y: auto;
+  max-height: 100%;
+  min-height: 0;
+  overflow-y: auto; /* only a last resort: a long comparison table scrolls inside, the time bar stays put */
   background: var(--glass-panel-strong);
 }
 
@@ -3040,7 +3080,7 @@ button.brief-day-btn:hover {
 
 .countdown-value {
   font-family: var(--font-serif);
-  font-size: 44px;
+  font-size: 36px; /* compact over the 3D sky (A10) */
   line-height: 1;
   font-variant-numeric: tabular-nums;
 }
@@ -3143,17 +3183,6 @@ button.brief-day-btn:hover {
   border-color: var(--color-border-strong);
 }
 
-.site-console-folded {
-  grid-area: console;
-  justify-self: start;
-  align-self: end;
-}
-
-.site-console-folded .console-toggle {
-  background: var(--glass-panel-strong);
-  backdrop-filter: blur(var(--glass-blur));
-}
-
 .next-events {
   list-style: none;
   margin: 0;
@@ -3243,20 +3272,6 @@ button.brief-day-btn:hover {
 @media (max-width: 1100px) {
   .site-console {
     grid-template-columns: minmax(0, 1fr);
-  }
-}
-
-/* short screens (laptops, 768 px tall): the 2D panorama and the comparison keep their full height and the
-   journey's panels scroll as one page instead of clipping the console */
-@media (max-height: 860px) and (min-width: 721px) {
-  .mission-stage.at-site {
-    grid-template-rows: auto minmax(120px, auto) auto auto;
-    overflow-y: auto; /* wheel over the panels scrolls; the empty sky still lets the canvas take drags */
-  }
-  .mission-stage.at-site .site-console,
-  .mission-stage.at-site .mission-dock {
-    max-height: none;
-    overflow: visible; /* a scrolling grid item may shrink to nothing: let the stage scroll instead */
   }
 }
 
@@ -3579,7 +3594,7 @@ button.scene-chip {
 
 /* phone: the journey is a bottom sheet; the button heads it instead of floating */
 @media (max-width: 720px) {
-  .mission-back {
+  .mission-topbar {
     position: static;
     align-self: flex-start;
     order: 0;

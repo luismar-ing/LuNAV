@@ -337,7 +337,9 @@ export class CameraController {
 
   zoom(factor: number, minDist: number): void {
     if (!this.orbit) return;
-    this.orbit.dist = Math.max(minDist, this.orbit.dist * factor);
+    const d = this.orbit.dist * factor;
+    // the floor only stops a zoom in: a camera already closer than it is never pushed out in one jump (A3)
+    this.orbit.dist = factor < 1 ? Math.max(Math.min(minDist, this.orbit.dist), d) : d;
   }
 
   /** Pose of the manual camera, following its body as it moves. */

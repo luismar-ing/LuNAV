@@ -21,6 +21,8 @@ const SKY_DISTANCE = 5e6;
 
 export interface Bodies {
   earth: THREE.Mesh;
+  /** A6: a thin glowing shell around the Earth (a child of it, so it follows its size and scale) */
+  atmosphere: THREE.Mesh;
   moon: THREE.Mesh;
   sunLight: THREE.DirectionalLight;
   sunGlow: THREE.Sprite;
@@ -80,12 +82,62 @@ function starField(count = 2500): THREE.Points {
   return pts;
 }
 
+/** Thickness of the drawn atmosphere, as a fraction of the drawn Earth radius (a look, not a measurement). */
+export const ATMOSPHERE_SCALE = 1.025;
+
+/**
+ * A6: the Earth's atmosphere as a thin shell that glows at the limb (Fresnel) on the day side, fading across the
+ * terminator. Additive and without depth writes, so the Earth's map shows through it. Generated, no image files.
+ */
+function atmosphere(radius: number): THREE.Mesh {
+  const mat = new THREE.ShaderMaterial({
+    uniforms: { sunDir: { value: new THREE.Vector3(1, 0, 0) }, glow: { value: new THREE.Color(COLORS.earth) } },
+    vertexShader: /* glsl */ `
+      #include <common>
+      #include <logdepthbuf_pars_vertex>
+      varying vec3 vNormal;
+      varying vec3 vView;
+      varying vec3 vNormalWorld;
+      void main() {
+        vec4 mv = modelViewMatrix * vec4(position, 1.0);
+        vNormal = normalize(normalMatrix * normal);
+        vView = normalize(-mv.xyz);
+        vNormalWorld = normalize(mat3(modelMatrix) * normal);
+        gl_Position = projectionMatrix * mv;
+        #include <logdepthbuf_vertex>
+      }`,
+    fragmentShader: /* glsl */ `
+      #include <common>
+      #include <logdepthbuf_pars_fragment>
+      uniform vec3 sunDir;
+      uniform vec3 glow;
+      varying vec3 vNormal;
+      varying vec3 vView;
+      varying vec3 vNormalWorld;
+      void main() {
+        #include <logdepthbuf_fragment>
+        float rim = pow(1.0 - max(dot(normalize(vNormal), normalize(vView)), 0.0), 3.0);
+        float day = smoothstep(-0.3, 0.35, dot(normalize(vNormalWorld), sunDir));
+        float a = rim * day;
+        gl_FragColor = vec4(glow * a * 1.3, a);
+      }`,
+    transparent: true,
+    depthWrite: false,
+    blending: THREE.AdditiveBlending,
+  });
+  const shell = new THREE.Mesh(new THREE.SphereGeometry(radius * ATMOSPHERE_SCALE, 96, 48), mat);
+  shell.name = "atmosphere";
+  return shell;
+}
+
 export function createBodies(scene: THREE.Scene, mode: ScaleMode = SPACE_SCALE): Bodies {
   const earthGeo = new THREE.SphereGeometry(bodyRadius(EARTH_RADII_KM.equatorial, mode), 128, 64);
   const earth = new THREE.Mesh(earthGeo, new THREE.MeshStandardMaterial({ color: COLORS.textMuted, roughness: 1, metalness: 0 }));
   earth.name = "earth";
   // the Earth is an ellipsoid: polar radius along the body Z axis = local Y of the sphere
   earth.scale.set(1, EARTH_RADII_KM.polar / EARTH_RADII_KM.equatorial, 1);
+  const atm = atmosphere(bodyRadius(EARTH_RADII_KM.equatorial, mode));
+  earth.add(atm);
 
   const moonGeo = new THREE.SphereGeometry(bodyRadius(MOON_RADIUS_KM, mode), 128, 64);
   const moon = new THREE.Mesh(moonGeo, new THREE.MeshStandardMaterial({ color: COLORS.textMuted, roughness: 1, metalness: 0 }));
@@ -102,7 +154,7 @@ export function createBodies(scene: THREE.Scene, mode: ScaleMode = SPACE_SCALE):
   const stars = starField();
 
   scene.add(earth, moon, sunLight, sunLight.target, ambient, sunGlow, stars);
-  return { earth, moon, sunLight, sunGlow, stars, ambient };
+  return { earth, atmosphere: atm, moon, sunLight, sunGlow, stars, ambient };
 }
 
 /** Loads the web textures (T4.1.c) onto the bodies; 2k on small screens or limited GPUs, 4k otherwise. */
@@ -132,6 +184,7 @@ export function updateBodies(b: Bodies, s: SceneState, h: SceneHandle, mode: Sca
   b.moon.quaternion.set(...s.moonQuat).multiply(LOCAL_TO_BODY);
   // directional light: only the direction matters (position − target), sunlight arrives along −sunDir
   b.sunLight.position.set(...s.sunDir);
+  (b.atmosphere.material as THREE.ShaderMaterial).uniforms.sunDir.value.set(...s.sunDir);
   b.sunLight.target.position.set(0, 0, 0);
   b.sunLight.target.updateMatrixWorld();
   // things at infinity stay around the camera (the render-space origin)

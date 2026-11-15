@@ -104,3 +104,17 @@ describe("scene vs data", () => {
     expect(maxLat).toBeGreaterThan(23);
   });
 });
+
+describe("Earth atmosphere (A6)", () => {
+  it("a thin additive shell on the Earth, lit from the scene's Sun direction", () => {
+    const state = sceneStateAt(ix, Date.parse("2027-01-08T12:00:00Z"));
+    const { b } = sceneAt(state);
+    expect(b.atmosphere.parent).toBe(b.earth); // follows the Earth's position, ellipsoid and local re-scaling
+    const mat = b.atmosphere.material as THREE.ShaderMaterial;
+    expect(mat.blending).toBe(THREE.AdditiveBlending);
+    expect(mat.depthWrite).toBe(false); // the Earth's own map shows through it
+    expect(mat.uniforms.sunDir.value.toArray()).toEqual([...state.sunDir]);
+    const earthR = ((b.earth.geometry as THREE.SphereGeometry).parameters.radius);
+    expect((b.atmosphere.geometry as THREE.SphereGeometry).parameters.radius / earthR).toBeCloseTo(1.025, 9);
+  });
+});
