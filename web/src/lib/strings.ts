@@ -224,15 +224,19 @@ export const STRINGS = {
     title: "Can your lander make it?",
     back: "Back to the story",
     mission: (stayDays: number, month: string) =>
-      `Your mission: keep the lander powered for ${stayDays} days. You may land anywhere from 85°S to the pole, on any day in ${month}. Pick a point on the Moon and a landing day, then launch.`,
+      `Keep the lander powered for ${stayDays} days. Land anywhere from 85°S, any day in ${month}.`,
     assumedTitle: "An illustrative lander, not data about any real mission. The sunlight and the nights are the site's real ones.",
     lander: (kWh: number, loadW: number, solarW: number, fullH: string) =>
       `Your lander: a ${kWh} kWh battery, a ${loadW} W load and ${solarW} W solar panels. A full battery lasts ${fullH} h of darkness.`,
+    // B14b: the same, short enough for the sidebar to fit without scrolling (the full sentence is its tooltip)
+    landerShort: (kWh: number, loadW: number, fullH: string) => `${kWh} kWh battery, ${loadW} W load: ${fullH} h of darkness on a full charge.`,
     siteStep: "1. Choose a landing point on the Moon",
+    pointShort: "Click the map or type a coordinate.",
+    pointChosen: (lat: string, lon: string) => `Landing at ${lat}°, ${lon}°`,
+    pointMapTitle: "Average sunlight (LOLA): brighter ground sees the Sun more often. The rings are the five candidate sites.",
     // B14: the landing point is any custom coordinate (decision A15)
-    pointIntro: "Click the map or type a coordinate. The rings are the five candidate sites; brighter ground sees the Sun more often.",
     pointLabel: "Latitude, longitude",
-    pointPlaceholder: "e.g. -88.5, 45 or 88.5S 45E",
+    pointPlaceholder: "-88.5, 45",
     pointUse: "Use",
     pointInvalid: "Write the latitude and the longitude, e.g. -88.5, 45.",
     pointOutside: "Outside the terrain data: choose a latitude from 85°S to the pole.",

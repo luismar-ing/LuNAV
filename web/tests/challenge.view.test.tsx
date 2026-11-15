@@ -72,7 +72,7 @@ describe("Challenge screen (C3, B14)", () => {
     const ch = within(screen.getByTestId("challenge"));
     expect(ch.getByRole("heading", { name: "Can your lander make it?" })).toBeTruthy();
     expect(ch.getByText("ASSUMED")).toBeTruthy();
-    expect(ch.getByText(/keep the lander powered for 7 days\. You may land anywhere from 85°S/)).toBeTruthy();
+    expect(ch.getByText("Keep the lander powered for 7 days. Land anywhere from 85°S, any day in March 2027.")).toBeTruthy();
     expect(ch.getByRole("heading", { name: "1. Choose a landing point on the Moon" })).toBeTruthy();
     expect(await ch.findByTestId("point-picker")).toBeTruthy();
     expect(ch.queryByRole("button", { name: "Haworth" })).toBeNull(); // no preset sites any more
@@ -89,7 +89,7 @@ describe("Challenge screen (C3, B14)", () => {
     choosePoint("nonsense");
     expect(status()).toBe("Write the latitude and the longitude, e.g. -88.5, 45.");
     choosePoint();
-    await waitFor(() => expect(status()).toContain(POINT_NAME), { timeout: 8000 });
+    await waitFor(() => expect(status()).toBe("Landing at -89.450°, -137.100°APPROXIMATE"), { timeout: 8000 });
     expect(screen.getByTestId("challenge-approx").textContent).toBe("APPROXIMATE");
     fireEvent.click(screen.getByRole("button", { name: "Mar 10, 2027" }));
     expect(appStore.getState().selectedPlanId).toBe(`${POINT_ID}_20270310_7d`);

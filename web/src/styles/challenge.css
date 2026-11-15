@@ -14,16 +14,16 @@
   margin: 8px 0 0;
   font-family: var(--font-serif);
   font-weight: 400;
-  font-size: clamp(28px, 2.6vw, 40px);
+  font-size: clamp(24px, 2.2vw, 34px);
   line-height: 1.05;
 }
 .challenge-mission {
-  line-height: 1.5;
+  line-height: 1.4;
 }
 .challenge-lander {
   color: var(--color-text-muted);
   font-size: var(--font-sm);
-  line-height: 1.5;
+  line-height: 1.4;
 }
 /* B14: the landing point, any coordinate from 85°S (a click on the map or typed) */
 .challenge-point-form {
@@ -34,18 +34,50 @@
   flex: 1;
   min-width: 0;
 }
+/* B14b: map on the left, coordinate and status on the right, so the whole sidebar fits without scrolling */
+.challenge-point-row {
+  display: grid;
+  grid-template-columns: clamp(104px, 15vh, 140px) minmax(0, 1fr);
+  gap: 12px;
+  align-items: start;
+  margin-top: 6px;
+}
+.challenge-point-side {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.challenge-point-side .challenge-hint {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.35;
+}
 .challenge-sidebar .point-picker {
   margin: 0;
   display: grid;
-  gap: 6px;
+  gap: 4px;
   justify-items: center;
 }
 .challenge-sidebar .point-picker-disc {
-  max-width: 220px;
+  width: 100%;
+}
+/* the hover readout is the map's description for screen readers; it stays in the page, not on screen */
+.challenge-sidebar .point-picker figcaption {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+.challenge-sidebar .point-picker .btn {
+  padding: 2px 8px;
+  font-size: 12px;
 }
 .challenge-point {
   margin: 0;
   min-height: 1.4em;
+  font-size: var(--font-sm);
   display: flex;
   flex-wrap: wrap;
   align-items: center;
@@ -55,7 +87,8 @@
 .challenge-days {
   display: grid;
   grid-template-columns: repeat(7, minmax(0, 1fr));
-  gap: 6px;
+  gap: 4px;
+  margin-top: 6px;
 }
 .challenge-day {
   position: relative;
@@ -65,10 +98,9 @@
   background: transparent;
   border: 1px solid var(--color-border-strong);
   border-radius: var(--radius-sm);
-  height: 40px;
+  height: clamp(26px, 3.6vh, 36px);
   cursor: pointer;
   display: flex;
-  flex-direction: column;
   align-items: center;
   justify-content: center;
   gap: 2px;
@@ -82,7 +114,7 @@
   border-color: var(--color-text);
 }
 .challenge-day-mark {
-  font-size: 11px;
+  font-size: 10px;
   line-height: 1;
 }
 .challenge-day[data-outcome="ok"] {
@@ -132,10 +164,15 @@
 /* Launch, its hint and the way back, stacked at the foot of the sidebar */
 .challenge-launch {
   margin-top: auto;
-  flex-direction: column;
-  align-items: stretch;
+  gap: 8px;
+}
+/* B14b: Launch and the way back on one row, the hint under them, so the sidebar fits without scrolling */
+.challenge-launch .btn.primary {
+  flex: 1;
 }
 .challenge-launch .challenge-hint {
+  order: 3;
+  flex-basis: 100%;
   text-align: center;
 }
 
@@ -284,4 +321,60 @@
   margin-top: 4px;
   color: var(--color-text-muted);
   font-size: var(--font-sm);
+}
+
+/* B14b: a tighter rhythm while choosing, so every step fits on a 768 px screen */
+.challenge-sidebar:not(.challenge-hud):not(.challenge-result) {
+  gap: clamp(8px, 1.2vh, 18px);
+}
+.challenge-point-form .nl-input,
+.challenge-point-form .btn {
+  padding-top: 6px;
+  padding-bottom: 6px;
+}
+.challenge-launch .btn {
+  padding-left: 14px;
+  padding-right: 14px;
+  white-space: nowrap;
+}
+.challenge-launch .btn.ghost {
+  flex: none;
+  font-size: var(--font-sm);
+}
+.challenge-launch .btn.primary {
+  width: auto;
+  min-width: 0;
+}
+.challenge-sidebar .challenge-point {
+  display: block;
+  line-height: 1.35;
+}
+.challenge-sidebar .challenge-point .badge {
+  margin-left: 6px;
+  vertical-align: middle;
+}
+.challenge-sidebar .challenge-point-form .btn.pill,
+.challenge-sidebar .challenge-point-form .nl-input {
+  padding: 6px 12px;
+}
+.challenge-sidebar .challenge-mission {
+  font-size: 15px;
+}
+.challenge-sidebar .challenge-launch .btn.pill {
+  padding: 10px 12px;
+}
+.challenge-sidebar .challenge-launch .btn.primary {
+  flex: 1 0 auto;
+}
+/* one row for Launch and the way back, whatever width the shared sidebar styles give the primary button */
+.challenge-sidebar .challenge-launch {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+}
+.challenge-sidebar .challenge-launch .btn.primary {
+  width: 100%;
+}
+.challenge-sidebar .challenge-launch .challenge-hint {
+  grid-column: 1 / -1;
 }

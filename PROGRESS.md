@@ -3860,3 +3860,19 @@ Las trayectorias ILLUSTRATIVE, los datos SYNTHETIC y toda desviación de la spec
 - **Desviaciones de la spec / cambios en la guía:** ninguna en las definiciones. La dificultad cambia: muchos puntos no tienen ningún día bueno en marzo (medido en 10 puntos: 0 a 19 de 31).
 - **Problemas abiertos:** no hay pista de qué zonas funcionan aparte del mapa de luz media; quizá convenga una ayuda («prueba cerca de las crestas iluminadas») si el reto resulta demasiado difícil. La rama depende de B13 (PR pendiente).
 - **Siguiente tarea:** revisión del humano.
+
+## AJUSTE · B14b: el panel del reto cabe sin scroll
+
+- **Tarea:** petición del humano: resumir el panel izquierdo del reto para que no haga falta desplazarse.
+- **Qué se hizo:**
+  - Textos más cortos (`lib/strings.ts`): la misión en una frase («Keep the lander powered for 7 days. Land anywhere from 85°S, any day in March 2027.»); el lander como «5 kWh battery, 250 W load: 20 h of darkness on a full charge.», con la frase completa y la nota ASSUMED en el tooltip; la ayuda del mapa en una línea, con la explicación de la luz media en el tooltip; el estado del punto como «Landing at lat°, lon°» + APPROXIMATE.
+  - Distribución (`styles/challenge.css`, `views/Challenge.tsx`): mapa a la izquierda (≈ 15 % del alto de la ventana) y coordenada y estado a la derecha; la lectura del cursor del mapa queda solo para lectores de pantalla; días más bajos (26–36 px según el alto); «Launch» y «Back to the story» en una fila con la pista debajo; menos separación entre bloques.
+- **Cómo se verificó:**
+  ```
+  $ npm --prefix web run typecheck → sin errores
+  $ npm --prefix web test → Test Files 63 passed (63), Tests 429 passed (429)
+  ```
+  - Navegador (servidor de desarrollo), alto del contenido frente al alto visible de la barra lateral: 1280×720 → 687/687 (78 px de margen con día elegido; también sin scroll al empezar y mientras se calcula el punto), 1366×768 → 733/733, 1920×1080 → 1031/1031. Los dos botones de abajo caben sin cortarse.
+- **Desviaciones de la spec / cambios en la guía:** ninguna.
+- **Problemas abiertos:** en teléfono la barra sigue pudiendo desplazarse (el diseño móvil apila el panel).
+- **Siguiente tarea:** revisión del humano.
