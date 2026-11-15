@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
+import { BestPlanFinder } from "../components/BestPlanFinder";
 import { Drawer } from "../components/Drawer";
 import { MissionSidebar } from "../components/MissionSidebar";
 import { MoonMap, type SiteTone } from "../components/MoonMap";
@@ -32,6 +33,8 @@ export function PlannerView({ tools }: { tools: ReactNode }) {
   const drawerOpen = useApp((s) => s.drawerOpen);
   const pinned = useApp((s) => s.comparePlans.length);
   const setDrawerOpen = useApp((s) => s.setDrawerOpen);
+  const finderOpen = useApp((s) => s.finderOpen);
+  const setFinderOpen = useApp((s) => s.setFinderOpen);
   const selectSite = useApp((s) => s.selectSite);
   const [launched, setLaunched] = useState(false);
   const mission = viewMode === "live";
@@ -102,7 +105,7 @@ export function PlannerView({ tools }: { tools: ReactNode }) {
           {tools}
         </div>
       </header>
-      {!mission && <MissionSidebar onLaunch={launch} onOpenSearch={() => setDrawerOpen(true)} />}
+      {!mission && <MissionSidebar onLaunch={launch} onOpenSearch={() => setDrawerOpen(true)} onOpenFinder={() => setFinderOpen(true)} />}
       {!mission && plan && (
         <div className="plan-stage">
           <MoonMap sites={sites} selectedId={plan.site_id} tone={tone} onSelect={(id) => selectSite(id)} />
@@ -121,6 +124,11 @@ export function PlannerView({ tools }: { tools: ReactNode }) {
       {drawerOpen && (
         <Drawer title={STRINGS.planner.searchTitle} closeLabel={STRINGS.planner.closeSearch} onClose={() => setDrawerOpen(false)} testId="search-drawer">
           <CompareView />
+        </Drawer>
+      )}
+      {finderOpen && !mission && (
+        <Drawer title={STRINGS.finder.title} closeLabel={STRINGS.finder.close} onClose={() => setFinderOpen(false)} testId="finder-drawer">
+          <BestPlanFinder onSelected={() => setFinderOpen(false)} />
         </Drawer>
       )}
     </div>

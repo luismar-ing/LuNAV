@@ -3618,6 +3618,34 @@ Las trayectorias ILLUSTRATIVE, los datos SYNTHETIC y toda desviación de la spec
 - **Problemas abiertos:** ninguno (lo del capítulo 4 del Educator se resolvió en C3b).
 - **Siguiente tarea:** C4 (niveles 2 y 3: Tierra ≥ 8 h cada día; lanzamiento retrasado 2 días).
 
+## AJUSTE · B11: buscador del mejor plan («Find the best plan»)
+
+- **Tarea:** B11, añadida el 14-nov-2026 por la persona B para subir el criterio de Impacto de Space Apps. El planificador fija sus límites y la app devuelve los mejores planes que los cumplen. Decisión A12.
+- **Qué se hizo:**
+  - `lib/optimizer.ts` (nuevo, funciones puras):
+    - `search`: recorre todos los planes de una estancia (5 × 365), filtra con `meetsConstraints` y el rango de llegada, y da el mejor plan de cada sitio con `compareRows` (score ↓, sol ↓, noche ↑, Tierra media ↓, hueco ↑, fecha ↑). También da el número de días válidos por sitio y el tramo de días seguidos que contiene al elegido. Orden alternativo: llegada más temprana.
+    - `countValid` (planes que cumplen en las otras estancias) y `relaxations` (mejor valor alcanzable de cada límite activo con los demás fijos, ajustado al paso del control).
+    - Usa `index.rows` (float64), los mismos valores que se muestran.
+  - `components/BestPlanFinder.tsx` (nuevo): `ConstraintControls` reutilizado (deslizantes y texto), estancia, rango de llegada, orden; resumen «N of M plans meet your limits», conteo de las otras estancias, lista con `VerdictMarks`, métricas, tramo y botones «Select» (selecciona y cierra) y «Pin». Si nada cumple, sugerencias con «Use …». Pie con el método y los pesos leídos de `manifest.json`.
+  - `components/MissionSidebar.tsx`: botón «Find the best plan» en `sidebar-actions`. `views/PlannerView.tsx`: el panel va en un `Drawer` (foco, Tab y Esc ya resueltos).
+  - Compartidos, en bloques propios: `store/appStore.ts` (`finderOpen`), `lib/strings.ts` (sección `finder`), `styles/tokens.css` (estilos `.finder*`, sin colores nuevos).
+- **Cómo se verificó:**
+  ```
+  $ npm --prefix web run typecheck → sin errores
+  $ npm --prefix web test → 344 passed (53 archivos)
+  $ npm --prefix web run build -- --base=/LuNAV/ → built (solo el aviso de tamaño de chunk que ya existía)
+  ```
+  - `tests/optimizer.test.ts` (28 pruebas, datos reales): fuerza bruta en 3, 7 y 14 días con 6 combinaciones de límites (mismo mejor plan por sitio, mismo número de válidos, ids presentes en `plans.json`); orden entre sitios; tramo de días; determinismo; «earliest»; rango de fechas; Haworth 7 d: 10-ene cumple «noche ≤ 24 h» y 11-ene no; `relaxations` devuelve valores que, aplicados, dan resultados.
+  - `tests/bestPlanFinder.test.tsx` (5 pruebas): la lista coincide con `search` y sigue a los deslizantes; «Pin» ancla; «Select» cambia el plan y cierra; elegir 14 días cambia la estancia de la barra lateral; sin resultados aparecen las sugerencias y «Use …» los recupera; Esc cierra y devuelve el foco al botón.
+  - Navegador (servidor de desarrollo): barra lateral sin scroll a 1366×768 (732/732 px) y 1920×1080 (1031/1031 px). Frase «at least 95% sunlight, no more than 6 hours of darkness, Earth 20 hours a day» → 448 de 1 825 planes de 7 días; n.º 1 Malapert Massif, 8-ene-2027 (13 días seguidos, 8–20 ene). «Select» lo lleva al mapa y al panel del sitio. Sin errores en consola.
+- **Desviaciones de la spec / cambios en la guía:** vuelven las restricciones de 5.6 al planificador, en un panel aparte (A12, revierte en parte A9). Sin cambios en los datos ni en el pipeline.
+- **Problemas abiertos:**
+  - El máximo del deslizante de oscuridad y el intérprete de texto usan la estancia del plan seleccionado (`selectedWindow`), no la elegida en el panel. Con 3 días el tope queda en 72 h aunque el panel busque 14 días; no cambia los resultados, solo el recorrido del control.
+  - El campo de fecha nativo muestra el formato del sistema; la etiqueta de encima repite la fecha en el formato único («Jan 1, 2027»).
+  - Batería ASSUMED como restricción (paso 6 del plan) no implementada.
+  - README (área de C): falta una línea sobre la función.
+- **Siguiente tarea:** revisión y PR de `b11-best-plan-finder`; avisar a C para el README y el demo.
+
 ## AJUSTE · C3b: capítulo 4 del Educator y escena que sigue al plan
 
 - **Tarea:** C3b (hallazgos al probar C3). Rama `c3b-surface-view`.

@@ -3600,3 +3600,136 @@ button.scene-chip {
     order: 0;
   }
 }
+
+/* B11 (decision A12): "Find the best plan" panel. Controls on the left, ranked results on the right */
+.finder {
+  display: grid;
+  grid-template-columns: minmax(280px, 380px) minmax(0, 1fr);
+  gap: var(--space-lg);
+  align-items: start;
+}
+
+.finder-controls,
+.finder-output {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+  min-width: 0;
+}
+
+.finder-intro,
+.finder-method,
+.finder-run,
+.finder-none-hint {
+  margin: 0;
+  font-size: var(--font-sm);
+  color: var(--color-text-muted);
+}
+
+.finder-options {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+}
+
+.finder-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.finder-date {
+  background: transparent;
+  color: var(--color-text);
+  border: 1px solid var(--color-border-strong);
+  border-radius: 8px;
+  padding: 6px 8px;
+  font: inherit;
+  color-scheme: dark;
+}
+
+.finder-summary {
+  margin: 0;
+  font-size: var(--font-lg);
+  font-weight: 600;
+}
+
+.finder-others {
+  margin: 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-sm);
+  font-size: var(--font-sm);
+  color: var(--color-text-muted);
+}
+
+.finder-results {
+  list-style: none;
+  margin: var(--space-sm) 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+}
+
+.finder-result {
+  display: grid;
+  gap: 4px;
+  padding: var(--space-sm) var(--space-md);
+  border: 1px solid var(--color-border);
+  border-radius: 12px;
+  background: var(--color-panel);
+}
+
+.finder-result-head {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-sm);
+  flex-wrap: wrap;
+}
+
+.finder-rank {
+  font-family: var(--font-mono);
+  color: var(--color-text-muted);
+}
+
+.finder-site {
+  font-weight: 600;
+}
+
+.finder-date-text {
+  margin-left: auto;
+  font-family: var(--font-mono);
+}
+
+.finder-result .site-status,
+.finder-metrics {
+  margin: 0;
+  white-space: normal;
+}
+
+.finder-metrics {
+  font-family: var(--font-mono);
+  font-size: var(--font-sm);
+}
+
+.finder-actions {
+  display: flex;
+  gap: var(--space-sm);
+  margin-top: 4px;
+}
+
+.finder-none ul {
+  margin: var(--space-sm) 0 0;
+  padding-left: 1.2em;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+}
+
+@media (max-width: 900px) {
+  .finder {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}

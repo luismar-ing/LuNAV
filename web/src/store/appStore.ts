@@ -47,6 +47,9 @@ export interface AppState {
   /** Search and comparison panel of the Mission Planner (calendar, constraints, tray), over the globe (A7). */
   drawerOpen: boolean;
   setDrawerOpen(open: boolean): void;
+  /** "Find the best plan" panel of the Mission Planner (B11, decision A12): exact search over every plan. */
+  finderOpen: boolean;
+  setFinderOpen(open: boolean): void;
   viewMode: ViewMode;
   setViewMode(mode: ViewMode): void;
   /** Reduced motion (spec 9, T5.2.b): no camera flights or animated transitions. Starts from the system setting. */
@@ -129,7 +132,7 @@ export function createAppStore(data: DataStore = DataStore.forPage()) {
     constraints: { ...DEFAULT_CONSTRAINTS },
     screen: "landing",
     setScreen(screen) {
-      if (screen === "landing") return set({ screen, viewMode: "compare", missionPhase: "overview", drawerOpen: false });
+      if (screen === "landing") return set({ screen, viewMode: "compare", missionPhase: "overview", drawerOpen: false, finderOpen: false });
       set({ screen });
       const def = get().selectedPlanId ? null : defaultPlanId(get());
       if (def) get().selectPlan(def);
@@ -137,6 +140,10 @@ export function createAppStore(data: DataStore = DataStore.forPage()) {
     drawerOpen: false,
     setDrawerOpen(open) {
       set({ drawerOpen: open });
+    },
+    finderOpen: false,
+    setFinderOpen(open) {
+      set({ finderOpen: open });
     },
     viewMode: "compare",
     reducedMotion: typeof window !== "undefined" && typeof window.matchMedia === "function" && window.matchMedia("(prefers-reduced-motion: reduce)").matches,

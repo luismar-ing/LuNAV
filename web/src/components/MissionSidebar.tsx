@@ -30,7 +30,7 @@ function openPicker(input: HTMLInputElement) {
  * Earth at the chosen site, B6), length of stay, landing site and "Launch". Every control
  * changes the selected plan, which the Moon map, the site brief and every other view follow.
  */
-export function MissionSidebar({ onLaunch, onOpenSearch }: { onLaunch(): void; onOpenSearch(): void }) {
+export function MissionSidebar({ onLaunch, onOpenSearch, onOpenFinder }: { onLaunch(): void; onOpenSearch(): void; onOpenFinder(): void }) {
   const plan = useApp((s) => (s.selectedPlanId ? s.plansById.get(s.selectedPlanId) : undefined));
   const sites = useApp((s) => s.sites);
   const plansById = useApp((s) => s.plansById);
@@ -195,6 +195,10 @@ export function MissionSidebar({ onLaunch, onOpenSearch }: { onLaunch(): void; o
       </section>
 
       <div className="sidebar-actions">
+        {/* B11: exact search over every plan, in its own panel so the sidebar still fits without scroll (A9) */}
+        <button type="button" className="btn ghost" onClick={onOpenFinder} data-testid="open-finder">
+          {STRINGS.finder.open}
+        </button>
         <button type="button" className="btn ghost" onClick={onOpenSearch}>
           {STRINGS.planner.search(pinned)}
         </button>
