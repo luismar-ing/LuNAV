@@ -809,6 +809,13 @@ button {
   margin: 0;
 }
 
+/* B8 (H10): why the Sun or the Earth can be in view below 0° at this site */
+.panorama-horizon-note {
+  margin: var(--space-xs) 0 0;
+  font-size: var(--font-sm);
+  color: var(--color-text-muted);
+}
+
 .mono {
   font-family: var(--font-mono);
   font-variant-numeric: tabular-nums;
