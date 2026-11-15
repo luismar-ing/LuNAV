@@ -68,7 +68,7 @@ describe.runIf(HAS_TERRAIN)("Journey to a custom coordinate (B13)", () => {
     // the trajectory comes from the browser, through the DataStore, like a file
     const traj = await st.data.trajectory(`${ID}_20270309`);
     expect(traj.mode).toBe("ILLUSTRATIVE");
-    expect(traj.phases.launch_utc).toBe("2027-03-06T00:00:00Z");
+    expect(traj.phases.launch_utc).toBe("2027-03-05T17:22:00Z"); // A15: noon at Cape Canaveral
 
     await screen.findByTestId("mission-controls", {}, { timeout: 5000 });
     expect(screen.getByText(/Custom site · -88\.500°, 45\.000°/)).toBeTruthy(); // telemetry title

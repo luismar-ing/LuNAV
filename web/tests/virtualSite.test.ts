@@ -94,7 +94,7 @@ describe("virtual site files = the published ones at the five sites (40 m mask)"
     const plans = virtualPlans(id, json("manifest.json"));
     expect(plans).toHaveLength(365 * 3);
     expect(PlansSchema.safeParse(plans).success).toBe(true);
-    expect(plans[0]).toMatchObject({ id: `${id}_20270101_3d`, trajectory_id: `${id}_20270101`, launch_utc: "2026-12-29T00:00:00Z" });
+    expect(plans[0]).toMatchObject({ id: `${id}_20270101_3d`, trajectory_id: `${id}_20270101`, launch_utc: "2026-12-28T17:22:00Z" });
   });
 });
 

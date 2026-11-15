@@ -7,7 +7,9 @@ from pathlib import Path
 import numpy as np
 import pytest
 
+from pipeline import config
 from pipeline.contract import Trajectory, parse_instant
+from pipeline.ephemeris import observer_position_km
 from pipeline.trajectory import R_EARTH_KM, Geometry, build
 
 SITES = json.loads((Path(__file__).resolve().parents[1] / "sites.json").read_text(encoding="utf-8"))
@@ -30,7 +32,7 @@ def test_trajectory(site, arrival, geo):
     t = np.array(tr["t_s"])
     p = np.array(tr["pos_km"])
     # tiempos monótonos y duración = transit_days
-    assert np.all(np.diff(t) > 0) and t[-1] == pytest.approx(3 * 86400)
+    assert np.all(np.diff(t) > 0) and t[-1] == pytest.approx(config.TRANSIT_DAYS * 86400, abs=1)
     # sin saltos: velocidad implícita entre muestras acotada
     speed = np.linalg.norm(np.diff(p, axis=0), axis=1) / np.diff(t)
     assert speed.max() < MAX_SPEED_KM_S, speed.max()
@@ -47,3 +49,19 @@ def test_trajectory(site, arrival, geo):
         if ti >= t_la:
             et = geo.et(parse_instant(tr["t0_utc"]) + timedelta(seconds=float(ti)))
             assert np.linalg.norm(pi - geo.moon_pos(et)) >= 1737.4 - 7.5  # radio lunar menos la depresión máxima del DEM
+
+
+@pytest.mark.parametrize("arrival", ARRIVALS, ids=[a.strftime("%Y%m%d") for a in ARRIVALS])
+def test_launch_from_cape_canaveral_in_daylight(arrival, geo):
+    """A15: the rocket leaves LC-39A (Cape Canaveral) at local noon, with the Sun well above the horizon."""
+    import spiceypy as sp
+
+    tr = build(SITES[0], arrival, geo)
+    launch = parse_instant(tr["phases"]["launch_utc"])
+    et = geo.et(launch)
+    pad = geo.earth_rot(et) @ (observer_position_km(config.PAD_LAT_DEG, config.PAD_LON_DEG, 0.0, 0.0) / 1737.4 * R_EARTH_KM)
+    assert np.linalg.norm(np.array(tr["pos_km"][0]) - pad) < 1.0  # the first point is the pad
+    up = pad / np.linalg.norm(pad)
+    sun = np.asarray(sp.spkpos("SUN", et, "J2000", "LT+S", "EARTH")[0])
+    elevation = np.degrees(np.arcsin(np.dot(sun / np.linalg.norm(sun), up)))
+    assert elevation > 30, elevation  # midday: over the year it stays between 38° and 85°

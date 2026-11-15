@@ -8,7 +8,8 @@ def test_all_combinations_and_derived_launch():
     assert len(plans) == 2 * 365 * 3
     assert check(plans, ["a_site", "b_site"]) == []
     p = plans[0]
-    assert p["arrival_utc"] == "2027-01-01T00:00:00Z" and p["launch_utc"] == "2026-12-29T00:00:00Z"
+    # A15: launch at Cape Canaveral's mean solar noon, to the minute (17:22 UTC), 3 d 6.6 h before the 00:00 UTC arrival
+    assert p["arrival_utc"] == "2027-01-01T00:00:00Z" and p["launch_utc"] == "2026-12-28T17:22:00Z"
     assert len({q["trajectory_id"] for q in plans}) == 2 * 365  # compartida por las tres L
 
 

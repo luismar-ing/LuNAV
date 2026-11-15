@@ -83,7 +83,7 @@ describe("Mission Planner sidebar (A2)", () => {
     fireEvent.click(screen.getByRole("button", { name: "Close" }));
     expect(screen.queryByTestId("search-drawer")).toBeNull();
 
-    fireEvent.click(sidebar().getByRole("button", { name: /^Launch · Dec 29, 2026/ }));
+    fireEvent.click(sidebar().getByRole("button", { name: /^Launch · Dec 28, 2026/ }));
     expect(appStore.getState().viewMode).toBe("live");
     expect(screen.queryByTestId("mission-sidebar")).toBeNull();
     await screen.findByTestId("mission-controls", {}, { timeout: 5000 });
