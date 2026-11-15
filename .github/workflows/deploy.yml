@@ -1,0 +1,46 @@
+# Builds the web app and publishes the static files (web/dist) to the `deploy` branch.
+# The hosting (Porkbun Static Hosting, or any static host) serves that branch as is:
+# index.html at its root, no server code. Runs on every push to main and on demand.
+name: Build and publish site
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: deploy
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+
+      - name: Install
+        run: npm --prefix web ci
+
+      - name: Build (type check + Vite)
+        run: npm --prefix web run build
+
+      - name: Publish web/dist to the deploy branch
+        env:
+          TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          cd web/dist
+          git init -q -b deploy
+          git config user.name "Jesus Rodríguez"
+          git config user.email "jesus29er@hotmail.com"
+          git add -A
+          git commit -q -m "Build of ${GITHUB_SHA::7}"
+          git push -q -f "https://x-access-token:${TOKEN}@github.com/${GITHUB_REPOSITORY}.git" deploy
