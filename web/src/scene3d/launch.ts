@@ -1,8 +1,9 @@
 /**
  * Illustrative launch (spec 5.8, 8.2; D8: minimal launch). ILLUSTRATIVE, not a real launch:
  *
- * - The pad is the same generic one as the pipeline's trajectory (pipeline/trajectory.py: latitude 0°,
- *   longitude 0°, on the equatorial radius), NOT a real spaceport. It turns with the Earth (IAU_EARTH).
+ * - The pad is the pipeline's (pipeline/config.py, A16): Launch Complex 39A at Cape Canaveral, 28.60833° N,
+ *   80.60444° W, on the equatorial radius. The launch is at its mean solar noon, in daylight. It turns with the
+ *   Earth (IAU_EARTH).
  * - Before launch there is a short countdown with the rocket standing on the pad (PRELAUNCH_MS).
  * - The ascent itself is the first part of the trajectory file (radial climb to the parking orbit in the first
  *   ASCENT_MS), so the launch hands over to the trajectory with no jump: at launch_utc the pad IS the first
@@ -15,8 +16,8 @@ import { rotate, type Quat } from "./ephemeris";
 import { trajectoryPositionKm } from "./trajectory";
 import type { Vec3 } from "./scale";
 
-/** Same generic pad and radius as pipeline/trajectory.py (PAD_LAT_DEG = PAD_LON_DEG = 0, R_EARTH_KM). */
-export const PAD = { latDeg: 0, lonDeg: 0, radiusKm: 6378.137 } as const;
+/** Same pad and radius as the pipeline (config.PAD_LAT_DEG / PAD_LON_DEG: LC-39A, A16; trajectory.R_EARTH_KM). */
+export const PAD = { latDeg: 28.60833, lonDeg: -80.60444, radiusKm: 6378.137 } as const;
 export { PRELAUNCH_MS };
 /** Duration of the radial ascent in the trajectory file (pipeline ASCENT_MIN = 10). */
 export const ASCENT_MS = 10 * 60_000;

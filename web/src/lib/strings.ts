@@ -205,7 +205,7 @@ export const STRINGS = {
       },
       journey: {
         title: "The journey",
-        caption: (d: { transitDays: number }) => `About ${d.transitDays} days of coasting. The rocket aims for where the Moon will be when it arrives, not where it is now.`,
+        caption: (d: { transitDays: number }) => `About ${Math.round(d.transitDays)} days of coasting. The rocket aims for where the Moon will be when it arrives, not where it is now.`,
       },
       landing: {
         title: "Landing",
@@ -596,7 +596,7 @@ export const STRINGS = {
     loading: "Loading the 3D scene…",
     error: "The 3D scene could not be started (WebGL unavailable). The 2D comparison still works.",
     title: (site: string) => `Live view · ${site}`,
-    illustrative: "Launch from a generic pad and simplified trajectory, computed with the real Moon position",
+    illustrative: "Launch from Cape Canaveral (LC-39A) at local noon and a simplified trajectory, computed with the real Moon position",
     cameraHelp: "3D scene of the selected plan. Drag, scroll or pinch, or use the arrow keys and + / −, to move the camera yourself.",
     guided: "Guided camera",
     arrived: (site: string) => `Arrived at ${site}. The horizon panorama and the site features are shown below the scene.`,
