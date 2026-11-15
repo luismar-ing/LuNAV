@@ -13,8 +13,13 @@ import { useScenePlan } from "./useScenePlan";
 import { useTimeseries } from "./useTimeseries";
 
 const T = STRINGS.challenge;
-/** Mission hours per second of playback: the flight (about 10 s) and the stay (7 days in about 17 s). */
+/**
+ * Mission hours per second of playback: the trip to the Moon (a few seconds), the descent from lunar arrival to
+ * touchdown (slow, as in the Educator's landing chapter, so the arrival at the Moon can be seen) and the stay
+ * (7 days in about 17 s).
+ */
 const FLIGHT_HPS = 8;
+const LANDING_HPS = 1.5;
 const STAY_HPS = 10;
 
 /** Read by the scene every frame: while the player chooses, the globe shows the launch pad (planning view). */
@@ -82,13 +87,16 @@ export function Challenge({ tools }: { tools: ReactNode }) {
     appStore.getState().setMissionTime(timeline.startMs);
     appStore.getState().setMissionPhase("launch");
     setStage("flight");
-    setPlay({ to: timeline.landingMs, hoursPerSecond: FLIGHT_HPS });
+    setPlay({ to: timeline.lunarArrivalMs, hoursPerSecond: FLIGHT_HPS });
   };
 
-  // the flight runs into the stay; the stay ends at its last hour or where the battery runs empty
+  // the trip runs into the descent and the descent into the stay; the stay ends at its last hour or where the
+  // battery runs empty
   useEffect(() => {
     if (play || !timeline || !run) return;
-    if (stage === "flight") {
+    if (stage === "flight" && (appStore.getState().missionTime ?? 0) < timeline.landingMs) {
+      setPlay({ to: timeline.landingMs, hoursPerSecond: LANDING_HPS });
+    } else if (stage === "flight") {
       setStage("stay");
       setPlay({ to: run.trace.powerLostMs ?? timeline.endMs, hoursPerSecond: STAY_HPS });
     } else if (stage === "stay") setStage("done");
@@ -222,6 +230,7 @@ function MissionHud({
           <span style={{ width: `${pct}%` }} data-empty={pct === 0 || undefined} />
         </div>
         <p className="challenge-meter-value">{pct}%</p>
+        {stay && <p className="challenge-power">{at.sun ? (pct === 100 ? T.powerFull : T.powerCharging) : pct === 0 ? T.powerEmpty : T.powerDraining}</p>}
       </div>
       {stay && (
         <ul className="challenge-sky">

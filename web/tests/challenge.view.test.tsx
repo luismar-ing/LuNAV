@@ -73,15 +73,21 @@ describe("Challenge screen (C3)", () => {
     expect(hud.getByRole("heading", { name: "Nobile Rim 1" })).toBeTruthy();
     expect(hud.getByRole("meter", { name: "Battery" }).getAttribute("aria-valuenow")).toBe("100");
     fireEvent.click(hud.getByRole("button", { name: "Skip ahead" }));
+    // then the descent, slower, from lunar arrival to touchdown
+    await waitFor(() => expect(appStore.getState().missionPhase).toBe("landing"));
+    expect(screen.getByTestId("challenge").dataset.stage).toBe("flight");
+    fireEvent.click(hud.getByRole("button", { name: "Skip ahead" }));
 
     // the stay: it landed in the dark, so the battery runs empty 20 h after landing (Mar 2, 20:00 UTC)
     await waitFor(() => expect(screen.getByTestId("challenge").dataset.stage).toBe("stay"));
     expect(appStore.getState().missionPhase).toBe("site");
     expect(hud.getByText("Sun hidden by the terrain")).toBeTruthy();
+    expect(hud.getByText(/^Draining: the Sun is hidden/)).toBeTruthy();
     fireEvent.click(hud.getByRole("button", { name: "Skip ahead" }));
     await waitFor(() => expect(screen.getByTestId("challenge").dataset.stage).toBe("done"));
     expect(appStore.getState().missionTime).toBe(Date.parse("2027-03-02T20:00:00Z"));
     expect(hud.getByRole("meter", { name: "Battery" }).getAttribute("aria-valuenow")).toBe("0");
+    expect(hud.getByText(/^Empty: the lander has no power left/)).toBeTruthy();
     expect(hud.queryByRole("button", { name: "Skip ahead" })).toBeNull();
   });
 
