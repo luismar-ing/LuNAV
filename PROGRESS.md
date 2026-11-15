@@ -3355,6 +3355,30 @@ Las trayectorias ILLUSTRATIVE, los datos SYNTHETIC y toda desviación de la spec
 - **Problemas abiertos:** el día anterior al 1-ene y el posterior al último día de llegada no tienen datos (fila «outside the data»).
 - **Siguiente tarea:** B8 (frase del horizonte; necesita el visto bueno para tocar `views/Panorama.tsx`).
 
+## AJUSTE · A1 · Vistas Sky y Data en el sitio
+
+- **Tarea:** A1 del plan de mejoras del 14-nov-2026 (hallazgo H2), decisión A10.
+- **Qué se hizo:**
+  - **Selector «Sky | Data»** junto a «Back to planning» (`views/MissionStage.tsx`, `SiteViewSwitch` en `views/SiteLayout.tsx`). Cada llegada abre en «Sky».
+  - **Sky:** el 3D a pantalla completa, la telemetría a la izquierda, la tarjeta «Time left» a la derecha (cifras de 36 px en lugar de 44) con «Site details and sources», «3D terrain shadows» y la vista aérea, y la barra de tiempo abajo.
+  - **Data:** la consola 2D a todo el ancho (panorama, cinta, pestañas «What happens next» y «Window metrics», «Site details and sources»). Se ocultan la telemetría y las miniaturas. La consola se ajusta a su contenido; si una tabla larga no cabe, se desplaza dentro de la consola y la barra de tiempo no se mueve.
+  - Las dos vistas leen `missionTime`, así que cambiar de vista conserva el instante.
+  - CSS (`styles/tokens.css`): una rejilla para cada vista (`:has(.site-layout[data-view="data"])`). Fuera la regla que hacía desplazarse la página en pantallas de menos de 860 px, la consola plegada y la regla de miniaturas que ya no aplica. `TimeLeft.tsx` no se tocó (sus textos son de B).
+- **Cómo se verificó:**
+  ```
+  $ npm --prefix web run typecheck → sin errores
+  $ npm --prefix web test → 269 passed (45 archivos), dos veces seguidas
+  ```
+  - Navegador (servidor de desarrollo, escena real), Connecting Ridge con «Land at»:
+    - 1366×768: barra de tiempo en y = 647–744 en las dos vistas, tarjeta sin recorte (`scrollHeight == clientHeight`), sin scroll de página ni del escenario.
+    - 1920×1080: barra de tiempo en y = 997–1056, igual sin scroll.
+    - Al cambiar de vista el reloj sigue en «T+ 3d 00:00».
+  - Pruebas actualizadas: `plannerSidebar.test.tsx` (flujo Sky → Data → Sky con el mismo `missionTime`; TR.2.e y T6.1.c pasan por «Data» para el panorama y las métricas) e `integration.test.tsx` (el panorama del sitio está en «Data»).
+  - `integration.test.tsx` T5.1.b: `main` ya espera la cinta (c960245); esta rama además espera la caja de métricas con `findBy…` (el mismo cambio de una línea está en las ramas de A1, A4 y A5).
+- **Desviaciones de la spec / cambios en la guía:** A10. El panorama y el 3D ya no se ven a la vez en el sitio; se pasa de uno a otro con un clic y en el mismo instante.
+- **Problemas abiertos:** el HMR del servidor de desarrollo sigue provocando pérdidas de contexto WebGL (ya anotado); con una recarga completa no pasa.
+- **Siguiente tarea:** A3.
+
 ## AJUSTE · A2 · Etiqueta de escala tras salir del sitio
 
 - **Tarea:** A2 del plan de mejoras del 14-nov-2026 (hallazgo H3).

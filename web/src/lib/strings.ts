@@ -172,9 +172,13 @@ export const STRINGS = {
     afterStay: "after leaving",
     inDark: "in the dark",
     nothingNext: "No changes in the next 30 days.",
-    hide2d: "Hide 2D view",
-    show2d: "Show 2D view",
-    hide2dTitle: "Hide the horizon panorama and the time ribbon to see the 3D site clearly",
+    // A10: the site's two views, on the same mission clock
+    viewSwitch: "Site view",
+    viewName: { sky: "Sky", data: "Data" },
+    viewTitle: {
+      sky: "The 3D site full screen, with the countdowns",
+      data: "Horizon panorama, time ribbon, what happens next and the window metrics",
+    },
   },
   educator: {
     chapterOf: (i: number, n: number) => `Chapter ${i} of ${n}`,
