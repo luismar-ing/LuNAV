@@ -504,7 +504,8 @@ button {
   white-space: nowrap;
 }
 
-.badge.illustrative {
+.badge.illustrative,
+.badge.assumed {
   color: var(--color-illustrative);
   border: 1px dashed var(--color-border-strong);
   border-radius: 6px;
@@ -2610,6 +2611,89 @@ input[type="range"] {
 
 .brief-others li > span + span {
   text-align: right;
+}
+
+/* B7: the ASSUMED battery for this stay, one line under the metrics */
+.brief-battery {
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: var(--font-sm);
+  color: var(--color-text-muted);
+  cursor: help;
+}
+
+.brief-battery[data-empty] {
+  color: var(--color-text);
+  font-weight: 600;
+}
+
+/* B7: "Same day, other sites" | "Same site, ±1 day" over one list, so the brief does not grow */
+.brief-compare-tabs {
+  display: flex;
+  gap: 18px;
+  margin-bottom: 6px;
+}
+
+.brief-compare-tabs button {
+  padding: 0 0 2px;
+  border: 0;
+  border-bottom: 1px solid transparent;
+  background: none;
+  font-size: var(--font-sm);
+  color: var(--color-text-muted);
+  cursor: pointer;
+}
+
+.brief-compare-tabs button:hover {
+  color: var(--color-text);
+}
+
+.brief-compare-tabs button[aria-selected="true"] {
+  color: var(--color-text);
+  border-bottom-color: var(--color-text);
+}
+
+.brief-days li {
+  display: block;
+  padding: 0;
+}
+
+.brief-day-btn {
+  width: 100%;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 110px 100px;
+  gap: 12px;
+  padding: clamp(3px, 0.6vh, 8px) 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  font-variant-numeric: tabular-nums;
+}
+
+button.brief-day-btn {
+  cursor: pointer;
+}
+
+button.brief-day-btn:hover {
+  background: var(--glass-fill-hover);
+}
+
+.brief-day-btn > span + span {
+  text-align: right;
+  white-space: nowrap;
+}
+
+.brief-days li[data-current] .brief-day-btn > span:first-child {
+  font-weight: 600;
+}
+
+.brief-days [data-empty] {
+  color: var(--color-text);
+  font-weight: 600;
 }
 
 .brief-others .muted {

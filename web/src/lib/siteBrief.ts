@@ -4,6 +4,7 @@
  * Everything is built from the site's own one-year series and window metrics; nothing is made up to fill a gap.
  */
 import { parseInstant, type Timeseries, type WindowRow } from "./contract";
+import { batteryRun } from "./energy";
 import { nextChange, sampleIndex, type Change } from "./moonMap";
 
 /** Sun over the stay: no night at all, or at least one stretch behind the terrain. */
@@ -105,6 +106,19 @@ export interface StayChange {
 export function stayChange(change: Change, nowMs: number, stayEndMs: number): StayChange {
   const atMs = change.hours === null ? null : nowMs + change.hours * 3_600_000;
   return { withinStay: atMs !== null && atMs < stayEndMs, hours: change.hours, atMs };
+}
+
+/**
+ * The ASSUMED battery over a stay (B7, finding H16): lib/energy.ts batteryRun on the site's own sunlight, sliced
+ * exactly like the tray's plan window (planData.sliceWindow), so the planner and the tray show the same figure.
+ */
+export function stayBattery(ts: Pick<Timeseries, "start_utc" | "step_min" | "n" | "sun_vis">, startMs: number, stayDays: number): { minSoc: number; emptyH: number } | null {
+  const step = ts.step_min * 60_000;
+  const k0 = Math.round((startMs - parseInstant(ts.start_utc)) / step);
+  const n = Math.round((stayDays * 86_400_000) / step);
+  if (k0 < 0 || k0 + n > ts.n) return null;
+  const run = batteryRun(ts.sun_vis.slice(k0, k0 + n), ts.step_min);
+  return { minSoc: run.minSoc, emptyH: (run.emptySamples * ts.step_min) / 60 };
 }
 
 /** Hours of the night [nightStartMs, nightEndMs) that fall inside the stay [stayStartMs, stayEndMs). */
