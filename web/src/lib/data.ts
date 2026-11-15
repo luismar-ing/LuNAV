@@ -31,6 +31,8 @@ import {
   type Windows,
 } from "./contract";
 
+import { parseGrid, parseSky, type GridData, type GridHeader, type SkyData, type SkyHeader } from "./customSite";
+
 export type DataErrorKind = "network" | "parse" | "validation" | "consistency";
 
 /** Typed loading error: what failed, on which file, and the zod issues when relevant. */
@@ -215,6 +217,38 @@ export class DataStore {
     return this.load("scene/ephemeris.json", SceneEphemerisSchema, (s) => {
       if (s.frame !== m.params.scene_frame || s.moon_frame !== m.params.moon_frame) this.fail("scene/ephemeris.json", "frames differ from the manifest"); // §14.10
     });
+  }
+
+  /** B12: Sun and Earth vectors (MOON_ME, from the Moon centre) for any observer: sky/sky.json + moon_me.bin. */
+  sky(): Promise<SkyData> {
+    const key = "sky/sky.json";
+    const cached = this.cache.get(key);
+    if (cached) return cached as Promise<SkyData>;
+    const p = (async () => {
+      const header = (await this.raw(key, "json")) as SkyHeader & { bin_file: string; byte_length: number };
+      const buf = (await this.raw(`sky/${header.bin_file}`, "buffer")) as ArrayBuffer;
+      if (buf.byteLength !== header.byte_length) this.fail(`sky/${header.bin_file}`, `${buf.byteLength} bytes, header says ${header.byte_length}`);
+      return parseSky(header, buf);
+    })();
+    p.catch(() => this.cache.delete(key));
+    this.cache.set(key, p);
+    return p;
+  }
+
+  /** B12: horizon masks on the 5 km polar grid (horizon_grid/grid.json + masks.bin). */
+  horizonGrid(): Promise<GridData> {
+    const key = "horizon_grid/grid.json";
+    const cached = this.cache.get(key);
+    if (cached) return cached as Promise<GridData>;
+    const p = (async () => {
+      const header = (await this.raw(key, "json")) as GridHeader & { bin_file: string; byte_length: number };
+      const buf = (await this.raw(`horizon_grid/${header.bin_file}`, "buffer")) as ArrayBuffer;
+      if (buf.byteLength !== header.byte_length) this.fail(`horizon_grid/${header.bin_file}`, `${buf.byteLength} bytes, header says ${header.byte_length}`);
+      return parseGrid(header, buf);
+    })();
+    p.catch(() => this.cache.delete(key));
+    this.cache.set(key, p);
+    return p;
   }
 
   /** Lit polar map header (the Mission Planner's Moon map): extent of the south polar stereographic image. */

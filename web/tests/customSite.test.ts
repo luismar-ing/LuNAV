@@ -135,7 +135,7 @@ describe.runIf(HAS_GRID)("nearest 5 km grid point instead of the site's own mask
       for (let a = 0; a < own.length; a++) maskDiff = Math.max(maskDiff, Math.abs(horizonAt(p.mask, a) - own[a]));
       const res = analyseCustomSite(SKY, grid!, s.lat, s.lon, 7, N_ARRIVALS, P)!;
       const pub = json<{ rows: WindowRow[] }>(`windows/${s.id}_7d.json`).rows;
-      const meanAbs = (k: keyof WindowRow) => res.rows.reduce((acc, r, i) => acc + Math.abs((r[k] as number) - (pub[i][k] as number)), 0) / pub.length;
+      const meanAbs = (k: "sun_pct" | "longest_dark_h" | "earth_h_min") => res.rows.reduce((acc, r, i) => acc + Math.abs(r[k] - pub[i][k]), 0) / pub.length;
       console.log(
         `grid ${s.id}: nearest point ${(p.distanceM / 1000).toFixed(2)} km away, ${p.elevationM.toFixed(0)} m vs ${s.elevation_m.toFixed(0)} m; ` +
           `mask max |Δ| ${maskDiff.toFixed(2)}°; 7 d mean |Δ| sun ${meanAbs("sun_pct").toFixed(1)} pts, dark ${meanAbs("longest_dark_h").toFixed(1)} h, Earth min ${meanAbs("earth_h_min").toFixed(1)} h`,
