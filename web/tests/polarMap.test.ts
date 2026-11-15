@@ -6,7 +6,7 @@ import { describe, expect, it } from "vitest";
 import type { Plan, Trajectory } from "../src/lib/contract";
 import { timelineOf } from "../src/lib/mission";
 import { LOCAL_TO_BODY } from "../src/scene3d/bodies";
-import { POLAR_MAP_LIFT, polarMapGeometry, polarMapOpacity, type PolarMapHeader } from "../src/scene3d/polarMap";
+import { POLAR_MAP_LIFT, polarContourChunk, polarMapGeometry, polarMapMaterial, polarMapOpacity, type PolarMapHeader } from "../src/scene3d/polarMap";
 
 const DATA = join(__dirname, "..", "public", "data");
 const header = JSON.parse(readFileSync(join(DATA, "illumination", "south_avg.json"), "utf-8")) as PolarMapHeader;
@@ -45,5 +45,22 @@ describe("lit polar map (T6.2.b)", () => {
       prev = o;
     }
     expect(worst).toBeLessThan(0.05);
+  });
+});
+
+describe("sunlight contours instead of a filled disc (A8)", () => {
+  it("replaces the map tint by lines at the 50 % and 70 % levels; the area itself stays clear", () => {
+    const chunk = polarContourChunk();
+    expect(chunk).toContain("abs( v - 0.500 )");
+    expect(chunk).toContain("abs( v - 0.700 )");
+    expect(chunk).toContain("diffuseColor.a *= lines");
+    expect(chunk).not.toContain("diffuseColor *="); // no tint of the colour by the map: nothing is filled
+    const material = polarMapMaterial();
+    const shader = { fragmentShader: "void main() {\n#include <map_fragment>\n}" } as unknown as THREE.WebGLProgramParametersWithUniforms;
+    material.onBeforeCompile(shader, {} as THREE.WebGLRenderer);
+    expect(shader.fragmentShader).toContain("lines = max(");
+    expect(shader.fragmentShader).not.toContain("#include <map_fragment>");
+    expect(material.depthWrite).toBe(false);
+    expect(material.color.getHexString()).toBe("ffb347"); // the Sun's colour
   });
 });
