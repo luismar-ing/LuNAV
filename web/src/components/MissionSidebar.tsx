@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { lookup, dayIndex } from "../lib/constraints";
 import { lutIndex, rampLut } from "../lib/colorScale";
 import { fmtDay } from "../lib/format";
+import { lastInputWasKeyboard } from "../lib/inputModality";
 import { planVerdict } from "../lib/siteBrief";
 import { STRINGS } from "../lib/strings";
 import { VerdictMarks } from "./VerdictMarks";
@@ -15,16 +16,6 @@ const DAY_MS = 86_400_000;
 // B5: the app's one date format ("Jan 11, 2027"); re-exported for the views that import it from here
 export { fmtDay } from "../lib/format";
 const ymd = (ms: number) => new Date(ms).toISOString().slice(0, 10);
-
-/**
- * Whether the last thing the user did on the page was a key press (true) or a pointer press (false): what
- * :focus-visible would decide, for the date field whose focus lives inside the input's own segments.
- */
-let lastInputWasKeyboard = false;
-if (typeof document !== "undefined") {
-  document.addEventListener("keydown", () => (lastInputWasKeyboard = true), true);
-  document.addEventListener("pointerdown", () => (lastInputWasKeyboard = false), true);
-}
 
 /** Opens the browser's date picker where it can (showPicker needs a user gesture and is missing in older browsers). */
 function openPicker(input: HTMLInputElement) {
@@ -90,7 +81,7 @@ export function MissionSidebar({ onLaunch, onOpenSearch }: { onLaunch(): void; o
               whole field opens its picker. */}
           {/* focus sits inside the date input's own segments, so :focus-visible never matches it: the field shows its
               ring on :focus-within unless the focus came from the pointer */}
-          <label className="arrival-field" data-pointer={byPointer || undefined} onFocus={() => setByPointer(!lastInputWasKeyboard)} onKeyDown={() => setByPointer(false)}>
+          <label className="arrival-field" data-pointer={byPointer || undefined} onFocus={() => setByPointer(!lastInputWasKeyboard())} onKeyDown={() => setByPointer(false)}>
             <span className="arrival-text" aria-hidden="true" data-testid="arrival-text">
               {fmtDay(arrival)}
             </span>

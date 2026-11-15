@@ -61,6 +61,11 @@ h3 {
   outline-offset: 2px;
 }
 
+/* B9 (H15): focus handed back by script after a mouse action (lib/inputModality.ts restoreFocus): no ring */
+[data-pointer-focus]:focus-visible {
+  outline: none;
+}
+
 ::selection {
   background: var(--color-accent);
   color: var(--color-bg);
@@ -2320,19 +2325,42 @@ input[type="range"] {
   outline-offset: -6px;
 }
 
+/* B9 (H15): light text on a dark chip, readable over the bright ground of the map (it was muted text with a shadow);
+   the side is chosen in MoonMap (lib/moonMap.ts placeLabels) so labels do not cover each other or the distance tag */
 .moon-pin-label {
   position: absolute;
   left: calc(50% + 14px);
   top: 50%;
   translate: 0 -50%;
+  padding: 1px 6px;
+  border-radius: 4px;
+  background: var(--glass-panel-strong);
   font-size: 13px;
-  color: var(--color-text-muted);
+  line-height: 1.35;
+  color: var(--color-text);
   white-space: nowrap;
-  text-shadow: 0 0 6px var(--color-bg), 0 1px 2px var(--color-bg), 0 0 2px var(--color-bg);
+}
+
+.moon-pin-label[data-side="left"] {
+  left: auto;
+  right: calc(50% + 14px);
+}
+
+.moon-pin-label[data-side="above"] {
+  left: 50%;
+  top: auto;
+  bottom: calc(50% + 14px);
+  translate: -50% 0;
+}
+
+.moon-pin-label[data-side="below"] {
+  left: 50%;
+  top: calc(50% + 14px);
+  translate: -50% 0;
 }
 
 .moon-pin:hover .moon-pin-label {
-  color: var(--color-text);
+  background: var(--color-panel);
 }
 
 .moon-pin[aria-pressed="true"] .moon-pin-label {
@@ -2534,14 +2562,36 @@ input[type="range"] {
   color: var(--color-text-muted);
 }
 
+/* B9 (H14): one row with fixed places whatever the site's name: "Land at" fills, "Pin" keeps one width */
 .brief-actions {
-  display: flex;
-  flex-wrap: wrap;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
   gap: 12px;
 }
 
+.brief-land {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* both labels in one cell, the other one hidden: the button is as wide as the longer one, always */
+.brief-pin {
+  display: inline-grid;
+  white-space: nowrap;
+}
+
+.brief-pin > span {
+  grid-area: 1 / 1;
+}
+
+.brief-pin-sizer {
+  visibility: hidden;
+}
+
 .brief-actions .btn.pill {
-  padding: clamp(8px, 1.4vh, 12px) 22px;
+  padding: clamp(8px, 1.4vh, 12px) 18px; /* B9: room for "Land at Connecting Ridge" beside "Pin" at 1366 px */
 }
 
 .brief-actions .btn.ghost {

@@ -13,6 +13,9 @@ import { useApp } from "../store/appStore";
 import { useTimeseries } from "./useTimeseries";
 
 
+/** A site's name without its trailing note in brackets: "Connecting Ridge (Shackleton rim)" → "Connecting Ridge". */
+export const shortName = (name: string) => name.replace(/\s*\([^)]*\)\s*$/, "");
+
 /**
  * The chosen site (planner redesign, 3C style): where it is, thin Sun and Earth tracks with their countdowns, three window metrics, the same day at the other
  * sites, and the way on: "Land at …" opens the site view, "Pin to compare" adds the plan to the comparison.
@@ -121,12 +124,17 @@ export function SiteBrief({ onLand }: { onLand(): void }) {
         </ul>
       </div>
 
-      <div className="brief-actions">
-        <button type="button" className="btn primary pill" onClick={onLand}>
-          {STRINGS.planner.land(site.name)}
+      {/* B9 (H14): one row, fixed places. "Land at …" fills the row (short name, ellipsis if needed; the full name is
+          its accessible name and title); "Pin" keeps one width whichever label it shows, so nothing moves */}
+      <div className="brief-actions" data-testid="brief-actions">
+        <button type="button" className="btn primary pill brief-land" aria-label={STRINGS.planner.land(site.name)} title={STRINGS.planner.land(site.name)} onClick={onLand}>
+          {STRINGS.planner.land(shortName(site.name))}
         </button>
-        <button type="button" className="btn ghost pill" aria-pressed={pinned} onClick={() => (pinned ? unpinPlan(plan.id) : pinPlan(plan.id))}>
-          {pinned ? STRINGS.planner.unpinPlan : STRINGS.planner.pinPlan}
+        <button type="button" className="btn ghost pill brief-pin" aria-pressed={pinned} onClick={() => (pinned ? unpinPlan(plan.id) : pinPlan(plan.id))}>
+          <span>{pinned ? STRINGS.planner.unpinPlan : STRINGS.planner.pinPlan}</span>
+          <span className="brief-pin-sizer" aria-hidden="true">
+            {pinned ? STRINGS.planner.pinPlan : STRINGS.planner.unpinPlan}
+          </span>
         </button>
       </div>
     </section>

@@ -3209,3 +3209,39 @@ Las trayectorias ILLUSTRATIVE, los datos SYNTHETIC y toda desviación de la spec
   - Fuera del área de B siguen fechas en ISO: el panorama («2027-01-11 00:00 UTC»), el reloj de misión (`lib/mission.ts`, de A), y `SitePanel` y `SiteLayout` (títulos de la tabla). Pedir a sus dueños que usen `lib/format.ts`.
   - Con el input transparente, quien edita con el teclado no ve qué segmento (mes, día o año) está cambiando. Enter abre el selector y siguen las flechas ‹ ›.
 - **Siguiente tarea:** B9 (botones fijos y detalles; también corrige el desborde de 1280×720 anotado en B2).
+
+## AJUSTE · B9: botones fijos, foco tras el cajón y etiquetas del mapa
+
+- **Tarea:** B9 del plan de mejoras del 14-nov-2026 (persona B, hallazgos H14 y H15). Rama hecha sobre B5b (`b5b-readable-dates`).
+- **Qué se hizo:**
+  - **Botones del panel del sitio** (`SiteBrief.tsx`, H14):
+    - Antes iban en `flex-wrap`, así que con «Connecting Ridge (Shackleton rim)» el botón «Pin» bajaba de fila y ocupaba el lugar donde estaba «Land at …» con otros sitios.
+    - Ahora es una sola fila en grid: «Land at …» ocupa el resto (nombre corto sin el paréntesis, con elipsis si hace falta; el nombre completo queda en `aria-label` y `title`), y «Pin» tiene siempre el ancho de su etiqueta más larga (las dos etiquetas en la misma celda, la otra oculta).
+    - El padding horizontal pasa de 22 a 18 px para que «Land at Connecting Ridge» quepa a 1366 px.
+  - **Foco al cerrar el cajón** (H15): nuevo `lib/inputModality.ts`, que recuerda si la última interacción en la página fue de teclado o de puntero.
+    - `Drawer.tsx` (archivo sin dueño en el reparto): si se abrió con el ratón, devuelve el foco al botón sin el anillo (`data-pointer-focus`, que se quita al perder el foco); con teclado el anillo se mantiene.
+    - El campo de fecha de B5b usa ahora el mismo módulo.
+  - **Etiquetas del mapa** (`MoonMap.tsx`, `lib/moonMap.ts`, H15):
+    - `placeLabels()` coloca cada etiqueta a la derecha, izquierda, arriba o abajo de su punto, primero la del sitio elegido, sin encimarse con otras etiquetas, con la distancia («52 km») ni con los puntos, y sin salir del mapa.
+    - El componente mide las etiquetas reales (`useLayoutEffect`) y el tamaño del disco (`ResizeObserver`).
+  - **Contraste de las etiquetas:** pasan de gris con sombra a texto claro (`--color-text`) sobre un fondo `--glass-panel-strong`.
+- **Cómo se verificó:**
+  ```
+  $ npm --prefix web run typecheck → sin errores
+  $ npm --prefix web test → 289 passed (48 archivos); en una corrida falló la intermitente de integration.test.tsx (T5.1.b, «Longest dark»), la misma de main anotada en B1
+  ```
+  - `tests/moonMap.test.ts`: con las posiciones reales de los 5 sitios y cada uno como elegido, ninguna etiqueta se encima con otra ni con la distancia; con espacio libre se queda a la derecha.
+  - `tests/inputModality.test.ts` (nuevo): teclado o puntero; foco devuelto sin anillo tras el ratón, con anillo tras el teclado.
+  - `tests/tokens.test.ts`: texto de etiqueta sobre `panelStrong` y el fondo más claro ≥ 4,5:1.
+  - Navegador (servidor de desarrollo):
+    - Botones: con los 5 sitios y al anclar/desanclar, «Land at» (245 px) y «Pin» (154 px) quedan en el mismo x, sin recorte.
+    - Mapa: Haworth 11-ene sin choques de etiquetas con ningún sitio elegido (antes «52 km» × «Haworth» y «82 km» × «Malapert Massif»).
+    - Cajón: abrir con clic y cerrar con Esc deja el foco sin anillo; con Enter y Esc, con anillo.
+    - Sin scroll en el panel a 1280×720 (pendiente de B2), 1366×650, 1366×768, 1536×700 y 1920×1080. Sin errores en consola.
+- **Desviaciones de la spec / cambios en la guía:** ninguna.
+- **Problemas abiertos:**
+  - La fila de botones sigue subiendo o bajando hasta 20 px según el contenido de arriba (nombre en dos líneas, frase); en horizontal ya no se mueve.
+  - Las etiquetas pueden cambiar de lado al elegir otro sitio.
+  - A 1366×650 el sidebar desborda 11 px (fuera de las resoluciones objetivo).
+  - `Drawer.tsx` no estaba en el reparto: avisar al equipo del cambio.
+- **Siguiente tarea:** B6 (tira de días más clara).
