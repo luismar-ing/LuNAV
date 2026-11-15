@@ -5,6 +5,8 @@ import { join } from "node:path";
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { App } from "../src/App";
+import { LEVEL_1, monthOutcomes } from "../src/lib/challenge";
+import { fmtDay } from "../src/lib/format";
 import { appStore } from "../src/store/appStore";
 
 vi.mock("../src/scene3d/SceneHost", () => ({ SceneHost: () => <div data-testid="scene-host" /> }));
@@ -86,9 +88,70 @@ describe("Challenge screen (C3)", () => {
     fireEvent.click(hud.getByRole("button", { name: "Skip ahead" }));
     await waitFor(() => expect(screen.getByTestId("challenge").dataset.stage).toBe("done"));
     expect(appStore.getState().missionTime).toBe(Date.parse("2027-03-02T20:00:00Z"));
-    expect(hud.getByRole("meter", { name: "Battery" }).getAttribute("aria-valuenow")).toBe("0");
-    expect(hud.getByText(/^Empty: the lander has no power left/)).toBeTruthy();
-    expect(hud.queryByRole("button", { name: "Skip ahead" })).toBeNull();
+
+    // the end: the scene goes dark at that moment and the result says why, from the real night
+    expect(screen.queryByTestId("challenge-hud")).toBeNull();
+    expect(screen.getByText("Power lost · Mar 2, 20:00 UTC")).toBeTruthy();
+    const result = within(screen.getByTestId("challenge-result"));
+    expect(screen.getByTestId("challenge-result").dataset.success).toBe("false");
+    expect(result.getByText(/^Attempt 1 · Nobile Rim 1 · landing Mar 2, 2027$/)).toBeTruthy();
+    expect(result.getByText(/Your lander lost power$/)).toBeTruthy();
+    expect(screen.getByTestId("challenge-why").textContent).toMatch(
+      /^The battery ran empty for [\d.]+ h\. You landed in the middle of a 235\.5 h night: the Sun was already behind the terrain\. A full battery lasts 20 h\.$/,
+    );
+  });
+
+  it("'Try again' marks only the day tried; a good day succeeds; 'Watch again' replays; 'Main menu' leaves", async () => {
+    render(<App />);
+    act(() => appStore.getState().setScreen("challenge"));
+    const toEnd = async () => {
+      for (const stage of ["flight", "flight", "stay"]) {
+        await waitFor(() => expect(screen.getByRole("button", { name: "Skip ahead" })).toBeTruthy());
+        expect(screen.getByTestId("challenge").dataset.stage).toBe(stage);
+        fireEvent.click(screen.getByRole("button", { name: "Skip ahead" }));
+      }
+      await waitFor(() => expect(screen.getByTestId("challenge").dataset.stage).toBe("done"));
+    };
+    const finish = async () => {
+      fireEvent.click(screen.getByRole("button", { name: "Launch the mission" }));
+      await toEnd();
+    };
+    const ready = () =>
+      waitFor(() => expect((screen.getByRole("button", { name: "Launch the mission" }) as HTMLButtonElement).disabled).toBe(false));
+
+    fireEvent.click(screen.getByRole("button", { name: "Nobile Rim 1" }));
+    fireEvent.click(screen.getByRole("button", { name: "Mar 2, 2027" }));
+    await ready();
+    await finish();
+    fireEvent.click(screen.getByRole("button", { name: "Try again" }));
+
+    // back at the pad: only the day tried is marked, the other 30 stay unknown
+    expect(screen.getByTestId("challenge").dataset.stage).toBe("pick");
+    expect(appStore.getState().missionPhase).toBe("overview");
+    const days = within(screen.getByRole("group", { name: "2. Choose a landing day in March 2027" })).getAllByRole("button");
+    expect(days.filter((b) => b.dataset.outcome !== undefined).map((b) => b.getAttribute("aria-label"))).toEqual([
+      "Mar 2, 2027, the lander loses power",
+    ]);
+
+    // a day that works at Nobile Rim 1 (from the rules, lib/challenge.ts)
+    const ts = await appStore.getState().data.timeseries("nobile_rim_1");
+    const good = Object.entries(monthOutcomes(ts, LEVEL_1)).find(([, ok]) => ok)![0];
+    fireEvent.click(screen.getByRole("button", { name: fmtDay(good) }));
+    await ready();
+    await finish();
+    expect(screen.getByTestId("challenge-result").dataset.success).toBe("true");
+    expect(screen.getByText(/^Attempt 2 · Nobile Rim 1/)).toBeTruthy();
+    expect(screen.getByText(/Mission success$/)).toBeTruthy();
+    expect(screen.queryByText(/^Power lost/)).toBeNull();
+
+    fireEvent.click(screen.getByRole("button", { name: "Watch again" }));
+    expect(screen.getByTestId("challenge").dataset.stage).toBe("flight");
+    expect(appStore.getState().missionPhase).toBe("launch");
+    await toEnd();
+    expect(screen.getByText(/^Attempt 2 · Nobile Rim 1/)).toBeTruthy(); // a replay is not a new attempt
+
+    fireEvent.click(screen.getByRole("button", { name: "Main menu" }));
+    expect(appStore.getState().screen).toBe("landing");
   });
 
   it("'Back to the story' returns to the Educator; Esc leaves for the start page", () => {

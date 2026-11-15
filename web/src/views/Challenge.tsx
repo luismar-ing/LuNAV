@@ -1,11 +1,14 @@
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { evaluate, LEVEL_1, monthDays, stayTrace, traceAt, type ChallengeResult, type StayTrace } from "../lib/challenge";
 import { ASSUMED_BATTERY } from "../lib/energy";
-import { fmtDay } from "../lib/format";
+import { fmtDay, fmtUtc } from "../lib/format";
+import { sliceWindow } from "../lib/planData";
 import { stayDay } from "../lib/siteBrief";
 import { STRINGS } from "../lib/strings";
 import { num } from "../lib/why";
+import { TimeRibbon } from "../panels2d/TimeRibbon";
 import { SceneHost } from "../scene3d/SceneHost";
+import type { Timeseries } from "../lib/contract";
 import { appStore, useApp } from "../store/appStore";
 import "../styles/challenge.css";
 import { useMissionPlayback } from "./useMissionPlayback";
@@ -56,6 +59,9 @@ export function Challenge({ tools }: { tools: ReactNode }) {
   const [day, setDay] = useState<string | null>(null);
   const [stage, setStage] = useState<Stage>("pick");
   const [run, setRun] = useState<Run | null>(null);
+  // the player's own attempts, site by site (only the days tried are marked: the answers are never revealed)
+  const [tried, setTried] = useState<Record<string, Record<string, boolean>>>({});
+  const [attempts, setAttempts] = useState(0);
   const timeline = useScenePlan(plan);
   const { ts } = useTimeseries(siteId ?? undefined);
   const { play, setPlay, skip } = useMissionPlayback(timeline);
@@ -77,17 +83,26 @@ export function Challenge({ tools }: { tools: ReactNode }) {
   }, [timeline, stage]);
   useEffect(() => () => void (stageNow.planning = true), []);
 
-  const launch = () => {
-    if (!ready || !ts || !timeline || !siteId || !day) return;
-    const result = evaluate(ts, day, level.stayDays);
-    const trace = stayTrace(ts, day, level.stayDays);
-    if (!result || !trace) return;
-    setRun({ siteId, day, result, trace });
+  const fly = () => {
+    if (!timeline) return;
     stageNow.planning = false; // the camera leaves the globe view for the mission
     appStore.getState().setMissionTime(timeline.startMs);
     appStore.getState().setMissionPhase("launch");
     setStage("flight");
     setPlay({ to: timeline.lunarArrivalMs, hoursPerSecond: FLIGHT_HPS });
+  };
+  const launch = () => {
+    if (!ready || !ts || !siteId || !day) return;
+    const result = evaluate(ts, day, level.stayDays);
+    const trace = stayTrace(ts, day, level.stayDays);
+    if (!result || !trace) return;
+    setRun({ siteId, day, result, trace });
+    setAttempts((n) => n + 1);
+    fly();
+  };
+  const tryAgain = () => {
+    setStage("pick"); // the clock goes back to the countdown and the camera to the globe (effect above)
+    setRun(null);
   };
 
   // the trip runs into the descent and the descent into the stay; the stay ends at its last hour or where the
@@ -99,7 +114,10 @@ export function Challenge({ tools }: { tools: ReactNode }) {
     } else if (stage === "flight") {
       setStage("stay");
       setPlay({ to: run.trace.powerLostMs ?? timeline.endMs, hoursPerSecond: STAY_HPS });
-    } else if (stage === "stay") setStage("done");
+    } else if (stage === "stay") {
+      setStage("done");
+      setTried((t) => ({ ...t, [run.siteId]: { ...t[run.siteId], [run.day]: run.result.success } }));
+    }
   }, [play, stage, timeline, run, setPlay]);
 
   // Esc leaves for the start page, as in the Educator
@@ -156,11 +174,27 @@ export function Challenge({ tools }: { tools: ReactNode }) {
               {T.dayStep(month)}
             </h3>
             <div className="challenge-days" role="group" aria-labelledby="challenge-day">
-              {days.map((d) => (
-                <button key={d} type="button" className="challenge-day" aria-pressed={d === day} aria-label={fmtDay(d)} onClick={() => setDay(d)}>
-                  <span className="challenge-day-n">{Number(d.slice(8))}</span>
-                </button>
-              ))}
+              {days.map((d) => {
+                const outcome = siteId ? tried[siteId]?.[d] : undefined;
+                return (
+                  <button
+                    key={d}
+                    type="button"
+                    className="challenge-day"
+                    aria-pressed={d === day}
+                    aria-label={T.dayLabel(fmtDay(d), outcome)}
+                    data-outcome={outcome === undefined ? undefined : outcome ? "ok" : "lost"}
+                    onClick={() => setDay(d)}
+                  >
+                    <span className="challenge-day-n">{Number(d.slice(8))}</span>
+                    {outcome !== undefined && (
+                      <span className="challenge-day-mark" aria-hidden="true">
+                        {outcome ? "✓" : "✗"}
+                      </span>
+                    )}
+                  </button>
+                );
+              })}
             </div>
           </section>
 
@@ -174,6 +208,17 @@ export function Challenge({ tools }: { tools: ReactNode }) {
             </button>
           </div>
         </aside>
+      ) : stage === "done" && run && ts ? (
+        <ResultPanel
+          run={run}
+          ts={ts}
+          attempt={attempts}
+          siteName={site?.name ?? ""}
+          stayDays={level.stayDays}
+          onTryAgain={tryAgain}
+          onWatchAgain={fly}
+          onMenu={() => appStore.getState().setScreen("landing")}
+        />
       ) : (
         run &&
         timeline && (
@@ -186,6 +231,12 @@ export function Challenge({ tools }: { tools: ReactNode }) {
             onSkip={play ? skip : null}
           />
         )
+      )}
+
+      {stage === "done" && run?.trace.powerLostMs != null && (
+        <div className="challenge-blackout" aria-hidden="true">
+          <p>{T.powerLost(fmtUtc(run.trace.powerLostMs))}</p>
+        </div>
       )}
     </div>
   );
@@ -230,7 +281,7 @@ function MissionHud({
           <span style={{ width: `${pct}%` }} data-empty={pct === 0 || undefined} />
         </div>
         <p className="challenge-meter-value">{pct}%</p>
-        {stay && <p className="challenge-power">{at.sun ? (pct === 100 ? T.powerFull : T.powerCharging) : pct === 0 ? T.powerEmpty : T.powerDraining}</p>}
+        {stay && <p className="challenge-power">{at.sun ? (pct === 100 ? T.powerFull : T.powerCharging) : T.powerDraining}</p>}
       </div>
       {stay && (
         <ul className="challenge-sky">
@@ -247,4 +298,68 @@ function MissionHud({
       )}
     </aside>
   );
+}
+
+/** The end of the mission: the verdict and its why, from the result's own figures, the stay's time ribbon, and what next. */
+function ResultPanel({
+  run,
+  ts,
+  attempt,
+  siteName,
+  stayDays,
+  onTryAgain,
+  onWatchAgain,
+  onMenu,
+}: {
+  run: Run;
+  ts: Timeseries;
+  attempt: number;
+  siteName: string;
+  stayDays: number;
+  onTryAgain(): void;
+  onWatchAgain(): void;
+  onMenu(): void;
+}) {
+  const r = run.result;
+  const series = useMemo(() => sliceWindow(ts, `${run.day}T00:00:00Z`, stayDays), [ts, run.day, stayDays]);
+  return (
+    <aside className="mission-sidebar glass challenge-sidebar challenge-result" aria-label={T.result} data-testid="challenge-result" data-success={r.success}>
+      <p className="edu-kicker">{T.attempt(attempt, siteName, fmtDay(run.day))}</p>
+      <h2 className="challenge-verdict" aria-live="polite">
+        <span aria-hidden="true">{r.success ? "✓ " : "✗ "}</span>
+        {r.success ? T.success : T.failure}
+      </h2>
+      <p className="challenge-why" data-testid="challenge-why">
+        {explain(r, siteName, stayDays)}
+      </p>
+      <p className="challenge-sun">{T.sunlight(num(r.sunPct))}</p>
+      <TimeRibbon series={series} compareTime={0} thin />
+      <p className="challenge-lesson">{T.lesson}</p>
+      <div className="challenge-actions challenge-launch">
+        <button type="button" className="btn primary pill" onClick={onTryAgain}>
+          {T.tryAgain}
+        </button>
+        <button type="button" className="btn pill" onClick={onWatchAgain}>
+          {T.watchAgain}
+        </button>
+        <button type="button" className="btn ghost pill" onClick={onMenu}>
+          {T.mainMenu}
+        </button>
+      </div>
+    </aside>
+  );
+}
+
+/** The why of a result, in one or two sentences, from the result's own figures. */
+function explain(r: ChallengeResult, site: string, stayDays: number): string {
+  if (r.success) {
+    const first = T.successText(site, stayDays, Math.round(r.minSoc * 100));
+    return r.night ? `${first} ${T.survivedNight(num(r.night.inStayH))}` : `${first} ${T.noNight}`;
+  }
+  const night = r.night
+    ? r.night.beforeLanding
+      ? T.nightInDark(num(r.night.fullH))
+      : T.nightStarts(num(r.night.fullH), r.night.startDay, r.night.inStayH < r.night.fullH ? num(r.night.inStayH) : null)
+    : "";
+  return [T.failureText(num(r.emptyH)), night, T.batteryLasts(num(r.batteryH))].filter(Boolean).join(" ");
 }

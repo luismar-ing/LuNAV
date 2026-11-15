@@ -105,20 +105,6 @@
 .challenge-actions .challenge-hint {
   margin: 0;
 }
-.challenge-result {
-  border-top: 1px solid var(--color-border);
-  padding-top: 16px;
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-.challenge-result p {
-  margin: 0;
-}
-.challenge-attempt {
-  color: var(--color-text-muted);
-  font-size: var(--font-sm);
-}
 .challenge-verdict {
   margin: 0;
   font-family: var(--font-serif);
@@ -209,4 +195,35 @@
 }
 .challenge-sky li[data-on="true"]::before {
   background: currentColor;
+}
+
+/* Power lost: the scene fades to dark behind the result, with the moment it happened (the 3D itself is untouched) */
+.challenge-blackout {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding-left: 400px;
+  background: rgb(5 7 13 / 0.78);
+  pointer-events: none;
+  animation: challenge-fade 1.2s ease-out both;
+}
+.challenge-blackout p {
+  margin: 0;
+  font-family: var(--font-serif);
+  font-size: clamp(28px, 3vw, 44px);
+  color: var(--color-text-muted);
+}
+@keyframes challenge-fade {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+:root[data-reduced-motion="true"] .challenge-blackout {
+  animation: none;
 }
