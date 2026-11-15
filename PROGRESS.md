@@ -3809,6 +3809,7 @@ Las trayectorias ILLUSTRATIVE, los datos SYNTHETIC y toda desviación de la spec
     - Títulos de tarjeta en Instrument Serif.
   - **Colores:** dos tokens nuevos en `styles/tokens.ts`, `sunLight` (`#FFD08A`) y `earthLight` (`#A9D2FF`).
   - **Fuera** el horizonte de Haworth y el Sol y la Tierra de fondo que tenía la propuesta.
+  - **Icono de la pestaña:** `web/public/favicon.svg` es ahora el logo del equipo con fondo oscuro (`constelacion-oscura-fondo.svg`, copia sin cambios), en lugar del icono de PolePlanner.
 - **Cómo se verificó:**
   ```
   $ npm --prefix web run typecheck → sin errores
