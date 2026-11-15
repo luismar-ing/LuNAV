@@ -3,7 +3,7 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import type { Timeseries, WindowRow } from "../src/lib/contract";
-import { nightInStay, overlapH, planVerdict } from "../src/lib/siteBrief";
+import { nightInStay, overlapH, planVerdict, readAt, stayChange } from "../src/lib/siteBrief";
 import { STRINGS } from "../src/lib/strings";
 
 const REAL = join(__dirname, "..", "public", "data", "windows");
@@ -86,5 +86,31 @@ describe("one night, one figure in context (B3)", () => {
         }
       }
     }
+  });
+});
+
+describe("countdowns kept inside the stay (B4)", () => {
+  const DAY = 86_400_000;
+  it("Connecting Ridge, Jan 11 2027 (7 d): the 65 d of sunlight and 13 d of Earth are both past the stay", () => {
+    const t0 = Date.parse("2027-01-11T00:00:00Z");
+    const r = readAt(series("connecting_ridge"), t0);
+    const sun = stayChange(r.sun!, t0, t0 + 7 * DAY);
+    const earth = stayChange(r.earth!, t0, t0 + 7 * DAY);
+    expect(r.sun!.visible && r.earth!.visible).toBe(true);
+    expect(sun.withinStay).toBe(false);
+    expect(sun.hours! / 24).toBeGreaterThan(65); // the real change is still reported, as a side note
+    expect(earth.withinStay).toBe(false);
+    expect(earth.atMs).toBe(t0 + earth.hours! * 3_600_000);
+  });
+
+  it("Haworth, Jan 11 2027 (7 d): the sunset 5 d 14 h later is inside the stay", () => {
+    const t0 = Date.parse("2027-01-11T00:00:00Z");
+    const s = stayChange(readAt(series("haworth"), t0).sun!, t0, t0 + 7 * DAY);
+    expect(s).toMatchObject({ withinStay: true, hours: 134 });
+  });
+
+  it("a change exactly at the end of the stay, or beyond the data, is not inside it", () => {
+    expect(stayChange({ visible: true, hours: 24, lastsH: 1 }, 0, DAY).withinStay).toBe(false);
+    expect(stayChange({ visible: true, hours: null, lastsH: null }, 0, DAY)).toEqual({ withinStay: false, hours: null, atMs: null });
   });
 });

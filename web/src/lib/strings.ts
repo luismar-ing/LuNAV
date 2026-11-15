@@ -88,6 +88,11 @@ export const STRINGS = {
     lastDay: (d: number) => `Day ${d}`,
     setsIn: "Sets in",
     risesIn: "Rises in",
+    // B4: "Up all stay · sets 26 Jan" when the next change is after the stay
+    up: "Up",
+    down: "Down",
+    allStay: "all stay",
+    changeAfter: (visible: boolean, day: string) => `${visible ? "sets" : "rises"} ${day}`,
     noChange: "beyond the data",
     sunlight: "Sunlight",
     longestNight: "Longest night",
@@ -124,15 +129,18 @@ export const STRINGS = {
     // B3: "Then a 36.5 h night, 34 h of it in your stay." when the night runs past the end of the stay
     nightThen: (night: string, inStay: string | null, over: string | null) =>
       `${inStay ? `Then a ${night} night, ${inStay} of it in your stay` : `Then ${night} of night`}${over ? `, ${over} over your limit` : ""}.`,
-    sunStays: "The Sun stays up for the rest of the stay.",
     sunBackInStay: "The Sun comes back before the stay ends.",
-    sunBackAfter: "The Sun comes back after the stay ends.",
     earthLeft: "Earth link left",
     earthBack: "No Earth link · it comes back in",
+    // B4: a change after the end of the stay is not counted down; its date is a side note
+    allStay: "All stay",
+    restOfStay: "Rest of stay",
+    afterYouLeave: "after you leave",
+    sunDown: "Night",
+    earthDown: "No Earth link",
     earthsetAt: (when: string) => `Earthset ${when}`,
     earthriseAt: (when: string) => `Earthrise ${when}`,
     gapThen: (gap: string) => `Then ${gap} without direct contact.`,
-    noLoss: "No loss of contact during the stay.",
     noData: "beyond the data",
     next: "What happens next",
     metrics: "Window metrics",

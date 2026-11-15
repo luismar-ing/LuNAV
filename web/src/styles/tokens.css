@@ -2394,6 +2394,12 @@ input[type="range"] {
   color: var(--color-text-muted);
 }
 
+/* B4: the date of a change after the stay, a side note to "Up all stay" */
+.brief-track-after {
+  font-size: 12px;
+  color: var(--color-text-muted);
+}
+
 .brief-track-ends {
   display: flex;
   justify-content: space-between;

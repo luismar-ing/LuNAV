@@ -181,6 +181,9 @@ describe("Mission Planner sidebar (A2)", () => {
     await waitFor(() => expect(sidebar().getByRole("button", { name: /^Haworth/ }).textContent).toContain("34 h night in stay"));
     expect((await screen.findByTestId("brief-night-of")).textContent).toBe("of 36.5 h");
     expect(screen.getByTestId("brief-verdict").textContent).toBe("34 h of night in the stay, with the Earth in view the whole time.");
+    // B4: the sunset (day 6) is counted down; the Earthset (Jan 26) is after the stay: "Up all stay", date aside
+    expect(screen.getByTestId("brief-count-sun").textContent).toBe("Sets in 5 d 14 h");
+    expect(screen.getByTestId("brief-count-earth").textContent).toBe("Up all stay · sets 26 Jan");
     expect(screen.queryByTestId("brief-story")).toBeNull();
     expect(within(screen.getByTestId("brief-others")).getAllByRole("listitem")[0].textContent).toMatch(/^Malapert Massif52 km\+20\.2 % sun$/);
 
@@ -195,7 +198,9 @@ describe("Mission Planner sidebar (A2)", () => {
     expect(sun.textContent).toContain("5 d 14 h");
     expect(sun.textContent).toContain("Sunset 16 Jan, 14:00 UTC");
     expect(sun.textContent).toContain("Then a 36.5 h night, 34 h of it in your stay.");
-    expect(within(site).getByTestId("countdown-earth").textContent).toContain("Earthset 26 Jan, 20:30 UTC");
+    const earth = within(site).getByTestId("countdown-earth");
+    expect(earth.textContent).toBe("Earth link leftAll stayEarthset 26 Jan, 20:30 UTC · after you leave"); // B4: no "15 d 20 h"
+    expect(earth.dataset.withinStay).toBe("false");
     expect(within(site).getByTestId("next-events").querySelector("li")?.textContent).toMatch(/^5 d 14 hSunset/);
 
     // "Window metrics" tab, then fold the 2D view away and back

@@ -89,6 +89,24 @@ export function nightInStay(ts: Pick<Timeseries, "start_utc" | "step_min" | "n" 
   };
 }
 
+/**
+ * A countdown kept inside the stay (B4, finding H9). The one-year series can put the next sunset or Earthset weeks
+ * away; a 7-day stay should then read "up all stay", with the real date only as a side note.
+ */
+export interface StayChange {
+  /** the change happens before the stay ends: show the countdown */
+  withinStay: boolean;
+  /** hours from now to the change (null: not in the data) */
+  hours: number | null;
+  /** when it happens (ms), even after the stay; null when not in the data */
+  atMs: number | null;
+}
+
+export function stayChange(change: Change, nowMs: number, stayEndMs: number): StayChange {
+  const atMs = change.hours === null ? null : nowMs + change.hours * 3_600_000;
+  return { withinStay: atMs !== null && atMs < stayEndMs, hours: change.hours, atMs };
+}
+
 /** Hours of the night [nightStartMs, nightEndMs) that fall inside the stay [stayStartMs, stayEndMs). */
 export function overlapH(nightStartMs: number, nightEndMs: number, stayStartMs: number, stayEndMs: number): number {
   return Math.max(0, Math.min(nightEndMs, stayEndMs) - Math.max(nightStartMs, stayStartMs)) / 3_600_000;

@@ -3143,3 +3143,35 @@ Las trayectorias ILLUSTRATIVE, los datos SYNTHETIC y toda desviación de la spec
 - **Desviaciones de la spec / cambios en la guía:** ninguna. Las métricas siguen siendo las de la spec 5; solo se añade contexto.
 - **Problemas abiertos:** «Earth link left 15 d 20 h» en una estancia de 7 días (H9) lo resuelve B4. Siguen los pendientes de B2 (1280×720, criterio estricto).
 - **Siguiente tarea:** B4 (topar las cuentas regresivas a la estancia).
+
+## AJUSTE · B4: cuentas regresivas topadas a la estancia
+
+- **Tarea:** B4 del plan de mejoras del 14-nov-2026 (persona B, hallazgo H9). Las cuentas regresivas salían de la serie de un año, así que una estancia de 7 días podía mostrar «Sunlight left 65 d 17 h». Rama hecha sobre B3 (`b3-single-night-figure`).
+- **Qué se hizo:**
+  - `lib/siteBrief.ts`: `stayChange(change, ahora, finDeEstancia)` dice si el cambio cae dentro de la estancia (`withinStay`) y conserva sus horas y su instante.
+  - «Time left» (`TimeLeft.tsx`, solo lógica y textos; la estructura de la tarjeta no cambia):
+    - Si el cambio cae después del final, el valor grande es «All stay» al llegar o «Rest of stay» a mitad de estancia. La fecha real queda como dato secundario: «Sunset 17 Mar, 17:30 UTC · after you leave».
+    - Con el Sol o la Tierra ocultos toda la estancia, la etiqueta es «Night» o «No Earth link».
+    - Fuera las notas que repetían el valor («The Sun stays up…», «No loss of contact…», «…after the stay ends»).
+    - La tarjeta lleva `data-within-stay`.
+  - Pistas del panel del sitio (`SiteBrief.tsx`): «Up all stay · sets 17 Mar» o «Down all stay · rises …» en lugar de «Sets in 65 d 17 h». La fecha y hora UTC completas van en `title`.
+  - `lib/strings.ts`: textos nuevos; se borraron `sunStays`, `sunBackAfter` y `noLoss`, que quedaron sin uso.
+- **Cómo se verificó:**
+  ```
+  $ npm --prefix web run typecheck → sin errores
+  $ npm --prefix web test → 281 passed (46 archivos)
+  ```
+  - `tests/siteBrief.test.ts`:
+    - Connecting Ridge 11-ene (7 d): Sol (> 65 d) y Tierra fuera de la estancia.
+    - Haworth 11-ene: puesta de sol a 134 h, dentro.
+    - Bordes: un cambio justo al final, o fuera de los datos, no cuenta como dentro.
+  - `tests/plannerSidebar.test.tsx`, Haworth 11-ene:
+    - Panel: «Sets in 5 d 14 h» y «Up all stay · sets 26 Jan».
+    - «Time left»: «Earth link left · All stay · Earthset 26 Jan, 20:30 UTC · after you leave», sin «15 d 20 h».
+  - Navegador (servidor de desarrollo), Connecting Ridge 11-ene:
+    - Panel: «Up all stay · sets 17 Mar» y «Up all stay · sets 24 Jan».
+    - «Time left»: «All stay» en las dos cuentas.
+    - Sin scroll a 1366×768 y 1920×1080, sin errores en consola.
+- **Desviaciones de la spec / cambios en la guía:** ninguna.
+- **Problemas abiertos:** «What happens next» sigue listando eventos de después de la estancia, marcados «after leaving», como antes. Las fechas tienen formatos distintos («17 Mar» en el panel, «17 Mar, 17:30 UTC» en «Time left»): se unifican en B5b.
+- **Siguiente tarea:** B5b (fecha legible y formato único).

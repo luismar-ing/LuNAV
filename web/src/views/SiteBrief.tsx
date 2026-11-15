@@ -4,8 +4,8 @@ import { VerdictMarks } from "../components/VerdictMarks";
 import { lookup } from "../lib/constraints";
 import { parseInstant } from "../lib/contract";
 import { describeError } from "../lib/errors";
-import { distanceKm, fmtDuration, type Change } from "../lib/moonMap";
-import { nightInStay, planVerdict, readAt, visibleSpans, type Span } from "../lib/siteBrief";
+import { distanceKm, fmtDuration, fmtUtc, type Change } from "../lib/moonMap";
+import { nightInStay, planVerdict, readAt, stayChange, visibleSpans, type Span } from "../lib/siteBrief";
 import { STRINGS } from "../lib/strings";
 import { fmtMetric, num, round } from "../lib/why";
 import { useApp } from "../store/appStore";
@@ -67,8 +67,8 @@ export function SiteBrief({ onLand }: { onLand(): void }) {
 
       {reading && spans && (
         <div className="brief-tracks" role="group" aria-label={STRINGS.planner.tracksAria(site.name)}>
-          <Track label={STRINGS.planner.sunTrack} spans={spans.sun} body="sun" change={reading.sun} />
-          <Track label={STRINGS.planner.earthTrack} spans={spans.earth} body="earth" change={reading.earth} />
+          <Track label={STRINGS.planner.sunTrack} spans={spans.sun} body="sun" change={reading.sun} arrivalMs={arrivalMs} endMs={arrivalMs + stayH * 3_600_000} />
+          <Track label={STRINGS.planner.earthTrack} spans={spans.earth} body="earth" change={reading.earth} arrivalMs={arrivalMs} endMs={arrivalMs + stayH * 3_600_000} />
           <div className="brief-track-axis" aria-hidden="true">
             <span />
             <span className="brief-track-ends">
@@ -134,8 +134,13 @@ export function SiteBrief({ onLand }: { onLand(): void }) {
 }
 
 /** One body's thin track over the stay (3 px), with its countdown to the next change. */
-function Track({ label, spans, body, change }: { label: string; spans: Span[]; body: "sun" | "earth"; change: Change | null }) {
-  const when = change?.hours == null ? STRINGS.planner.noChange : fmtDuration(change.hours);
+function Track({ label, spans, body, change, arrivalMs, endMs }: { label: string; spans: Span[]; body: "sun" | "earth"; change: Change | null; arrivalMs: number; endMs: number }) {
+  // B4: count down only to a change inside the stay; one after it reads "Up all stay" / "Down all stay", with its date aside
+  const stay = change ? stayChange(change, arrivalMs, endMs) : null;
+  const capped = change && stay && !stay.withinStay;
+  const verb = capped ? (change.visible ? STRINGS.planner.up : STRINGS.planner.down) : change?.visible ? STRINGS.planner.setsIn : STRINGS.planner.risesIn;
+  const value = capped ? STRINGS.planner.allStay : change?.hours == null ? STRINGS.planner.noChange : fmtDuration(change.hours);
+  const after = capped && stay.atMs !== null ? STRINGS.planner.changeAfter(change.visible, fmtDate(stay.atMs)) : null;
   return (
     <div className="brief-track" data-body={body}>
       <span className="brief-track-label">{label}</span>
@@ -144,8 +149,9 @@ function Track({ label, spans, body, change }: { label: string; spans: Span[]; b
           <span key={s.from} style={{ left: `${s.from * 100}%`, width: `${(s.to - s.from) * 100}%` }} />
         ))}
       </span>
-      <span className="brief-track-count">
-        <span className="brief-track-verb">{change?.visible ? STRINGS.planner.setsIn : STRINGS.planner.risesIn}</span> {when}
+      <span className="brief-track-count" data-testid={`brief-count-${body}`} title={stay?.atMs != null ? fmtUtc(stay.atMs) : undefined}>
+        <span className="brief-track-verb">{verb}</span> {value}
+        {after && <span className="brief-track-after"> · {after}</span>}
       </span>
     </div>
   );
