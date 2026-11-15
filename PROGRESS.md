@@ -3350,7 +3350,7 @@ Las trayectorias ILLUSTRATIVE, los datos SYNTHETIC y toda desviación de la spec
     - Altura mínima antes de tocar suelo: 1.7–6.8 km sobre la esfera.
     - Error de aterrizaje: ≤ 0.05 km (redondeo a 0.1 km).
   - Escena real (Chrome sin cabeza, servidor de desarrollo, capturas a 10 h, 4 h, 40 min, 6 min y 30 s del aterrizaje): la estela entra por la hipérbola y rodea la Luna dibujada (×6) por fuera de su superficie. A escala real se ve la traza del descenso sobre el terreno. Escala «Not to scale» → «Real scale» como antes.
-  - `integration.test.tsx` T5.1.b: el mismo arreglo de la intermitencia que en las ramas de A1 y A4 (cambio idéntico).
+  - `integration.test.tsx` T5.1.b: `main` ya espera la cinta (c960245); esta rama además espera la caja de métricas con `findBy…` (el mismo cambio de una línea está en las ramas de A1, A4 y A5).
 - **No se hizo (del texto de A5):** la cámara que sigue al módulo en el descenso y el polvo al tocar suelo. La cámara guiada termina igual que antes, a 5 km del sitio mirando hacia él. Cambiarla exige rehacer el tramo final del director y sus pruebas de «sin saltos», con más riesgo del que conviene antes de la entrega. Quedan como mejora.
 - **Desviaciones de la spec / cambios en la guía:** ninguna; la trayectoria sigue marcada ILLUSTRATIVE en la interfaz.
 - **Problemas abiertos:** la estela de 800 puntos uniformes en el tiempo dibuja cada vuelta baja con unos 22 segmentos; se ve poligonal de cerca.
