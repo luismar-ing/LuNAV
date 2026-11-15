@@ -134,6 +134,9 @@ describe("Mission Planner sidebar (A2)", () => {
     expect(screen.queryByTestId("illustrative-label")).toBeNull(); // the site itself is real data
     const card = await within(site).findByRole("complementary", { name: "Time left" }, { timeout: 5000 });
     expect(await within(card).findByTestId("time-left", {}, { timeout: 5000 })).toBeTruthy();
+    // A10: the sky first; the 2D console is the "Data" view
+    expect(within(site).queryByTestId("panorama")).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "Data" }));
     expect(within(site).getByTestId("metrics-box")).toBeTruthy(); // in the console's "Window metrics" tab
     // the panorama follows the mission clock: arrival = sample 0
     await waitFor(() => expect(within(site).getByTestId("panorama").dataset.sample).toBe("0"));
@@ -141,7 +144,7 @@ describe("Mission Planner sidebar (A2)", () => {
     const table = await within(site).findByTestId("site-compare-mini");
     expect(within(table).getAllByRole("columnheader").map((h) => h.textContent)).toEqual(["Metric", "This plan", "Malapert Massif"]);
     expect(within(table).getAllByText("★").length + table.querySelectorAll('[data-best="true"]').length).toBeGreaterThan(0);
-    fireEvent.click(within(card).getByRole("button", { name: "Site details and sources" }));
+    fireEvent.click(within(site).getByRole("button", { name: "Site details and sources" }));
     expect(screen.getByRole("dialog", { name: "Haworth: details and sources" })).toBeTruthy();
     for (const id of ["haworth_20270309_7d", "malapert_massif_20270309_7d"]) appStore.getState().unpinPlan(id);
   });
@@ -161,13 +164,15 @@ describe("Mission Planner sidebar (A2)", () => {
     expect(toggle.getAttribute("aria-pressed")).toBe("true");
     fireEvent.click(toggle);
     expect(appStore.getState().levelB).toBe(false);
+    fireEvent.click(screen.getByRole("button", { name: "Data" }));
     expect(within(site).getByTestId("panorama")).toBeTruthy();
     expect(within(site).getByTestId("metrics-box")).toBeTruthy();
-    fireEvent.click(toggle);
+    fireEvent.click(screen.getByRole("button", { name: "Sky" }));
+    fireEvent.click(within(site).getByRole("button", { name: /3D terrain shadows/ }));
     expect(appStore.getState().levelB).toBe(true);
   });
 
-  it("planner redesign: map pins pick the site, the brief shows the stay, 'Land at' opens the site paused; the 2D view folds away", async () => {
+  it("planner redesign: map pins pick the site, the brief shows the stay, 'Land at' opens the site paused; Sky | Data keeps the instant", async () => {
     const st = appStore.getState();
     st.setScreen("planner");
     st.selectPlan("haworth_20270111_7d");
@@ -230,16 +235,21 @@ describe("Mission Planner sidebar (A2)", () => {
     const earth = within(site).getByTestId("countdown-earth");
     expect(earth.textContent).toBe("Earth link leftAll stayEarthset Jan 26, 20:30 UTC · after you leave"); // B4: no "15 d 20 h"
     expect(earth.dataset.withinStay).toBe("false");
-    expect(within(site).getByTestId("next-events").querySelector("li")?.textContent).toMatch(/^5 d 14 hSunset/);
 
-    // "Window metrics" tab, then fold the 2D view away and back
+    // A10: the sky (3D, countdowns) and the data (2D console) on the same mission clock
+    expect(within(site).queryByTestId("site-console")).toBeNull();
+    const at = appStore.getState().missionTime;
+    fireEvent.click(screen.getByRole("button", { name: "Data" }));
+    expect(screen.getByRole("button", { name: "Data" }).getAttribute("aria-pressed")).toBe("true");
+    expect(within(site).queryByTestId("countdown-sun")).toBeNull();
+    expect(within(site).getByTestId("next-events").querySelector("li")?.textContent).toMatch(/^5 d 14 hSunset/);
     fireEvent.click(within(site).getByRole("tab", { name: "Window metrics" }));
     expect(within(site).getByTestId("metrics-box").closest("[role=tabpanel]")?.hasAttribute("hidden")).toBe(false);
-    fireEvent.click(within(site).getByRole("button", { name: "Hide 2D view" }));
-    expect(within(site).queryByTestId("site-console")).toBeNull();
-    expect(within(site).queryByTestId("panorama")).toBeNull();
-    fireEvent.click(within(site).getByRole("button", { name: "Show 2D view" }));
     expect(within(site).getByTestId("panorama")).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Sky" }));
+    expect(within(site).queryByTestId("panorama")).toBeNull();
+    expect(within(site).getByTestId("countdown-sun").textContent).toContain("5 d 14 h");
+    expect(appStore.getState().missionTime).toBe(at);
     act(() => appStore.getState().setViewMode("compare"));
   });
 });

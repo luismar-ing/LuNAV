@@ -199,6 +199,7 @@ describe("time", () => {
     fireEvent.click(screen.getByRole("button", { name: "At the site" }));
     fireEvent.change(screen.getByRole("slider", { name: /mission time/i }), { target: { value: String((tl.landingMs + 20 * HOUR - tl.startMs) / 60_000) } });
     const dock = await screen.findByTestId("live-site");
+    fireEvent.click(screen.getByRole("button", { name: "Data" })); // A10: the panorama is in the data view
     await waitFor(() => expect(within(dock).getByTestId("panorama").dataset.sample).toBe("40"));
     expect(screen.getByTestId("thumb-clock").textContent).toBe("Day 1, 20:00");
     const thumb = within(screen.getByTestId("thumb-strip")).getByTestId("thumb");

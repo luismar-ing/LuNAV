@@ -172,9 +172,13 @@ export const STRINGS = {
     afterStay: "after leaving",
     inDark: "in the dark",
     nothingNext: "No changes in the next 30 days.",
-    hide2d: "Hide 2D view",
-    show2d: "Show 2D view",
-    hide2dTitle: "Hide the horizon panorama and the time ribbon to see the 3D site clearly",
+    // A10: the site's two views, on the same mission clock
+    viewSwitch: "Site view",
+    viewName: { sky: "Sky", data: "Data" },
+    viewTitle: {
+      sky: "The 3D site full screen, with the countdowns",
+      data: "Horizon panorama, time ribbon, what happens next and the window metrics",
+    },
   },
   educator: {
     chapterOf: (i: number, n: number) => `Chapter ${i} of ${n}`,
@@ -469,7 +473,7 @@ export const STRINGS = {
     error: "The 3D scene could not be started (WebGL unavailable). The 2D comparison still works.",
     title: (site: string) => `Live view · ${site}`,
     illustrative: "Launch from a generic pad and simplified trajectory, computed with the real Moon position",
-    cameraHelp: "3D scene of the selected plan. Drag, use the mouse wheel or the arrow keys and + / − to move the camera yourself.",
+    cameraHelp: "3D scene of the selected plan. Drag, scroll or pinch, or use the arrow keys and + / −, to move the camera yourself.",
     guided: "Guided camera",
     arrived: (site: string) => `Arrived at ${site}. The horizon panorama and the site features are shown below the scene.`,
   },
