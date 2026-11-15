@@ -355,7 +355,7 @@ button {
   border-radius: 8px;
   padding: 6px 12px;
   cursor: pointer;
-  transition: color var(--motion-fast), border-color var(--motion-fast);
+  transition: color var(--motion-fast), border-color var(--motion-fast), background-color var(--motion-fast);
 }
 
 .btn:hover:not(:disabled) {
@@ -370,6 +370,11 @@ button {
 
 .btn.ghost {
   background: transparent;
+}
+
+/* B1: ghost buttons get a faint fill on hover, not only a lighter border */
+.btn.ghost:hover:not(:disabled) {
+  background: var(--glass-fill-hover);
 }
 
 .pin-count {
@@ -807,6 +812,13 @@ button {
 
 .panorama-readout dd {
   margin: 0;
+}
+
+/* B8 (H10): why the Sun or the Earth can be in view below 0° at this site */
+.panorama-horizon-note {
+  margin: var(--space-xs) 0 0;
+  font-size: var(--font-sm);
+  color: var(--color-text-muted);
 }
 
 .mono {
@@ -2174,27 +2186,17 @@ input[type="range"] {
   font-weight: 600;
 }
 
+/* B1: the light fill needs dark text on hover too (.btn:hover alone would turn it light on white) */
 .btn.primary:hover:not(:disabled) {
   background: var(--color-focus);
   border-color: var(--color-focus);
+  color: var(--color-bg);
 }
 
 .launch-btn {
   padding: clamp(10px, 1.6vh, 14px);
   border-radius: 14px;
   font-size: var(--font-md);
-}
-
-.planner-badge {
-  position: absolute;
-  top: clamp(68px, 8vh + 16px, 84px);
-  right: 24px;
-  z-index: 2;
-  margin: 0;
-  max-width: 44rem; /* one line over the planning stage, which starts right under it */
-  text-align: right;
-  font-size: var(--font-sm);
-  color: var(--color-text-muted);
 }
 
 .phase-rail {
@@ -3377,7 +3379,6 @@ button.brief-day-btn:hover {
     right: 8px;
     left: 8px;
   }
-  .planner-badge,
   .planner[data-stage="planning"] .phase-rail {
     display: none;
   }

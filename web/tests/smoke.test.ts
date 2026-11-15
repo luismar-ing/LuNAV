@@ -3,6 +3,6 @@ import { APP_TITLE } from "../src/App";
 
 describe("smoke", () => {
   it("exposes the app title", () => {
-    expect(APP_TITLE).toBe("PolePlanner");
+    expect(APP_TITLE).toBe("LuNAV");
   });
 });

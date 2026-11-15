@@ -17,7 +17,6 @@ export function TimeLeft({ plan, ts, timeMs, limitH }: { plan: PlanData; ts: Tim
   const stayMs = plan.plan.window_days * DAY_MS;
   const endMs = startMs + stayMs;
   const r = readAt(ts, timeMs);
-  const day = Math.min(plan.plan.window_days, Math.floor((timeMs - startMs) / DAY_MS) + 1);
   const now = Math.min(1, Math.max(0, (timeMs - startMs) / stayMs));
   const sunSpans = visibleSpans(plan.series.sunVis, 0, plan.series.n);
   const earthSpans = visibleSpans(plan.series.earthVis, 0, plan.series.n);
@@ -42,7 +41,8 @@ export function TimeLeft({ plan, ts, timeMs, limitH }: { plan: PlanData; ts: Tim
 
   return (
     <div className="time-left" data-testid="time-left">
-      <p className="site-card-label">{STRINGS.siteLayout.dayOf(day, plan.plan.window_days)}</p>
+      {/* B10: the day of the stay is the mission clock's (MissionControls), not repeated here */}
+      <p className="site-card-label">{STRINGS.siteLayout.timeLeft}</p>
       {r.sun && sun && (
         <Countdown
           body="sun"
