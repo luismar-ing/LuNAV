@@ -10,10 +10,12 @@ import type { Plan, SceneEphemeris, Trajectory } from "../src/lib/contract";
 import { parseInstant } from "../src/lib/contract";
 import { timelineOf, type MissionTimeline } from "../src/lib/mission";
 import { CameraMotion, MAX_STEP, wheelZoom } from "../src/scene3d/cameraInput";
+import { CHASE_KM, CHASE_WINDOWS, localBlend } from "../src/scene3d/cameraDirector";
+import { playbackRate } from "../src/lib/mission";
 import { CameraController, directorPose, hopPose, planningPose, reducedMotionPose, SWITCH_MS, sitePose, switchEase, type DirectorInput, type Pose } from "../src/scene3d/cameraDirector";
 import { indexEphemeris, rotate, sceneStateAt } from "../src/scene3d/ephemeris";
-import { padUp } from "../src/scene3d/launch";
-import { bodyRadius, EARTH_RADII_KM, MOON_RADIUS_KM, pointToScene, toScene, type Vec3 } from "../src/scene3d/scale";
+import { launchPositionKm, padUp } from "../src/scene3d/launch";
+import { bodyRadius, EARTH_RADII_KM, MOON_RADIUS_KM, pointToScene, rocketScenePoint, toScene, type Vec3 } from "../src/scene3d/scale";
 import { siteBodyFixedKm, sitePositionKm } from "../src/scene3d/trajectory";
 
 const DATA = join(__dirname, "..", "public", "data");
@@ -30,7 +32,12 @@ function setup(planId: string) {
   const siteBody = siteBodyFixedKm(traj, ix);
   const input = (t: number): DirectorInput => {
     const s = sceneStateAt(ix, t);
+    // the rocket as the renderer draws it (A9: the director follows it down to the site)
+    const siteKm = sitePositionKm(siteBody, s.moonKm, s.moonQuat);
+    const anchor = pointToScene(siteKm, s.moonKm);
+    const rocketKm = t >= tl.landingMs ? siteKm : launchPositionKm(traj, s.earthQuat, t);
     return {
+      rocket: rocketScenePoint(rocketKm, s.moonKm, siteKm, anchor, localBlend(tl, t)),
       t,
       moon: toScene(s.moonKm),
       sunDir: s.sunDir,
@@ -52,14 +59,16 @@ const angle = (a: Vec3, b: Vec3) => {
 };
 const view = (p: Pose) => sub(p.target, p.position);
 
-function jumps(tl: MissionTimeline, input: (t: number) => DirectorInput, stepMs: number) {
+/** Frame by frame at 60 fps and `hoursPerSecond`, at the rate the playback really runs (slow around launch and
+ *  landing, A9), from the countdown to the end of the stay. */
+function jumps(tl: MissionTimeline, input: (t: number) => DirectorInput, hoursPerSecond: number) {
   let maxDir = 0;
   let maxUp = 0;
   let maxRel = 0;
   let atDir = 0;
   let atUp = 0;
   let prev = directorPose(tl, input(tl.startMs));
-  for (let t = tl.startMs + stepMs; t <= tl.endMs; t += stepMs) {
+  for (let t = tl.startMs + (1000 / 60) * playbackRate(tl, tl.startMs, hoursPerSecond); t <= tl.endMs; t += (1000 / 60) * playbackRate(tl, t, hoursPerSecond)) {
     const p = directorPose(tl, input(t));
     const d = angle(view(prev), view(p));
     const u = angle(prev.up, p.up);
@@ -77,10 +86,10 @@ function jumps(tl: MissionTimeline, input: (t: number) => DirectorInput, stepMs:
 
 describe("camera director: continuous path, no jumps between frames", () => {
   for (const planId of ["haworth_20270309_7d", "connecting_ridge_20270102_7d", "malapert_massif_20271015_14d"]) {
-    it(`${planId}: at 6 h/s (6 min of mission per frame at 60 fps) and at 1 h/s`, () => {
+    it(`${planId}: at 6 h/s (6 min of mission per frame at 60 fps, slower around launch and landing) and at 1 h/s`, () => {
       const { tl, input } = setup(planId);
-      const fast = jumps(tl, input, 6 * 60_000);
-      const slow = jumps(tl, input, 60_000);
+      const fast = jumps(tl, input, 6);
+      const slow = jumps(tl, input, 1);
       console.log(
         `camera ${planId}: per frame at 6 h/s → view ${fast.maxDir.toFixed(2)}°, up ${fast.maxUp.toFixed(2)}°, move ${(fast.maxRel * 100).toFixed(1)} % of the distance; at 1 h/s → ${slow.maxDir.toFixed(2)}°, ${slow.maxUp.toFixed(2)}°, ${(slow.maxRel * 100).toFixed(1)} % · ${fast.where}`,
       );
@@ -96,7 +105,7 @@ describe("camera director: continuous path, no jumps between frames", () => {
     let worst = { dir: 0, up: 0, rel: 0 };
     for (const id of ids) {
       const { tl, input } = setup(id);
-      const j = jumps(tl, input, 6 * 60_000);
+      const j = jumps(tl, input, 6);
       if (j.maxUp > 6 || j.maxDir > 6) console.log(`camera ${id}: view ${j.maxDir.toFixed(2)}°, up ${j.maxUp.toFixed(2)}° · ${j.where}`);
       worst = { dir: Math.max(worst.dir, j.maxDir), up: Math.max(worst.up, j.maxUp), rel: Math.max(worst.rel, j.maxRel) };
     }
@@ -108,17 +117,41 @@ describe("camera director: continuous path, no jumps between frames", () => {
     expect(worst.rel).toBeLessThan(0.2);
   });
 
-  it("ends at the site framing exactly at landing, after travelling Earth → Moon", () => {
+  it("ends at the site framing once the lander has touched down, after travelling Earth → Moon", () => {
     const { tl, input } = setup("haworth_20270309_7d");
-    const atLanding = directorPose(tl, input(tl.landingMs));
-    const framing = sitePose(input(tl.landingMs));
-    expect(len(sub(atLanding.position, framing.position))).toBeLessThan(1e-12);
+    const settled = tl.landingMs + CHASE_WINDOWS.out[1];
+    const atEnd = directorPose(tl, input(settled));
+    const framing = sitePose(input(settled));
+    expect(len(sub(atEnd.position, framing.position))).toBeLessThan(1e-12);
     const start = directorPose(tl, input(tl.startMs));
     expect(len(start.target)).toBeLessThan(bodyRadius(EARTH_RADII_KM.equatorial)); // looks at the Earth at launch
     // at the end: a few km from the site at real local scale (1.5 km up, 5 km back), looking 10 km past it
-    const site = input(tl.landingMs).site;
-    expect(len(sub(atLanding.position, site)) * 1000).toBeCloseTo(Math.hypot(1.5, 5), 6);
-    expect(len(sub(atLanding.target, site)) * 1000).toBeCloseTo(10, 6);
+    const site = input(settled).site;
+    expect(len(sub(atEnd.position, site)) * 1000).toBeCloseTo(Math.hypot(1.5, 5), 6);
+    expect(len(sub(atEnd.target, site)) * 1000).toBeCloseTo(10, 6);
+  });
+
+  it("A9: follows the lander down the powered descent, keeping it in view, and touches down with it", () => {
+    for (const planId of ["haworth_20270309_7d", "connecting_ridge_20270102_7d", "malapert_massif_20271015_14d"]) {
+      const { tl, input } = setup(planId);
+      let far = 0;
+      let off = 0;
+      // from the end of the catch-up to touchdown, every 10 s of mission
+      for (let t = tl.landingMs + CHASE_WINDOWS.in[1]; t <= tl.landingMs; t += 10_000) {
+        const i = input(t);
+        const p = directorPose(tl, i);
+        const toRocket = sub(i.rocket as Vec3, p.position);
+        far = Math.max(far, len(toRocket) * 1000); // km
+        off = Math.max(off, angle(view(p), toRocket)); // the lander's angle from the centre of the view
+      }
+      expect(far, planId).toBeLessThan(Math.hypot(CHASE_KM.back, CHASE_KM.up) + 0.01);
+      expect(off, planId).toBeLessThan(25); // well inside the 45° field of view
+      // at touchdown the camera is behind the lander, on the site, and already looks the site framing's way
+      const i = input(tl.landingMs);
+      const atTouchdown = directorPose(tl, i);
+      expect(len(sub(i.rocket as Vec3, i.site))).toBeLessThan(1e-9);
+      expect(angle(view(atTouchdown), view(sitePose(i)))).toBeLessThan(15);
+    }
   });
 });
 

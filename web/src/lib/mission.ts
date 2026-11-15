@@ -81,8 +81,32 @@ export const LAUNCH_RAMP_MS = 30 * 60_000;
 /** Detailed launch (T6.3.a): 2 minutes of mission per second during the ascent, so the staging can be seen. */
 export const ASCENT_SLOW_RATE = 120;
 
+/**
+ * A9: slow motion around the landing too, so the powered descent (its last 12 minutes) and the touchdown can be
+ * followed: playback eases down from the chosen speed over LANDING_RAMP_MS, holds LANDING_SLOW_RATE from
+ * LANDING_HOLD_MS before landing (when the camera catches up with the lander) until LANDING_AFTER_MS after it (the
+ * camera settles on the site), then eases back up over LANDING_RAMP_MS.
+ */
+export const LANDING_SLOW_RATE = 90; // 1.5 min of mission per second: the 12-minute powered descent takes 8 s
+export const LANDING_HOLD_MS = 16 * 60_000;
+export const LANDING_AFTER_MS = 3 * 60_000;
+export const LANDING_RAMP_MS = 40 * 60_000;
+
+function landingRate(tl: MissionTimeline, t: number, full: number): number {
+  if (full <= LANDING_SLOW_RATE) return full;
+  const from = tl.landingMs - LANDING_HOLD_MS;
+  const to = tl.landingMs + LANDING_AFTER_MS;
+  if (t >= from && t <= to) return LANDING_SLOW_RATE;
+  const u = (t < from ? from - t : t - to) / LANDING_RAMP_MS;
+  return u >= 1 ? full : LANDING_SLOW_RATE * (full / LANDING_SLOW_RATE) ** u;
+}
+
 export function playbackRate(tl: MissionTimeline, t: number, hoursPerSecond: number, holdMs = 0): number {
   const full = hoursPerSecond * 3600;
+  return Math.min(launchRate(tl, t, full, holdMs), landingRate(tl, t, full));
+}
+
+function launchRate(tl: MissionTimeline, t: number, full: number, holdMs: number): number {
   if (full <= LAUNCH_SLOW_RATE) return full;
   if (t < tl.launchMs) return LAUNCH_SLOW_RATE;
   // `holdMs` (the detailed launch's staging, T6.3.a): the ascent plays slower still for that long after launch,

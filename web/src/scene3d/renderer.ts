@@ -17,7 +17,7 @@ import { approachPose, CameraController, directorPose, fromFrame, hopPose, local
 import { indexEphemeris, rotate, sceneStateAt } from "./ephemeris";
 import { launchPositionKm, launchStage, padPositionKm, padUp, plumeIntensity, stagingAt } from "./launch";
 import { apparentLength, createPlume, createRocket, ROCKET_SCREEN_FRACTION, setPlume, setStaging } from "./rocket";
-import { bodyRadius, EARTH_RADII_KM, MOON_RADIUS_KM, earthOffset, pointToScene, RelativeOrigin, SPACE_SCALE, toScene, type Vec3 } from "./scale";
+import { bodyRadius, EARTH_RADII_KM, MOON_RADIUS_KM, earthOffset, pointToScene, RelativeOrigin, rocketScenePoint, SPACE_SCALE, toScene, type Vec3 } from "./scale";
 import { siteBodyFixedKm, sitePositionKm, trailSamples, trailStyle } from "./trajectory";
 import { TerrainManager, type TerrainData } from "./terrain";
 import type { PlanSpec } from "./bridge";
@@ -166,6 +166,13 @@ const SHADOW_HALF = 10 / 1000; // 10 km in scene units
 const SHADOW_DEPTH = 130 / 1000;
 /** Mission time the Sun may move (relative to the ground) before the shadow map is redrawn. */
 const SHADOW_REDRAW_MS = 60_000;
+
+/** A9: the lander turns from its flight attitude to upright over the powered descent (its last 12 minutes). */
+const DESCENT_UPRIGHT_MS = 12 * 60_000;
+const smoothstep01 = (x: number) => {
+  const u = Math.min(1, Math.max(0, x));
+  return u * u * (3 - 2 * u);
+};
 
 /** Real size of the rocket at the site, drawn at real local scale (λ = 1): ~100 m, a generic launcher. */
 export const ROCKET_REAL_LENGTH_UNITS = 100 / 1e6;
@@ -426,6 +433,7 @@ export function mountScene(container: HTMLElement, opts: MountOptions): SceneCon
 
   const Y = new THREE.Vector3(0, 1, 0);
   const dir = new THREE.Vector3();
+  const up = new THREE.Vector3();
   let lambda = 0;
   let reportedScale: "space" | "local" | null = null; // A2: the first frame always reports its scale
   if (import.meta.env.DEV)
@@ -483,6 +491,11 @@ export function mountScene(container: HTMLElement, opts: MountOptions): SceneCon
     // the site as drawn (×6): the fixed point of the re-scaling (the camera path stays smooth)
     const anchor = siteKm ? pointToScene(siteKm, state.moonKm) : moonW;
     input.site = anchor;
+    // the rocket as drawn: on the pad, then the trajectory, then on the site (which moves with the Moon); placed
+    // before the camera so the director can follow it down (A9)
+    const rocketKm = traj ? (t >= landingMs && siteKm ? siteKm : launchPositionKm(traj, state.earthQuat, t)) : null;
+    const rocketAt = rocketKm ? rocketScenePoint(rocketKm, state.moonKm, siteKm, anchor, lambda) : null;
+    if (rocketAt && !planning) input.rocket = rocketAt;
     const scaleNow = lambda >= 0.5 ? "local" : "space";
     if (scaleNow !== reportedScale) {
       reportedScale = scaleNow;
@@ -604,18 +617,19 @@ export function mountScene(container: HTMLElement, opts: MountOptions): SceneCon
       // rocket: on the pad during the countdown, then the trajectory; after landing it stays on the site,
       // which moves with the Moon
       const stage = launchStage(traj, t);
-      const km = t >= landingMs && siteKm ? siteKm : launchPositionKm(traj, state.earthQuat, t);
-      let p = pointToScene(km, state.moonKm);
-      if (lambda > 0 && siteKm) {
-        // near the site, blend its offset from the site between the pushed-out (×6) and the true geometry
-        const trueRel = toScene([km[0] - siteKm[0], km[1] - siteKm[1], km[2] - siteKm[2]]);
-        p = [0, 1, 2].map((c) => anchor[c] + (p[c] - anchor[c]) * (1 - lambda) + trueRel[c] * lambda) as Vec3;
-      }
+      const p = rocketAt as Vec3;
       handle.world.set(rocket, p);
       if (t >= landingMs) dir.set(input.site[0] - moonW[0], input.site[1] - moonW[1], input.site[2] - moonW[2]); // standing on the site
       else if (stage === "flight") {
-        const next = pointToScene(launchPositionKm(traj, state.earthQuat, t + 120_000), state.moonKm);
-        dir.set(next[0] - p[0], next[1] - p[1], next[2] - p[2]);
+        // nose along the motion: the point 2 minutes on, drawn the same way (near the site, relative to the site at
+        // that instant, so the Moon's own motion does not tilt the lander at real local scale)
+        const s2 = sceneStateAt(ix, t + 120_000);
+        const site2 = siteBody ? sitePositionKm(siteBody, s2.moonKm, s2.moonQuat) : null;
+        const next = rocketScenePoint(launchPositionKm(traj, s2.earthQuat, t + 120_000), s2.moonKm, site2, anchor, lambda);
+        dir.set(next[0] - p[0], next[1] - p[1], next[2] - p[2]).normalize();
+        // A9: through the powered descent the lander turns upright, so it touches down standing (no flip)
+        const upright = smoothstep01((t - (landingMs - DESCENT_UPRIGHT_MS)) / DESCENT_UPRIGHT_MS);
+        if (upright > 0) dir.lerp(up.set(p[0] - moonW[0], p[1] - moonW[1], p[2] - moonW[2]).normalize(), upright);
       } else dir.set(p[0], p[1], p[2]); // standing up and climbing: along the local vertical
       if (dir.lengthSq() > 0) rocket.quaternion.setFromUnitVectors(Y, dir.normalize());
       const dist = Math.hypot(p[0] - pose.position[0], p[1] - pose.position[1], p[2] - pose.position[2]);

@@ -10,7 +10,7 @@
  */
 import type { MissionTimeline } from "../lib/mission";
 import { phaseAt, type PlayPhase } from "../lib/mission";
-import type { Vec3 } from "./scale";
+import { MOON_RADIUS_KM, type Vec3 } from "./scale";
 
 export interface Pose {
   position: Vec3;
@@ -28,6 +28,7 @@ export interface DirectorInput {
   padUpAtLaunch: Vec3; // local vertical of the pad at launch_utc (fixed framing of the launch)
   moonNorth: Vec3; // Moon spin axis (body +Z) in world
   site: Vec3; // landing point on the drawn Moon surface
+  rocket?: Vec3; // the rocket as drawn (scale.ts rocketScenePoint): A9, the camera follows it down to the site
 }
 
 const add = (a: Vec3, b: Vec3): Vec3 => [a[0] + b[0], a[1] + b[1], a[2] + b[2]];
@@ -222,6 +223,28 @@ export function lerpPose(a: Pose, b: Pose, w: number): Pose {
   return { position, target: add(position, mul(forward, dist)), up };
 }
 
+/**
+ * A9: following the lander down. During the powered descent the camera rides CHASE_KM behind and above the lander,
+ * on its way to the site and looking where it goes: towards the Earth's side, like the site framing, because the
+ * illustrative descent ends flying that way (pipeline/trajectory.py, A5). Scene units = 1000 km; the lander is
+ * ~100 m long at real local scale, about 7° on screen from here once it turns upright.
+ */
+export const CHASE_KM = { back: 0.8, up: 0.22, ahead: 0.5 } as const;
+/** It catches up with the lander from the site framing before the descent starts, and settles back after landing. */
+export const CHASE_WINDOWS = { in: [-16 * 60_000, -10 * 60_000], out: [0, 3 * 60_000] } as const;
+
+export function chasePose(i: DirectorInput, rocket: Vec3): Pose {
+  const k = 1 / 1000;
+  const normal = unit(sub(i.site, i.moon));
+  const toEarth = unit(mul(i.site, -1));
+  const horiz = unit(sub(toEarth, mul(normal, dot(toEarth, normal))));
+  // the local vertical under the lander: the site's, tilted by its offset over the real Moon radius (real scale)
+  const up = unit(add(mul(normal, MOON_RADIUS_KM * k), sub(rocket, i.site)));
+  const forward = unit(sub(horiz, mul(up, dot(horiz, up))));
+  const position = add(add(rocket, mul(forward, -CHASE_KM.back * k)), mul(up, CHASE_KM.up * k));
+  return pose(position, add(rocket, mul(forward, CHASE_KM.ahead * k)), up);
+}
+
 /** Blend windows around the phase changes (ms): long enough to stay smooth at the fastest playback speed. */
 export const WINDOWS = {
   launchToTransit: [-30 * 60_000, 8 * 3_600_000], // around injection
@@ -273,7 +296,15 @@ export function directorPose(tl: MissionTimeline, i: DirectorInput): Pose {
   let p = launchPose(i);
   p = lerpPose(p, transitPose(i), weight(t, tl.injectionMs, WINDOWS.launchToTransit));
   p = lerpPose(p, landingPose(i, lp), weight(t, tl.lunarArrivalMs, WINDOWS.transitToLanding));
-  return approachPose(p, sitePose(i), i.site, approachProgress(tl, t));
+  p = approachPose(p, sitePose(i), i.site, approachProgress(tl, t));
+  if (!i.rocket) return p;
+  // A9: catch up with the lander (distance to it on a log scale, like the final approach), ride down with it,
+  // then settle on the site framing after touchdown
+  if (t <= tl.landingMs) {
+    const w = weight(t, tl.landingMs, CHASE_WINDOWS.in);
+    return w > 0 ? approachPose(p, chasePose(i, i.rocket), i.rocket, w) : p;
+  }
+  return lerpPose(chasePose(i, i.rocket), p, weight(t, tl.landingMs, CHASE_WINDOWS.out));
 }
 
 /** Reduced motion: one fixed framing per phase (a cut at each phase change, nothing sweeps). */

@@ -3939,3 +3939,34 @@ Las trayectorias ILLUSTRATIVE, los datos SYNTHETIC y toda desviación de la spec
 - **Desviaciones de la spec / cambios en la guía:** ninguna.
 - **Problemas abiertos:** ninguno nuevo.
 - **Siguiente tarea:** revisión del humano.
+
+## AJUSTE · A9 · La cámara sigue al módulo en el aterrizaje
+
+- **Tarea:** petición del humano: al aterrizar, el cohete aparecía en otro lado del que seguía la cámara. Cubre lo que quedó pendiente de A5.
+- **Causa:**
+  - La cámara guiada hacía un acercamiento fijo al sitio en las últimas 8 h, sin mirar al cohete, que en ese tiempo daba dos vueltas en órbita baja y bajaba desde 480 km de distancia.
+  - A 6 h/s, el descenso propulsado (12 min) duraba 0.03 s en pantalla.
+  - A escala local, la orientación del cohete mezclaba la geometría ×6 con la real y salía torcida.
+- **Qué se hizo:**
+  - `lib/mission.ts`: cámara lenta también en el aterrizaje. `playbackRate` baja en 40 min hasta 90× (1.5 min de misión por segundo), la mantiene desde 16 min antes del contacto hasta 3 min después y vuelve a subir. A 6 h/s, el descenso dura 8 s y la última hora antes del contacto, 15.5 s.
+  - `scene3d/scale.ts`: `rocketScenePoint()`, la posición del cohete tal como se dibuja. La usan el renderizador y las pruebas.
+  - `scene3d/cameraDirector.ts`:
+    - `chasePose()` pone la cámara 0.8 km detrás y 0.22 km por encima del módulo, mirando hacia donde va. Esa dirección es el lado de la Tierra, la misma del encuadre del sitio, porque el descenso de A5 termina volando hacia allí.
+    - El director alcanza al módulo entre 16 y 10 min antes del contacto (distancia en escala logarítmica, como el acercamiento final), baja con él y, en los 3 min tras el contacto, pasa suavemente al encuadre del sitio.
+    - Con «Reduce motion» no hay seguimiento (encuadres fijos, como antes).
+  - `scene3d/renderer.ts`:
+    - Calcula el cohete antes que la cámara y se lo pasa al director.
+    - La orientación usa el punto 2 min después, dibujado igual y relativo al sitio en ese instante.
+    - Durante el descenso propulsado el módulo se endereza poco a poco, así que toca suelo de pie, sin el giro brusco de antes.
+  - La etiqueta de la cámara lenta dice «Slow motion».
+- **Cómo se verificó:**
+  ```
+  $ npm --prefix web run typecheck → sin errores
+  $ npm --prefix web test → 431 passed
+  ```
+  - `camera.test.ts`: la prueba de saltos avanza cuadro a cuadro con la velocidad real de reproducción e incluye el cohete. Peor cuadro a 6 h/s: 4° de giro, 6 h antes del aterrizaje y no en el seguimiento.
+  - `camera.test.ts`, prueba nueva: durante el descenso la cámara está a ≤ 0.83 km del módulo, que queda a menos de 25° del centro de la vista. Al tocar suelo mira ya en la dirección del encuadre del sitio (< 15°) y 3 min después está exactamente en él.
+  - `mission.test.tsx`: cámara lenta continua (< 20 % por minuto de misión) y descenso de 8 s.
+  - Escena real (Chrome sin cabeza, reproducción real a 6 h/s desde 15 min antes, captura cada 1.5 s): la cámara alcanza al módulo (15.5 km → 0.83 km) y lo acompaña a 0.83 km hasta el contacto. El módulo baja enderezándose hacia el marcador de aterrizaje. Luego entra la vista desde la superficie. Sin errores en consola.
+- **Desviaciones de la spec / cambios en la guía:** ninguna. La trayectoria sigue siendo ILLUSTRATIVE.
+- **Problemas abiertos:** el polvo al tocar suelo (A5) sigue sin hacer.
