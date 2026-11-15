@@ -3155,6 +3155,21 @@ Las trayectorias ILLUSTRATIVE, los datos SYNTHETIC y toda desviación de la spec
   - Mapa (`MoonMap.tsx`, `PlannerView.tsx`): `SiteTone` pasa a ser el `Verdict`. Cada pin lleva `data-sun`, `data-earth` y `data-tone`, una marca de Tierra arriba a la derecha del punto, y el estado en `title`. El pin elegido conserva el anillo si hay noche (antes se volvía un disco ámbar sin forma).
   - Panel del sitio (`SiteBrief.tsx`): una frase bajo el nombre con las marcas, por ejemplo «Sunlit all stay, but no direct Earth contact at any time.» o «A 0.5 h night and up to 164 h without direct Earth contact.».
   - Se probó una cuarta métrica («Earth gap») y se descartó: rompía el ajuste sin scroll y repetía la cifra que ya da la frase.
+
+## AJUSTE · A4 · Sonidos de control de misión
+
+- **Tarea:** A4 del plan de mejoras del 14-nov-2026.
+- **Qué se hizo:** `lib/sfx.ts` (nuevo) genera las señales con Web Audio, sin archivos de audio:
+  - **Cuenta regresiva:** pitidos en T− 3, 2 y 1 min (la cuenta de 5 min dura cerca de un segundo).
+  - **Despegue:** retumbo de ruido grave filtrado de unos 4 s sobre un golpe de 45 Hz, en la Tierra.
+  - **Tránsito:** doble pitido de telemetría cada 12 h, como máximo uno cada 1.5 s reales.
+  - **Llegada a la órbita lunar:** campanilla de dos notas.
+  - **Toque de suelo («contact light»):** tres pitidos ascendentes.
+  - **Nada de motor en el vacío:** el único retumbo es el del despegue.
+  - **Cuándo suenan:** solo durante la reproducción, al cruzar el momento (`MissionControls`, bucle de reproducción). Un salto, mover la barra o «Land at …» no suenan.
+  - **Sonido apagado:** comparten el contexto de audio de la música (`ambient.liveContext`), así que callan con el botón de sonido apagado o mientras el navegador no deja reproducir.
+  - **Reduce motion:** con «Reduce motion» no suenan.
+  - **Créditos:** «About & credits» (`lib/credits.ts`) las describe como generadas e ilustrativas, y aclara que en el espacio no se oye el motor.
 - **Cómo se verificó:**
   ```
   $ npm --prefix web run typecheck → sin errores
@@ -3355,6 +3370,162 @@ Las trayectorias ILLUSTRATIVE, los datos SYNTHETIC y toda desviación de la spec
 - **Problemas abiertos:** el día anterior al 1-ene y el posterior al último día de llegada no tienen datos (fila «outside the data»).
 - **Siguiente tarea:** B8 (frase del horizonte; necesita el visto bueno para tocar `views/Panorama.tsx`).
 
+## AJUSTE · A6 (parte 1) · Atmósfera de la Tierra
+
+- **Tarea:** A6 del plan de mejoras del 14-nov-2026, la parte que no necesita archivos nuevos.
+- **Qué se hizo** (`scene3d/bodies.ts`): la Tierra tiene ahora una capa delgada, hija de su malla, de 1.025 veces su radio dibujado. Brilla en el borde (Fresnel) solo en el lado de día y se apaga en el terminador.
+  - `ShaderMaterial` aditivo, sin escritura de profundidad y con los fragmentos de profundidad logarítmica de three.js.
+  - La dirección del Sol llega por `updateBodies` en cada cuadro.
+  - Al ser hija de la Tierra, sigue su elipsoide y el cambio a escala real.
+  - No usa imágenes. «About & credits» (`lib/credits.ts`) la anota como efecto dibujado, no como medida.
+- **Cómo se verificó:**
+  ```
+  $ npm --prefix web run typecheck → sin errores
+  $ npm --prefix web test → 292 passed
+  ```
+  - `tests/bodies.test.ts`: la capa es hija de la Tierra, aditiva, sin escritura de profundidad, de radio 1.025× y con la dirección del Sol de la efeméride.
+  - Chrome sin cabeza (1366×768, escena real): el borde azul aparece en el lado iluminado durante la cuenta regresiva y el tránsito, a 60.3 fps.
+- **Pendiente de A6 (necesita descargas, a la espera del visto bueno):**
+  - **Relieve de la Luna:** CGI Moon Kit (SVS 4720), `ldem_4_uint.tif` (1440×720, 2.0 MB según la página, 16 bits en medios metros sobre 1727.4 km con +20 000 de desplazamiento) o `ldem_4.tif` (flotante en km, 4.0 MB). Crédito pedido: «NASA's Scientific Visualization Studio».
+  - **Luces nocturnas de la Tierra:** Black Marble 2016, `BlackMarble_2016_01deg.jpg` (3600×1800, tamaño no publicado en la página) en science.nasa.gov. La página no muestra licencia; habría que confirmar las pautas de reproducción de NASA.
+  - **Nubes:** la textura actual de la Tierra (SVS 3615) ya las trae dentro.
+- **Siguiente tarea:** A6 parte 2 si se aprueban las descargas.
+
+## AJUSTE · A5 · Llegada con captura, órbita baja y descenso propulsado
+
+- **Tarea:** A5 del plan de mejoras del 14-nov-2026 (hallazgo H5). Sigue siendo **ILLUSTRATIVE**.
+- **Causa:** la transferencia acababa en un punto fijo a 8 000 km de la Luna con una tangente de `0.6·chord` que la frenaba. Después, la fase 4 bajaba el radio con `1−(1−s)^3`, así que en las últimas horas la nave parecía detenida, «esperando» a la Luna.
+- **Qué se hizo** (`pipeline/trajectory.py`, clase `Arrival`): la fase 4 se calcula en el marco fijo de la Luna (MOON_ME), en un plano polar que pasa por el sitio. El aterrizaje queda en θ = 0, y el plano se orienta para que la llegada empiece del lado de la Tierra.
+  1. **Hipérbola de aproximación** (Kepler con el GM lunar de DE440, exceso de 0.8 km/s), desde unos 29 000 km hasta 100 km de altura. Esa distancia sale de que la llegada quepa en las 12 h de siempre.
+  2. **Frenado de captura** en el perilunio: de 2.45 a 1.63 km/s.
+  3. **Dos vueltas** en órbita circular a 100 km (3.9 h).
+  4. **Órbita de descenso:** media elipse de 100 × 15 km (0.95 h).
+  5. **Descenso propulsado de 12 min y 480 km.** La velocidad horizontal empieza en la del periselenio y acaba en 0; la altura baja con un perfil suave. Termina exactamente en `arrival_utc`.
+  - La transferencia termina con la velocidad del inicio de la hipérbola, así que no hay parada aparente.
+  - Referencia cualitativa en el código: Apolo 11 (~1 día en órbita, descenso de ~12 min). Los parámetros son de diseño, no datos de una misión.
+  - Las fases del contrato (`lunar_arrival_utc` = llegada − 12 h, `landing_utc`) no cambian.
+  - Muestras por trayectoria: 123 → 189 (7.3 kB cada una, 13.3 MB en total, antes 8.8 MB).
+  - Se regeneraron con `python -m pipeline.trajectory --plot` y `python -m pipeline.build_all --assemble`. Solo cambiaron `trajectory/*`, `manifest.json` (versión, fecha y huellas de esos archivos) y `docs/figures/trajectory_examples.png`.
+- **Cómo se verificó:**
+  ```
+  $ .venv/Scripts/python -m pytest → 279 passed (incluye T2.2.b: continua, < 12 km/s, nunca dentro de la Tierra ni de la Luna, aterrizaje < 1 km)
+  $ .venv/Scripts/python -m pipeline.validate web/public/data → OK: cumple el contrato 1.0.0
+  $ npm --prefix web test → 269 passed (45 archivos)
+  ```
+  - Los 5 sitios con llegada el 11 ene 2027 (script temporal fuera del repo), velocidades respecto a la Luna:
+
+    | Tramo | Velocidad |
+    |---|---|
+    | Fin de la transferencia → inicio de la llegada (J2000) | 1.37 → 1.43 km/s |
+    | Hipérbola | 0.99–2.45 km/s |
+    | Órbita baja | 1.63 km/s |
+    | Órbita de descenso | 1.61–1.69 km/s |
+    | Descenso propulsado | 1.61 → 0.01 km/s |
+
+    - Altura mínima antes de tocar suelo: 1.7–6.8 km sobre la esfera.
+    - Error de aterrizaje: ≤ 0.05 km (redondeo a 0.1 km).
+  - Escena real (Chrome sin cabeza, servidor de desarrollo, capturas a 10 h, 4 h, 40 min, 6 min y 30 s del aterrizaje): la estela entra por la hipérbola y rodea la Luna dibujada (×6) por fuera de su superficie. A escala real se ve la traza del descenso sobre el terreno. Escala «Not to scale» → «Real scale» como antes.
+  - `integration.test.tsx` T5.1.b: `main` ya espera la cinta (c960245); esta rama además espera la caja de métricas con `findBy…` (el mismo cambio de una línea está en las ramas de A1, A4 y A5).
+- **No se hizo (del texto de A5):** la cámara que sigue al módulo en el descenso y el polvo al tocar suelo. La cámara guiada termina igual que antes, a 5 km del sitio mirando hacia él. Cambiarla exige rehacer el tramo final del director y sus pruebas de «sin saltos», con más riesgo del que conviene antes de la entrega. Quedan como mejora.
+- **Desviaciones de la spec / cambios en la guía:** ninguna; la trayectoria sigue marcada ILLUSTRATIVE en la interfaz.
+- **Problemas abiertos:** la estela de 800 puntos uniformes en el tiempo dibuja cada vuelta baja con unos 22 segmentos; se ve poligonal de cerca.
+- **Siguiente tarea:** A6.
+
+  - `tests/sfx.test.ts` (nuevo):
+    - una misión completa reproducida da las señales en orden;
+    - el mismo resultado con pasos finos y gruesos;
+    - un cuadro largo en la aproximación da órbita y toque juntos;
+    - nada hacia atrás ni fuera del tránsito;
+    - silencio sin contexto o con «Reduce motion»;
+    - regulador de la telemetría.
+  - Chrome sin cabeza sobre el servidor de desarrollo, «Launch» a 6 h/s, frecuencias programadas en orden: `1000 1000 1000 45 1400 1800 ×4 660 990 880 1100 1320`. La quinta telemetría cayó dentro del límite de 1.5 s por cuadros lentos. Con «Reduce motion»: ningún nodo de audio.
+  - Corrección durante la verificación: en la aproximación los cuadros se alargan al cargar el terreno, y un límite de 6 h por paso callaba la órbita y el toque. Se quitó: solo el bucle de reproducción llama a `crossedCues`.
+  - `integration.test.tsx` T5.1.b: `main` ya espera la cinta (c960245); esta rama además espera la caja de métricas con `findBy…` (el mismo cambio de una línea está en las ramas de A1, A4 y A5).
+- **Desviaciones de la spec / cambios en la guía:** ninguna. Los sonidos son ILLUSTRATIVE, como el viaje.
+- **Problemas abiertos:** falta oírlos con altavoces reales para ajustar el volumen (`LEVEL` en `sfx.ts`).
+- **Siguiente tarea:** A5.
+
+## AJUSTE · A3 · Cámara cómoda con touchpad, ratón y pellizco
+
+- **Tarea:** A3 del plan de mejoras del 14-nov-2026 (hallazgo H4).
+- **Qué se hizo:**
+  - `scene3d/cameraInput.ts` (nuevo):
+    - El zoom de la rueda es proporcional a `deltaY`: una muesca de ratón (100 px) ≈ ×1.13, parecido al ×1.1 fijo de antes, y los deltas pequeños del touchpad suman lo mismo.
+    - Admite `deltaMode` en líneas y páginas, y el pellizco (`ctrlKey` + rueda) con su propia sensibilidad.
+    - Cada evento se limita a ×1.35.
+    - El zoom entra suavizado en unos cuadros (τ = 90 ms). Un arrastre que se suelta en movimiento sigue girando y se frena (τ = 160 ms); si el puntero estaba quieto antes de soltar, no hay inercia. Con «Reduce motion» todo se aplica al instante.
+  - `scene3d/renderer.ts` usa ese módulo; «+» y «−» también entran suavizados.
+  - **Salto real encontrado y corregido:** a escala local (vista aérea del sitio, a unos 5 km) el mínimo de distancia era el 5 % del radio lunar dibujado a escala espacial (~520 km). El primer zoom lanzaba la cámara a ese mínimo: ×34 de golpe.
+    - Ahora el mínimo es 0.5 km a escala local.
+    - `CameraController.zoom` nunca empuja la cámara hacia fuera por el mínimo.
+  - El botón «Guided camera» (ya existente) devuelve el control al director y descarta el zoom o el giro pendientes. El texto de ayuda de la escena menciona el pellizco.
+- **Cómo se verificó:**
+  ```
+  $ npm --prefix web run typecheck → sin errores
+  $ npm --prefix web test → 276 passed (46 archivos)
+  ```
+  - `tests/camera.test.ts`, 7 pruebas nuevas:
+    - zoom proporcional;
+    - pellizco;
+    - suavizado sin saltos y sin pérdida;
+    - inercia que se detiene;
+    - sin inercia tras quedarse quieto;
+    - «Reduce motion»;
+    - el mínimo de distancia sin saltos.
+  - Chrome sin cabeza sobre el servidor de desarrollo (1366×768, escena real, vista aérea de Connecting Ridge, script temporal fuera del repo):
+
+    | Gesto | Resultado | Esperado | Paso máximo por cuadro |
+    |---|---|---|---|
+    | 40 eventos de touchpad de 3 px | ×1.1549 | ×1.1549 | 0.7 % (antes del arreglo: ×39.9, con un salto de ×34) |
+    | Una muesca de ratón | ×1.1275 | ×1.1275 | 3.7 % |
+    | Pellizco | ×0.6703 | ×0.6703 | — |
+
+    - Arrastre rápido de 0.48 rad: sigue girando 0.51 rad y se detiene.
+    - «Guided camera» devuelve el modo director.
+- **Desviaciones de la spec / cambios en la guía:** ninguna.
+- **Problemas abiertos:** el tacto final (sensibilidad, inercia) conviene probarlo con un touchpad real; las constantes están juntas en `cameraInput.ts`.
+- **Siguiente tarea:** A4.
+
+## AJUSTE · A1 · Vistas Sky y Data en el sitio
+
+- **Tarea:** A1 del plan de mejoras del 14-nov-2026 (hallazgo H2), decisión A10.
+- **Qué se hizo:**
+  - **Selector «Sky | Data»** junto a «Back to planning» (`views/MissionStage.tsx`, `SiteViewSwitch` en `views/SiteLayout.tsx`). Cada llegada abre en «Sky».
+  - **Sky:** el 3D a pantalla completa, la telemetría a la izquierda, la tarjeta «Time left» a la derecha (cifras de 36 px en lugar de 44) con «Site details and sources», «3D terrain shadows» y la vista aérea, y la barra de tiempo abajo.
+  - **Data:** la consola 2D a todo el ancho (panorama, cinta, pestañas «What happens next» y «Window metrics», «Site details and sources»). Se ocultan la telemetría y las miniaturas. La consola se ajusta a su contenido; si una tabla larga no cabe, se desplaza dentro de la consola y la barra de tiempo no se mueve.
+  - Las dos vistas leen `missionTime`, así que cambiar de vista conserva el instante.
+  - CSS (`styles/tokens.css`): una rejilla para cada vista (`:has(.site-layout[data-view="data"])`). Fuera la regla que hacía desplazarse la página en pantallas de menos de 860 px, la consola plegada y la regla de miniaturas que ya no aplica. `TimeLeft.tsx` no se tocó (sus textos son de B).
+- **Cómo se verificó:**
+  ```
+  $ npm --prefix web run typecheck → sin errores
+  $ npm --prefix web test → 269 passed (45 archivos), dos veces seguidas
+  ```
+  - Navegador (servidor de desarrollo, escena real), Connecting Ridge con «Land at»:
+    - 1366×768: barra de tiempo en y = 647–744 en las dos vistas, tarjeta sin recorte (`scrollHeight == clientHeight`), sin scroll de página ni del escenario.
+    - 1920×1080: barra de tiempo en y = 997–1056, igual sin scroll.
+    - Al cambiar de vista el reloj sigue en «T+ 3d 00:00».
+  - Pruebas actualizadas: `plannerSidebar.test.tsx` (flujo Sky → Data → Sky con el mismo `missionTime`; TR.2.e y T6.1.c pasan por «Data» para el panorama y las métricas) e `integration.test.tsx` (el panorama del sitio está en «Data»).
+  - `integration.test.tsx` T5.1.b: `main` ya espera la cinta (c960245); esta rama además espera la caja de métricas con `findBy…` (el mismo cambio de una línea está en las ramas de A1, A4 y A5).
+- **Desviaciones de la spec / cambios en la guía:** A10. El panorama y el 3D ya no se ven a la vez en el sitio; se pasa de uno a otro con un clic y en el mismo instante.
+- **Problemas abiertos:** el HMR del servidor de desarrollo sigue provocando pérdidas de contexto WebGL (ya anotado); con una recarga completa no pasa.
+- **Siguiente tarea:** A3.
+
+## AJUSTE · A2 · Etiqueta de escala tras salir del sitio
+
+- **Tarea:** A2 del plan de mejoras del 14-nov-2026 (hallazgo H3).
+- **Causa:** `sceneScale` vive en el store y sobrevivía a la escena. «Land at …» la deja en «local»; al volver a planificar la escena se desmonta, y al lanzar el renderizador nuevo arrancaba suponiendo «space» y no la volvía a reportar. La telemetría decía «Real scale» en el despegue y el tránsito.
+- **Qué se hizo:** `SceneHost` devuelve la escala a «space» al desmontar la escena, y el renderizador reporta su escala en el primer cuadro (`reportedScale` empieza en `null`).
+- **Cómo se verificó:**
+  ```
+  $ npm --prefix web run typecheck → sin errores
+  $ npm --prefix web test → 270 passed (46 archivos)
+  ```
+  - `tests/sceneScale.test.tsx` (nuevo): Land at → Back to planning → Launch; «Real scale» en el sitio y «Not to scale» en el lanzamiento. Sin el arreglo falla (queda «local»).
+  - Navegador (servidor de desarrollo, 1366×768, escena real): el mismo recorrido muestra «Real scale» en el sitio y «Not to scale» en el lanzamiento.
+- **Desviaciones de la spec / cambios en la guía:** ninguna.
+- **Problemas abiertos:** ninguno nuevo.
+- **Siguiente tarea:** A1.
+
 ## AJUSTE · B8: frase del horizonte bajo el panorama
 
 - **Tarea:** B8 del plan de mejoras del 14-nov-2026 (persona B, hallazgo H10). En Haworth, el 11-ene a las 00:00 UTC, el Sol está a −2,66° y el estado dice «Sunlit», sin explicación. Rama hecha sobre B7 (`b7-battery-and-neighbour-days`).
@@ -3444,7 +3615,7 @@ Las trayectorias ILLUSTRATIVE, los datos SYNTHETIC y toda desviación de la spec
   - Textos en la sección `challenge` de `strings.ts`; estilos en `styles/challenge.css`.
 - **Cómo se verificó:** `tests/challenge.test.ts` (reglas: días que funcionan en marzo por sitio 23/9/12/12/20 de 31; casos de Haworth 10 y 11 de enero y Nobile Rim 1 2 de marzo; instante sin energía, 17-ene 10:00 y 2-mar 20:00 UTC; paridad con `stayBattery` y con las ventanas precalculadas), `tests/challenge.view.test.tsx` (pantalla, vuelo, corte, reintento, repetición y menú) y `tests/challenge.flow.test.tsx` (entrada desde el Educator). Prueba manual en el navegador.
 - **Desviaciones de la spec / cambios en la guía:** ninguna. El fracaso ocurre siempre en la superficie, por la noche real del sitio; la trayectoria es ILLUSTRATIVE y no decide nada. El lander es el ASSUMED de `lib/energy.ts` (5 kWh, 250 W, 750 W) y se marca así en la pantalla.
-- **Problemas abiertos:** en el capítulo 4 del Educator, «Look around 360°» no cambia nada con Level B (la vista desde el sitio ya está activa) y el texto tapa la escena; se hará aparte, con un botón que alterne la vista y otro que oculte el texto.
+- **Problemas abiertos:** ninguno (lo del capítulo 4 del Educator se resolvió en C3b).
 - **Siguiente tarea:** C4 (niveles 2 y 3: Tierra ≥ 8 h cada día; lanzamiento retrasado 2 días).
 
 ## AJUSTE · B11: buscador del mejor plan («Find the best plan»)
@@ -3474,3 +3645,27 @@ Las trayectorias ILLUSTRATIVE, los datos SYNTHETIC y toda desviación de la spec
   - Batería ASSUMED como restricción (paso 6 del plan) no implementada.
   - README (área de C): falta una línea sobre la función.
 - **Siguiente tarea:** revisión y PR de `b11-best-plan-finder`; avisar a C para el README y el demo.
+
+## AJUSTE · C3b: capítulo 4 del Educator y escena que sigue al plan
+
+- **Tarea:** C3b (hallazgos al probar C3). Rama `c3b-surface-view`.
+- **Qué se hizo:**
+  - Con Level B, el botón del capítulo 4 alterna entre «Stand on the site» y «Aerial view» (como en el panel del sitio). Antes decía «Look around 360°» y no hacía nada, porque la vista desde el sitio ya estaba activa. Sin Level B sigue abriendo el panorama 2D.
+  - «Hide text» / «Show text» en los capítulos 2 a 4: quita el texto grande del centro para ver la escena 3D completa; el título del capítulo, los botones y la etiqueta ILLUSTRATIVE se quedan. El capítulo 1 conserva su texto.
+  - Error corregido: un plan elegido mientras la escena 3D aún cargaba no le llegaba a la escena, que se quedaba con el plan con que arrancó. Al abrir el Educator (que elige el mejor plan del año), sobre todo después del reto, la nave volaba la trayectoria de otro día y no despegaba de la plataforma. `views/useScenePlan.ts` ahora entrega el plan en cuanto la escena está lista, y el Educator usa ese hook en lugar de su copia.
+- **Cómo se verificó:** `tests/educator.test.tsx` (alternar las vistas), `tests/educatorText.test.tsx` (ocultar y mostrar el texto) y `tests/useScenePlan.test.tsx` (plan entregado al terminar de cargar la escena). Prueba manual en el navegador: reto → menú principal → Educator, la nave despega desde la plataforma.
+- **Desviaciones de la spec / cambios en la guía:** ninguna. No se tocó `scene3d/`.
+- **Problemas abiertos:** ninguno.
+- **Siguiente tarea:** C4 (niveles 2 y 3 del reto).
+
+## AJUSTE · C3c: marcador del punto de aterrizaje
+
+- **Tarea:** C3c (petición del humano al revisar la vista aérea). Rama `c3c-landing-marker`.
+- **Qué se hizo:**
+  - `scene3d/terrain.ts`: `siteMarker` dibuja, relativo al sitio en el marco fijo a la Luna, un anillo plano sobre el suelo (140 m de radio) y una baliza vertical de 700 m en el punto de aterrizaje. Va dentro del grupo del terreno, así que aparece con él al acercarse al sitio; se dibuja encima del terreno (sin prueba de profundidad) para que ninguna loma lo tape. Motivo: en la vista aérea (1.5 km de altura, ~5 km atrás) el lander a su tamaño real de 100 m no se ve.
+  - `scene3d/renderer.ts`: una línea que oculta el marcador cuando se está de pie en el sitio (rodearía al observador).
+- **Cómo se verificó:** `tests/siteMarker.test.ts` (anillo plano a 10 m sobre el suelo y con el radio previsto, baliza a lo largo de la vertical local, sin prueba de profundidad, oculto de pie). En el navegador: capítulo 4 del Educator, «Aerial view» muestra el anillo y la baliza en el sitio; «Stand on the site» los oculta.
+- **Desviaciones de la spec / cambios en la guía:** ninguna. Es un marcador visual, sin datos nuevos.
+- **Decisiones tomadas:** los niveles 2 y 3 del reto (C4) quedan como trabajo futuro, por decisión del humano. Propuesta calculada con los datos: nivel 2 «Stay in touch» (batería y Tierra ≥ 8 h cada día) en julio de 2027, 26% de éxito a ciegas; nivel 3 «Launch slip» (la regla del nivel 2 con retraso de 0 a 2 días) en julio, 19%.
+- **Problemas abiertos:** la plataforma de lanzamiento genérica está en latitud 0°, longitud 0° (golfo de Guinea), por eso la nave parece salir de África; cambiarla a un puerto real obliga a regenerar las trayectorias y choca con A5. La Luna fuera del sitio usa una imagen de 4k sin relieve (A6). Ambos se coordinan con la persona A.
+- **Siguiente tarea:** C5 (capturas y README) y C6 (guion y demo).

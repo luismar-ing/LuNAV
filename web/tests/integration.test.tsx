@@ -199,6 +199,7 @@ describe("time", () => {
     fireEvent.click(screen.getByRole("button", { name: "At the site" }));
     fireEvent.change(screen.getByRole("slider", { name: /mission time/i }), { target: { value: String((tl.landingMs + 20 * HOUR - tl.startMs) / 60_000) } });
     const dock = await screen.findByTestId("live-site");
+    fireEvent.click(screen.getByRole("button", { name: "Data" })); // A10: the panorama is in the data view
     await waitFor(() => expect(within(dock).getByTestId("panorama").dataset.sample).toBe("40"));
     expect(screen.getByTestId("thumb-clock").textContent).toBe("Day 1, 20:00");
     const thumb = within(screen.getByTestId("thumb-strip")).getByTestId("thumb");
@@ -259,7 +260,7 @@ describe("same figures in every view (T5.1.b)", () => {
       const expected = Object.fromEntries(METRICS.map(({ key }) => [key, fmtMetric(key, row[key])])) as Record<MetricKey, string>;
 
       // tray: metrics box
-      const box = within(panelOf(id)).getByTestId("metrics-box");
+      const box = await within(panelOf(id)).findByTestId("metrics-box"); // the panel's data load is async
       for (const { key } of METRICS) expect(box.querySelector(`[data-metric="${key}"] .metric-value`)!.textContent, `${id} tray ${key}`).toBe(expected[key]);
       // tray: time ribbon's longest dark = the metric. The ribbon draws its SVG only after its effect has measured
       // the width, and the panels mount from an async load, so the label may land a tick after the panel: wait for it.

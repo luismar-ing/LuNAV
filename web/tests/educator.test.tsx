@@ -107,8 +107,15 @@ describe("Educator chapter 1 (C2)", () => {
       appStore.getState().setLevelB(true); // this part is about the extra switched on
       appStore.getState().setSurfaceView(false);
     });
-    fireEvent.click(screen.getByRole("button", { name: "Look around 360°" }));
-    expect(appStore.getState().surfaceView).toBe(true); // Level B: stand on the site
+    // Level B (C3b): the button switches between standing on the site and the aerial view, as in the site panel
+    expect(screen.queryByText("Drag the sky to look around. Scroll to zoom.")).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "Stand on the site" }));
+    expect(appStore.getState().surfaceView).toBe(true);
+    expect(screen.getByText("Drag the sky to look around. Scroll to zoom.")).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Aerial view" }));
+    expect(appStore.getState().surfaceView).toBe(false);
+    fireEvent.click(screen.getByRole("button", { name: "Stand on the site" }));
+    expect(appStore.getState().surfaceView).toBe(true);
     act(() => appStore.getState().setLevelB(false));
     fireEvent.click(screen.getByRole("button", { name: "Look around 360°" }));
     expect(await screen.findByTestId("panorama", {}, { timeout: 5000 })).toBeTruthy(); // level A instead
