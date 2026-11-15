@@ -1,0 +1,166 @@
+/* C3: the Educator's challenge ("Can your lander make it?"). Its own file so the shared tokens.css stays untouched;
+   only design tokens (CSS custom properties) are used. Outcomes read by shape (✓ / ✗) as well as colour (spec 9). */
+.challenge {
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: clamp(16px, 4vh, 48px) 24px;
+  overflow-y: auto;
+  background: rgb(5 7 13 / 0.55);
+}
+.challenge-panel {
+  width: min(960px, 100%);
+  max-height: 100%;
+  overflow-y: auto;
+  box-sizing: border-box;
+  padding: clamp(20px, 3vh, 32px) 32px;
+  display: flex;
+  flex-direction: column;
+  gap: clamp(14px, 2.2vh, 22px);
+  background: var(--glass-panel-strong);
+}
+.challenge-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+.challenge-title {
+  margin: 8px 0 0;
+  font-family: var(--font-serif);
+  font-weight: 400;
+  font-size: clamp(32px, 3.6vw, 48px);
+  line-height: 1.05;
+}
+.challenge-brief p {
+  margin: 0;
+}
+.challenge-mission {
+  font-size: var(--font-lg);
+}
+.challenge-lander {
+  margin-top: 8px !important;
+  color: var(--color-text-muted);
+  font-size: var(--font-sm);
+}
+.challenge-step-title {
+  margin: 0 0 10px;
+  font-size: var(--font-md);
+  font-weight: 500;
+}
+.challenge-sites {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.challenge-sites button {
+  font: inherit;
+  color: var(--color-text-muted);
+  background: transparent;
+  border: 1px solid var(--color-border-strong);
+  border-radius: 999px;
+  padding: 8px 16px;
+  cursor: pointer;
+}
+.challenge-sites button:hover {
+  color: var(--color-text);
+  background: var(--glass-fill-hover);
+}
+.challenge-sites button[aria-pressed="true"] {
+  color: var(--color-bg);
+  background: var(--color-text);
+  border-color: var(--color-text);
+}
+.challenge-days {
+  display: grid;
+  grid-template-columns: repeat(16, minmax(0, 1fr));
+  gap: 6px;
+}
+.challenge-day {
+  position: relative;
+  font: inherit;
+  font-variant-numeric: tabular-nums;
+  color: var(--color-text);
+  background: transparent;
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-sm);
+  height: 44px;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+}
+.challenge-day:hover {
+  background: var(--glass-fill-hover);
+}
+.challenge-day[aria-pressed="true"] {
+  color: var(--color-bg);
+  background: var(--color-text);
+  border-color: var(--color-text);
+}
+.challenge-day-mark {
+  font-size: 11px;
+  line-height: 1;
+}
+.challenge-day[data-outcome="ok"] {
+  border-color: var(--color-both);
+}
+.challenge-day[data-outcome="ok"]:not([aria-pressed="true"]) .challenge-day-mark {
+  color: var(--color-both);
+}
+.challenge-day[data-outcome="lost"]:not([aria-pressed="true"]) {
+  color: var(--color-text-muted);
+  border-style: dashed;
+}
+.challenge-hint {
+  margin: 8px 0 0;
+  color: var(--color-text-muted);
+  font-size: var(--font-sm);
+}
+.challenge-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+}
+.challenge-actions .challenge-hint {
+  margin: 0;
+}
+.challenge-result {
+  border-top: 1px solid var(--color-border);
+  padding-top: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.challenge-result p {
+  margin: 0;
+}
+.challenge-attempt {
+  color: var(--color-text-muted);
+  font-size: var(--font-sm);
+}
+.challenge-verdict {
+  margin: 0;
+  font-family: var(--font-serif);
+  font-weight: 400;
+  font-size: var(--font-xxl);
+  line-height: 1.1;
+}
+.challenge-result[data-success="true"] .challenge-verdict {
+  color: var(--color-both);
+}
+.challenge-why {
+  font-size: var(--font-lg);
+  line-height: 1.4;
+}
+.challenge-sun,
+.challenge-lesson {
+  color: var(--color-text-muted);
+  font-size: var(--font-sm);
+}

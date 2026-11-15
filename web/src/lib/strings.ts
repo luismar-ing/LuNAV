@@ -210,6 +210,40 @@ export const STRINGS = {
       },
     },
   },
+  challenge: {
+    kicker: (level: number) => `Challenge · Level ${level}`,
+    title: "Can your lander make it?",
+    back: "Back to the story",
+    mission: (stayDays: number, month: string) =>
+      `Your mission: keep the lander powered for ${stayDays} days. You may land on any day in ${month}. Pick a site and a landing day, then launch.`,
+    assumedTitle: "An illustrative lander, not data about any real mission. The sunlight and the nights are the site's real ones.",
+    lander: (kWh: number, loadW: number, solarW: number, fullH: string) =>
+      `Your lander: a ${kWh} kWh battery, a ${loadW} W load and ${solarW} W solar panels. A full battery lasts ${fullH} h of darkness.`,
+    siteStep: "1. Choose a landing site",
+    dayStep: (month: string) => `2. Choose a landing day in ${month}`,
+    dayLabel: (day: string, outcome: boolean | undefined) =>
+      outcome === undefined ? day : `${day}, ${outcome ? "the lander keeps its power" : "the lander loses power"}`,
+    revealHint: (site: string) => `✓ and ✗ show which landing days work at ${site}. Try another site to compare.`,
+    launch: "Launch the mission",
+    pickFirst: "Choose a site and a day first.",
+    loading: "Loading the site data…",
+    attempt: (n: number, site: string, day: string) => `Attempt ${n} · ${site} · landing ${day}`,
+    success: "Mission success",
+    failure: "Your lander lost power",
+    successText: (site: string, stayDays: number, minPct: number) =>
+      `The lander stayed powered for all ${stayDays} days at ${site}. The battery never dropped below ${minPct}%.`,
+    survivedNight: (h: string) => `It rode out a ${h} h night on stored energy.`,
+    noNight: "The Sun never set during the stay.",
+    failureText: (h: string) => `The battery ran empty for ${h} h.`,
+    nightInDark: (fullH: string) => `You landed in the middle of a ${fullH} h night: the Sun was already behind the terrain.`,
+    nightStarts: (fullH: string, day: number, inStayH: string | null) =>
+      `A ${fullH} h night began on day ${day}${inStayH ? `, ${inStayH} h of it during your stay` : ""}.`,
+    batteryLasts: (h: string) => `A full battery lasts ${h} h.`,
+    sunlight: (pct: string) => `Sunlight during the stay: ${pct}% of the time.`,
+    lesson: "At the lunar south pole, a single day's difference can decide whether a lander survives.",
+    tryAgain: "Try again",
+    watch: "Watch your landing",
+  },
   energy: {
     toggle: "Battery (assumed)",
     title: "Show an illustrative battery state of charge under each time ribbon: an ASSUMED lander (5000 Wh, 250 W load, 750 W panels) running on the site's own sunlight. Not data about any mission.",
