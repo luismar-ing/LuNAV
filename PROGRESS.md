@@ -3444,5 +3444,17 @@ Las trayectorias ILLUSTRATIVE, los datos SYNTHETIC y toda desviación de la spec
   - Textos en la sección `challenge` de `strings.ts`; estilos en `styles/challenge.css`.
 - **Cómo se verificó:** `tests/challenge.test.ts` (reglas: días que funcionan en marzo por sitio 23/9/12/12/20 de 31; casos de Haworth 10 y 11 de enero y Nobile Rim 1 2 de marzo; instante sin energía, 17-ene 10:00 y 2-mar 20:00 UTC; paridad con `stayBattery` y con las ventanas precalculadas), `tests/challenge.view.test.tsx` (pantalla, vuelo, corte, reintento, repetición y menú) y `tests/challenge.flow.test.tsx` (entrada desde el Educator). Prueba manual en el navegador.
 - **Desviaciones de la spec / cambios en la guía:** ninguna. El fracaso ocurre siempre en la superficie, por la noche real del sitio; la trayectoria es ILLUSTRATIVE y no decide nada. El lander es el ASSUMED de `lib/energy.ts` (5 kWh, 250 W, 750 W) y se marca así en la pantalla.
-- **Problemas abiertos:** en el capítulo 4 del Educator, «Look around 360°» no cambia nada con Level B (la vista desde el sitio ya está activa) y el texto tapa la escena; se hará aparte, con un botón que alterne la vista y otro que oculte el texto.
+- **Problemas abiertos:** ninguno (lo del capítulo 4 del Educator se resolvió en C3b).
 - **Siguiente tarea:** C4 (niveles 2 y 3: Tierra ≥ 8 h cada día; lanzamiento retrasado 2 días).
+
+## AJUSTE · C3b: capítulo 4 del Educator y escena que sigue al plan
+
+- **Tarea:** C3b (hallazgos al probar C3). Rama `c3b-surface-view`.
+- **Qué se hizo:**
+  - Con Level B, el botón del capítulo 4 alterna entre «Stand on the site» y «Aerial view» (como en el panel del sitio). Antes decía «Look around 360°» y no hacía nada, porque la vista desde el sitio ya estaba activa. Sin Level B sigue abriendo el panorama 2D.
+  - «Hide text» / «Show text» en los capítulos 2 a 4: quita el texto grande del centro para ver la escena 3D completa; el título del capítulo, los botones y la etiqueta ILLUSTRATIVE se quedan. El capítulo 1 conserva su texto.
+  - Error corregido: un plan elegido mientras la escena 3D aún cargaba no le llegaba a la escena, que se quedaba con el plan con que arrancó. Al abrir el Educator (que elige el mejor plan del año), sobre todo después del reto, la nave volaba la trayectoria de otro día y no despegaba de la plataforma. `views/useScenePlan.ts` ahora entrega el plan en cuanto la escena está lista, y el Educator usa ese hook en lugar de su copia.
+- **Cómo se verificó:** `tests/educator.test.tsx` (alternar las vistas), `tests/educatorText.test.tsx` (ocultar y mostrar el texto) y `tests/useScenePlan.test.tsx` (plan entregado al terminar de cargar la escena). Prueba manual en el navegador: reto → menú principal → Educator, la nave despega desde la plataforma.
+- **Desviaciones de la spec / cambios en la guía:** ninguna. No se tocó `scene3d/`.
+- **Problemas abiertos:** ninguno.
+- **Siguiente tarea:** C4 (niveles 2 y 3 del reto).
