@@ -83,7 +83,8 @@ export function EducatorView({ tools }: { tools: ReactNode }) {
     const now = appStore.getState().missionTime ?? timeline.landingMs;
     const from = now >= timeline.endMs - 3_600_000 ? timeline.landingMs : now; // at the end of the stay: start again
     appStore.getState().setMissionTime(from);
-    setPlay({ to: Math.min(timeline.endMs, from + 86_400_000), hoursPerSecond: 1 });
+    // a day in 4 s at a steady 6 h/s (it used to crawl at 1 h/s, slowed further by the landing's slow motion)
+    setPlay({ to: Math.min(timeline.endMs, from + 86_400_000), hoursPerSecond: 6, steady: true });
   };
   const levelB = useApp((s) => s.levelB);
   const surfaceView = useApp((s) => s.surfaceView);

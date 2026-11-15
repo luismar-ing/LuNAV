@@ -47,8 +47,9 @@ def loaded_kernel_names() -> list[str]:
 
 
 def utc_to_et(dt: datetime) -> float:
-    # SPICE interpreta una cadena ISO sin zona como UTC
-    return sp.str2et(dt.astimezone(timezone.utc).strftime("%Y-%m-%dT%H:%M:%S"))
+    # SPICE interpreta una cadena ISO sin zona como UTC. Con microsegundos: truncar al segundo movía la Luna
+    # hasta ~1 km (va a ~1 km/s) en las muestras fraccionarias del descenso (A9)
+    return sp.str2et(dt.astimezone(timezone.utc).strftime("%Y-%m-%dT%H:%M:%S.%f"))
 
 
 def spk_coverage(kernel: str, body: int) -> list[tuple[float, float]]:

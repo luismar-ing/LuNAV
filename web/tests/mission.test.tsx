@@ -5,7 +5,7 @@ import { join } from "node:path";
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, beforeAll, describe, expect, it } from "vitest";
 import type { Plan, Trajectory } from "../src/lib/contract";
-import { clampMission, LAUNCH_RAMP_MS, LAUNCH_SLOW_RATE, missionClock, phaseAt, phaseStart, playbackRate, PLAY_PHASES, PRELAUNCH_MS, timelineOf, type MissionTimeline } from "../src/lib/mission";
+import { ARRIVAL_RATE, clampMission, LANDING_HOLD_MS, LANDING_SLOW_RATE, LAUNCH_RAMP_MS, LAUNCH_SLOW_RATE, missionClock, phaseAt, phaseStart, playbackRate, PLAY_PHASES, PRELAUNCH_MS, timelineOf, type MissionTimeline } from "../src/lib/mission";
 import { MissionControls } from "../src/scene3d/MissionControls";
 import { appStore } from "../src/store/appStore";
 
@@ -132,14 +132,33 @@ describe("slow motion around launch (T5.2.a)", () => {
     expect(playbackRate(tl, tl.startMs, 300 / 3600)).toBe(300); // already slow: unchanged
   });
 
-  it("at 6 h/s the countdown and lift-off last a few seconds on screen, and the whole flight only a little longer", () => {
+  it("at 6 h/s the countdown and lift-off last a few seconds on screen, the landing a few more, and the rest only a little longer", () => {
     const countdown = realSeconds(tl.startMs, tl.launchMs, 6);
     const liftoff = realSeconds(tl.launchMs, tl.launchMs + LAUNCH_RAMP_MS, 6);
-    const flight = realSeconds(tl.startMs, tl.landingMs, 6);
-    const flat = (tl.landingMs - tl.startMs) / (6 * 3_600_000);
-    console.log(`playback at 6 h/s: countdown ${countdown.toFixed(1)} s, first 30 min after launch ${liftoff.toFixed(1)} s, launch to landing ${flight.toFixed(1)} s (was ${flat.toFixed(1)} s)`);
+    // A9: from lunar arrival to touchdown the camera follows the lander round the Moon: at most 40 min/s there
+    const arrival = realSeconds(tl.lunarArrivalMs, tl.landingMs, 6);
+    const descent = realSeconds(tl.landingMs - 12 * 60_000, tl.landingMs, 6);
+    const flight = realSeconds(tl.startMs, tl.lunarArrivalMs - 2 * 3_600_000, 6);
+    const flat = (tl.lunarArrivalMs - 2 * 3_600_000 - tl.startMs) / (6 * 3_600_000);
+    console.log(`playback at 6 h/s: countdown ${countdown.toFixed(1)} s, first 30 min after launch ${liftoff.toFixed(1)} s, lunar arrival to touchdown ${arrival.toFixed(1)} s (powered descent ${descent.toFixed(1)} s), launch to 2 h before arrival ${flight.toFixed(1)} s (was ${flat.toFixed(1)} s)`);
     expect(countdown).toBeGreaterThan(0.9);
     expect(liftoff).toBeGreaterThan(1);
+    expect(descent).toBeCloseTo((12 * 60) / LANDING_SLOW_RATE, 0); // 8 s: slow enough to follow
+    expect(arrival).toBeLessThan(35); // 12 h at 40 min/s (18 s), the descent (8 s) and the ramps between
     expect(flight - flat).toBeLessThan(3);
+  });
+
+  it("A9: slow around the landing, held from before the camera catches up until it settles, continuous", () => {
+    expect(playbackRate(tl, tl.landingMs, 6)).toBe(LANDING_SLOW_RATE);
+    expect(playbackRate(tl, tl.landingMs - LANDING_HOLD_MS, 6)).toBe(LANDING_SLOW_RATE);
+    expect(playbackRate(tl, tl.landingMs - 6 * 3_600_000, 6)).toBe(ARRIVAL_RATE); // round the Moon: 40 min/s
+    expect(playbackRate(tl, tl.lunarArrivalMs - 3 * 3_600_000, 6)).toBe(6 * 3600); // the transit: full speed
+    let prev = playbackRate(tl, tl.lunarArrivalMs - 3 * 3_600_000, 6);
+    for (let m = -(tl.landingMs - tl.lunarArrivalMs) / 60_000 - 179; m <= 180; m++) {
+      const r = playbackRate(tl, tl.landingMs + m * 60_000, 6);
+      expect(Math.max(r / prev, prev / r)).toBeLessThan(1.2); // smooth: < 20 % per mission minute
+      prev = r;
+    }
+    expect(playbackRate(tl, tl.landingMs, 60 / 3600)).toBe(60); // already slower than that: unchanged
   });
 });

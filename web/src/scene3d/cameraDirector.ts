@@ -28,6 +28,9 @@ export interface DirectorInput {
   padUpAtLaunch: Vec3; // local vertical of the pad at launch_utc (fixed framing of the launch)
   moonNorth: Vec3; // Moon spin axis (body +Z) in world
   site: Vec3; // landing point on the drawn Moon surface
+  rocket?: Vec3; // the rocket as drawn (scale.ts rocketScenePoint): A9, the camera follows it down to the site
+  rocketAhead?: Vec3; // the same, 1 minute later (its heading)
+  moonDrawn?: Vec3; // the Moon's centre as drawn (scale.ts drawnMoonCentre), for the lander's local vertical
 }
 
 const add = (a: Vec3, b: Vec3): Vec3 => [a[0] + b[0], a[1] + b[1], a[2] + b[2]];
@@ -222,6 +225,58 @@ export function lerpPose(a: Pose, b: Pose, w: number): Pose {
   return { position, target: add(position, mul(forward, dist)), up };
 }
 
+/**
+ * A9: following the lander along its drawn path, from the arrival at the Moon to the touchdown. The camera rides
+ * behind the lander, along its motion, a little above it, at a distance that shrinks with its height above the
+ * ground: thousands of km on the approach, ~10 km in the low orbits, 0.8 km at touchdown. So it goes round the Moon
+ * with the lander, down the descent and onto the site, instead of flying straight to the site on its own. Near
+ * touchdown, as the lander slows to a stop, the heading turns to the site framing's (towards the Earth's side, the
+ * way the illustrative descent ends, A5). Scene units = 1000 km.
+ */
+export const FOLLOW = {
+  minBackKm: 0.8, // behind the lander at touchdown
+  backPerAlt: 0.12, // plus this much per unit of height above the site's ground
+  rise: 0.27, // above the lander, as a fraction of the distance back
+  look: 0.6, // the view aims this far ahead of the lander (fraction of the distance back)
+  homeBelowKm: 3, // below this height the heading turns to the site framing's, reached at touchdown
+  levelBelowKm: 30, // below this height the heading follows only the level part of the motion
+} as const;
+/** From the journey view to following the lander, around lunar arrival; then onto the site framing after touchdown. */
+export const FOLLOW_WINDOWS = { in: [-3 * 3_600_000, 0.5 * 3_600_000], out: [0, 3 * 60_000] } as const;
+
+/**
+ * `rocket` and `ahead` (its point 1 minute later), both as drawn; `i.moonDrawn` is the Moon's drawn centre (it
+ * slides towards the site while the local scale comes in).
+ */
+export function followPose(i: DirectorInput, rocket: Vec3, ahead: Vec3): Pose {
+  const k = 1 / 1000;
+  const centre = i.moonDrawn ?? i.moon;
+  const vertical = unit(sub(rocket, centre));
+  const height = Math.max(0, len(sub(rocket, centre)) - len(sub(i.site, centre)));
+  // the site framing's heading: horizontal at the site, towards the Earth
+  const normal = unit(sub(i.site, centre));
+  const toEarth = unit(mul(i.site, -1));
+  const homeHeading = unit(sub(toEarth, mul(normal, dot(toEarth, normal))));
+  // where the lander goes, turning to the site framing's heading over its last few km down. Near the ground only its
+  // level motion counts (the last metres are a vertical drop: following that would swing the view down and back)
+  const vFull = sub(ahead, rocket);
+  const vLevel = sub(vFull, mul(vertical, dot(vFull, vertical)));
+  const high = smoothstep(height / (FOLLOW.levelBelowKm * k));
+  const v = add(mul(vLevel, 1 - high), mul(vFull, high));
+  const dir = len(v) > 1e-9 ? unit(v) : homeHeading;
+  const home = 1 - smoothstep(height / (FOLLOW.homeBelowKm * k));
+  const heading = unit(add(mul(dir, 1 - home), mul(homeHeading, home)));
+  // "up" for the camera, never undefined: square to the heading within the arrival's orbital plane (A5 flies it in
+  // the polar plane through the site, ending towards the Earth's side, so this is the local vertical when the lander
+  // flies level and stays defined when it falls straight in), plus a little of the local vertical
+  const planeNormal = unit(cross(normal, homeHeading));
+  const vertical90 = sub(vertical, mul(heading, dot(vertical, heading)));
+  const up = unit(add(cross(heading, planeNormal), mul(vertical90, 0.3)));
+  const back = FOLLOW.minBackKm * k + FOLLOW.backPerAlt * height;
+  const position = add(add(rocket, mul(heading, -back)), mul(up, FOLLOW.rise * back));
+  return pose(position, add(rocket, mul(heading, FOLLOW.look * back)), up);
+}
+
 /** Blend windows around the phase changes (ms): long enough to stay smooth at the fastest playback speed. */
 export const WINDOWS = {
   launchToTransit: [-30 * 60_000, 8 * 3_600_000], // around injection
@@ -272,8 +327,16 @@ export function directorPose(tl: MissionTimeline, i: DirectorInput): Pose {
   const lp = Math.min(1, Math.max(0, (t - tl.lunarArrivalMs) / (tl.landingMs - tl.lunarArrivalMs)));
   let p = launchPose(i);
   p = lerpPose(p, transitPose(i), weight(t, tl.injectionMs, WINDOWS.launchToTransit));
-  p = lerpPose(p, landingPose(i, lp), weight(t, tl.lunarArrivalMs, WINDOWS.transitToLanding));
-  return approachPose(p, sitePose(i), i.site, approachProgress(tl, t));
+  if (!i.rocket || !i.rocketAhead) {
+    // no lander to follow (no trajectory): the arrival framing, then straight to the site
+    p = lerpPose(p, landingPose(i, lp), weight(t, tl.lunarArrivalMs, WINDOWS.transitToLanding));
+    return approachPose(p, sitePose(i), i.site, approachProgress(tl, t));
+  }
+  // A9: from the journey view to the lander (distance to it on a log scale), along its whole path round the Moon
+  // and down to the site, then onto the site framing once it has touched down
+  const follow = followPose(i, i.rocket, i.rocketAhead);
+  if (t <= tl.landingMs) return approachPose(p, follow, i.rocket, weight(t, tl.lunarArrivalMs, FOLLOW_WINDOWS.in));
+  return lerpPose(follow, sitePose(i), weight(t, tl.landingMs, FOLLOW_WINDOWS.out));
 }
 
 /** Reduced motion: one fixed framing per phase (a cut at each phase change, nothing sweeps). */

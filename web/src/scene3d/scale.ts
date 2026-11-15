@@ -120,6 +120,30 @@ export function pointToScene(km: Vec3, moonKm: Vec3, mode: ScaleMode = SPACE_SCA
 }
 
 /**
+ * The rocket as drawn (renderer.ts; A9: also what the camera follows down): its point pushed out near the bodies
+ * and, near the site while the local scale λ comes in, its offset from the site blended from the pushed-out (×6)
+ * geometry to the true one, around the drawn site `anchor` (T4.3.b).
+ */
+export function rocketScenePoint(km: Vec3, moonKm: Vec3, siteKm: Vec3 | null, anchor: Vec3, lambda: number): Vec3 {
+  const p = pointToScene(km, moonKm);
+  if (!(lambda > 0) || !siteKm) return p;
+  const trueRel = toScene(sub(km, siteKm));
+  return [0, 1, 2].map((c) => anchor[c] + (p[c] - anchor[c]) * (1 - lambda) + trueRel[c] * lambda) as Vec3;
+}
+
+/**
+ * The Moon's centre as drawn while the local scale λ comes in: the re-scale is anchored at the drawn site, so the
+ * centre slides towards it as the sphere shrinks from its ×6 radius to the site's real radius (renderer.ts, T4.3.b).
+ */
+export function drawnMoonCentre(moon: Vec3, anchor: Vec3, lambda: number, siteRadiusUnits: number): Vec3 {
+  if (!(lambda > 0)) return moon;
+  const d = sub(anchor, moon);
+  const dl = norm(d);
+  const r = dl * (1 - lambda) + siteRadiusUnits * lambda;
+  return [anchor[0] - (d[0] / dl) * r, anchor[1] - (d[1] / dl) * r, anchor[2] - (d[2] / dl) * r];
+}
+
+/**
  * Earth offset of the local re-scaling (T4.3.b). The re-scaling is anchored at the site AS DRAWN in space (×6),
  * which keeps the camera path smooth; but that point is ~8 700 km further out than the true site. To make the
  * geometry exact at real local scale, the Earth is moved by λ · (drawn site − true site): at λ = 1 the vector
