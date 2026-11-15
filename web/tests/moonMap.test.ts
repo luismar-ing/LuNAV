@@ -49,7 +49,7 @@ describe("Moon map geometry", () => {
     expect(fmtDuration(134)).toBe("5 d 14 h");
     expect(fmtDuration(18.5)).toBe("18 h 30 m");
     expect(fmtDuration(2)).toBe("2 h");
-    expect(fmtUtc(Date.parse("2027-01-16T14:00:00Z"))).toBe("16 Jan, 14:00 UTC");
+    expect(fmtUtc(Date.parse("2027-01-16T14:00:00Z"))).toBe("Jan 16, 14:00 UTC");
   });
 });
 
@@ -80,9 +80,9 @@ describe("countdowns from the visibility series", () => {
     const end = jan11 + 168 * 3_600_000;
     const ev = upcoming(ts, now, end);
     expect(ev.map((e) => e.kind)).toEqual(["sunset", "end", "sunrise", "earthset"]);
-    expect(fmtUtc(ev[0].atMs)).toBe("16 Jan, 14:00 UTC");
+    expect(fmtUtc(ev[0].atMs)).toBe("Jan 16, 14:00 UTC");
     expect(ev[1].inDark).toBe(true);
     expect(ev[2].afterStay).toBe(true);
-    expect(fmtUtc(ev[3].atMs)).toBe("26 Jan, 20:30 UTC");
+    expect(fmtUtc(ev[3].atMs)).toBe("Jan 26, 20:30 UTC");
   });
 });

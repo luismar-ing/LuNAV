@@ -1,6 +1,7 @@
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { lookup, dayIndex } from "../lib/constraints";
 import { lutIndex, rampLut } from "../lib/colorScale";
+import { fmtDay } from "../lib/format";
 import { planVerdict } from "../lib/siteBrief";
 import { STRINGS } from "../lib/strings";
 import { VerdictMarks } from "./VerdictMarks";
@@ -11,8 +12,28 @@ import { useApp } from "../store/appStore";
 export const STRIP_DAYS = 21;
 const DAY_MS = 86_400_000;
 
-export const fmtDay = (iso: string) => new Date(iso).toLocaleDateString("en-US", { month: "short", day: "2-digit", year: "numeric", timeZone: "UTC" });
+// B5: the app's one date format ("Jan 11, 2027"); re-exported for the views that import it from here
+export { fmtDay } from "../lib/format";
 const ymd = (ms: number) => new Date(ms).toISOString().slice(0, 10);
+
+/**
+ * Whether the last thing the user did on the page was a key press (true) or a pointer press (false): what
+ * :focus-visible would decide, for the date field whose focus lives inside the input's own segments.
+ */
+let lastInputWasKeyboard = false;
+if (typeof document !== "undefined") {
+  document.addEventListener("keydown", () => (lastInputWasKeyboard = true), true);
+  document.addEventListener("pointerdown", () => (lastInputWasKeyboard = false), true);
+}
+
+/** Opens the browser's date picker where it can (showPicker needs a user gesture and is missing in older browsers). */
+function openPicker(input: HTMLInputElement) {
+  try {
+    input.showPicker?.();
+  } catch {
+    /* not allowed here (e.g. inside a cross-origin frame): the input keeps working from the keyboard */
+  }
+}
 
 /**
  * Mission start sidebar (decision A7, design A2): arrival date (with a strip of days coloured by the chosen
@@ -32,6 +53,7 @@ export function MissionSidebar({ onLaunch, onOpenSearch }: { onLaunch(): void; o
   const selectSite = useApp((s) => s.selectSite);
   const loadWindows = useApp((s) => s.loadWindows);
   const lut = useMemo(() => rampLut("combined"), []);
+  const [byPointer, setByPointer] = useState(false);
 
   useEffect(() => {
     if (plan) void loadWindows(plan.window_days);
@@ -63,15 +85,36 @@ export function MissionSidebar({ onLaunch, onOpenSearch }: { onLaunch(): void; o
           <button type="button" className="icon-btn" aria-label={STRINGS.planner.prevDay} onClick={() => goDay(Date.parse(arrival) - DAY_MS)} disabled={Date.parse(arrival) <= first}>
             ‹
           </button>
-          <input
-            type="date"
-            className="arrival-input"
-            aria-label={STRINGS.planner.arrivalInput}
-            value={arrival}
-            min={ymd(first)}
-            max={ymd(last)}
-            onChange={(e) => e.target.value && goDay(Date.parse(e.target.value))}
-          />
+          {/* B5 (H12): the date reads "Jan 11, 2027" like the rest of the app, not in the system's format. The native
+              date input still does the work (keyboard, picker, min / max): it lies transparent over the text and the
+              whole field opens its picker. */}
+          {/* focus sits inside the date input's own segments, so :focus-visible never matches it: the field shows its
+              ring on :focus-within unless the focus came from the pointer */}
+          <label className="arrival-field" data-pointer={byPointer || undefined} onFocus={() => setByPointer(!lastInputWasKeyboard)} onKeyDown={() => setByPointer(false)}>
+            <span className="arrival-text" aria-hidden="true" data-testid="arrival-text">
+              {fmtDay(arrival)}
+            </span>
+            <svg className="arrival-icon" viewBox="0 0 20 20" width="18" height="18" aria-hidden="true">
+              <rect x="2.5" y="4" width="15" height="13.5" rx="2" fill="none" stroke="currentColor" strokeWidth="1.5" />
+              <path d="M2.5 8h15M6.5 2v4M13.5 2v4" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+            </svg>
+            <input
+              type="date"
+              className="arrival-input"
+              aria-label={STRINGS.planner.arrivalInput}
+              value={arrival}
+              min={ymd(first)}
+              max={ymd(last)}
+              onChange={(e) => e.target.value && goDay(Date.parse(e.target.value))}
+              onClick={(e) => openPicker(e.currentTarget)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  e.preventDefault();
+                  openPicker(e.currentTarget);
+                }
+              }}
+            />
+          </label>
           <button type="button" className="icon-btn" aria-label={STRINGS.planner.nextDay} onClick={() => goDay(Date.parse(arrival) + DAY_MS)} disabled={Date.parse(arrival) >= last}>
             ›
           </button>

@@ -58,6 +58,8 @@ describe("Mission Planner sidebar (A2)", () => {
 
     fireEvent.change(sidebar().getByLabelText("Arrival date (UTC)"), { target: { value: "2027-03-09" } });
     expect(appStore.getState().selectedPlanId).toBe("connecting_ridge_20270309_7d");
+    // B5 (H12): the date reads like the rest of the app, not in the system's format
+    expect(sidebar().getByTestId("arrival-text").textContent).toBe("Mar 9, 2027");
 
     // (the < 100 ms update budget is measured in the browser, not under jsdom: see PROGRESS, TR.2.b)
     fireEvent.click(sidebar().getByRole("button", { name: "14 days" }));
@@ -183,7 +185,7 @@ describe("Mission Planner sidebar (A2)", () => {
     expect(screen.getByTestId("brief-verdict").textContent).toBe("34 h of night in the stay, with the Earth in view the whole time.");
     // B4: the sunset (day 6) is counted down; the Earthset (Jan 26) is after the stay: "Up all stay", date aside
     expect(screen.getByTestId("brief-count-sun").textContent).toBe("Sets in 5 d 14 h");
-    expect(screen.getByTestId("brief-count-earth").textContent).toBe("Up all stay · sets 26 Jan");
+    expect(screen.getByTestId("brief-count-earth").textContent).toBe("Up all stay · sets Jan 26");
     expect(screen.queryByTestId("brief-story")).toBeNull();
     expect(within(screen.getByTestId("brief-others")).getAllByRole("listitem")[0].textContent).toMatch(/^Malapert Massif52 km\+20\.2 % sun$/);
 
@@ -196,10 +198,10 @@ describe("Mission Planner sidebar (A2)", () => {
     const site = await screen.findByTestId("live-site");
     const sun = await within(site).findByTestId("countdown-sun", {}, { timeout: 5000 });
     expect(sun.textContent).toContain("5 d 14 h");
-    expect(sun.textContent).toContain("Sunset 16 Jan, 14:00 UTC");
+    expect(sun.textContent).toContain("Sunset Jan 16, 14:00 UTC");
     expect(sun.textContent).toContain("Then a 36.5 h night, 34 h of it in your stay.");
     const earth = within(site).getByTestId("countdown-earth");
-    expect(earth.textContent).toBe("Earth link leftAll stayEarthset 26 Jan, 20:30 UTC · after you leave"); // B4: no "15 d 20 h"
+    expect(earth.textContent).toBe("Earth link leftAll stayEarthset Jan 26, 20:30 UTC · after you leave"); // B4: no "15 d 20 h"
     expect(earth.dataset.withinStay).toBe("false");
     expect(within(site).getByTestId("next-events").querySelector("li")?.textContent).toMatch(/^5 d 14 hSunset/);
 

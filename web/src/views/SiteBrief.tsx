@@ -4,14 +4,14 @@ import { VerdictMarks } from "../components/VerdictMarks";
 import { lookup } from "../lib/constraints";
 import { parseInstant } from "../lib/contract";
 import { describeError } from "../lib/errors";
-import { distanceKm, fmtDuration, fmtUtc, type Change } from "../lib/moonMap";
+import { fmtShortDay, fmtUtc } from "../lib/format";
+import { distanceKm, fmtDuration, type Change } from "../lib/moonMap";
 import { nightInStay, planVerdict, readAt, stayChange, visibleSpans, type Span } from "../lib/siteBrief";
 import { STRINGS } from "../lib/strings";
 import { fmtMetric, num, round } from "../lib/why";
 import { useApp } from "../store/appStore";
 import { useTimeseries } from "./useTimeseries";
 
-const fmtDate = (ms: number) => new Date(ms).toLocaleDateString("en-GB", { day: "numeric", month: "short", timeZone: "UTC" });
 
 /**
  * The chosen site (planner redesign, 3C style): where it is, thin Sun and Earth tracks with their countdowns, three window metrics, the same day at the other
@@ -72,7 +72,7 @@ export function SiteBrief({ onLand }: { onLand(): void }) {
           <div className="brief-track-axis" aria-hidden="true">
             <span />
             <span className="brief-track-ends">
-              <span>{STRINGS.planner.landing(fmtDate(arrivalMs))}</span>
+              <span>{STRINGS.planner.landing(fmtShortDay(arrivalMs))}</span>
               <span>{STRINGS.planner.lastDay(plan.window_days)}</span>
             </span>
             <span />
@@ -140,7 +140,7 @@ function Track({ label, spans, body, change, arrivalMs, endMs }: { label: string
   const capped = change && stay && !stay.withinStay;
   const verb = capped ? (change.visible ? STRINGS.planner.up : STRINGS.planner.down) : change?.visible ? STRINGS.planner.setsIn : STRINGS.planner.risesIn;
   const value = capped ? STRINGS.planner.allStay : change?.hours == null ? STRINGS.planner.noChange : fmtDuration(change.hours);
-  const after = capped && stay.atMs !== null ? STRINGS.planner.changeAfter(change.visible, fmtDate(stay.atMs)) : null;
+  const after = capped && stay.atMs !== null ? STRINGS.planner.changeAfter(change.visible, fmtShortDay(stay.atMs)) : null;
   return (
     <div className="brief-track" data-body={body}>
       <span className="brief-track-label">{label}</span>

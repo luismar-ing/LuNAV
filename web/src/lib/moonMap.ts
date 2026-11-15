@@ -78,9 +78,5 @@ export function fmtDuration(hours: number): string {
   return `${m} m`;
 }
 
-/** An instant as "16 Jan, 14:00 UTC". */
-export function fmtUtc(ms: number): string {
-  const d = new Date(ms);
-  const day = d.toLocaleDateString("en-GB", { day: "numeric", month: "short", timeZone: "UTC" });
-  return `${day}, ${d.toISOString().slice(11, 16)} UTC`;
-}
+/** An instant as "Jan 16, 14:00 UTC": the app's one date format (B5, lib/format.ts). */
+export { fmtUtc } from "./format";

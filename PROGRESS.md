@@ -3175,3 +3175,37 @@ Las trayectorias ILLUSTRATIVE, los datos SYNTHETIC y toda desviación de la spec
 - **Desviaciones de la spec / cambios en la guía:** ninguna.
 - **Problemas abiertos:** «What happens next» sigue listando eventos de después de la estancia, marcados «after leaving», como antes. Las fechas tienen formatos distintos («17 Mar» en el panel, «17 Mar, 17:30 UTC» en «Time left»): se unifican en B5b.
 - **Siguiente tarea:** B5b (fecha legible y formato único).
+
+## AJUSTE · B5b: fecha legible y un solo formato de fecha
+
+- **Tarea:** segunda parte de B5 del plan de mejoras del 14-nov-2026 (persona B, hallazgo H12). Rama hecha sobre B4 (`b4-cap-countdowns`).
+- **Qué se hizo:**
+  - `lib/format.ts` (nuevo): un solo formato, mes primero, en inglés y en UTC.
+    - `fmtDay` → «Jan 11, 2027».
+    - `fmtShortDay` → «Jan 11», dentro de una estancia.
+    - `fmtUtc` → «Jan 16, 14:00 UTC».
+    - Antes convivían «01/01/2027» (formato del sistema), «Jan 01, 2027», «11 Jan», «16 Jan, 14:00 UTC» y «2027-01-11».
+  - `lib/moonMap.ts` reexporta `fmtUtc`, y `MissionSidebar.tsx` reexporta `fmtDay`, para quien ya los importaba de ahí. Por eso `Telemetry` y el Educator también pasan de «Jan 01» a «Jan 1» sin tocar sus archivos.
+  - Fecha de llegada (`MissionSidebar.tsx`):
+    - El campo muestra «Jan 11, 2027» en la fuente de la barra y un ícono de calendario (SVG en línea).
+    - El `<input type="date">` nativo queda transparente encima del texto: conserva teclado, `min`/`max` y el valor, y la etiqueta «Arrival date (UTC)» sigue igual.
+    - Clic en cualquier parte del campo o Enter abren el selector (`showPicker`, con `try/catch`).
+    - El foco de un input de fecha vive en sus segmentos internos, así que `:focus-visible` nunca coincide. El campo muestra su anillo con `:focus-within`, salvo si el foco llegó por puntero (se recuerda si la última interacción en la página fue de teclado o de puntero).
+  - Fechas en formato único: panel del sitio («Landing, Jan 11»; «Up all stay · sets Jan 26»), «Time left» y «What happens next» (vía `fmtUtc`), miniaturas (`ThumbnailStrip`) y paneles de la bandeja (`PlanPanel`).
+- **Cómo se verificó:**
+  ```
+  $ npm --prefix web run typecheck → sin errores
+  $ npm --prefix web test → 283 passed (47 archivos); en una corrida falló la intermitente de integration.test.tsx (T5.1.b), ya anotada en B1. Sola pasa 3 de 3, y la suite completa pasó en las dos corridas siguientes.
+  ```
+  - `tests/format.test.ts` (nuevo): «Jan 11, 2027» desde «YYYY-MM-DD», ISO o ms; sin cero a la izquierda; en UTC (29-dic 23:59 Z sigue siendo «Dec 29, 2026»); «Jan 26»; «Jan 16, 14:00 UTC».
+  - `tests/plannerSidebar.test.tsx`: el campo muestra «Mar 9, 2027» tras cambiar la fecha; textos de fecha del panel y de «Time left» en el formato nuevo. `tests/moonMap.test.ts`: `fmtUtc` en el formato nuevo.
+  - Navegador (servidor de desarrollo, 1366×768):
+    - Muestra «Jan 1, 2027», «Launch · Dec 29, 2026» y «Landing, Jan 1».
+    - Con la flecha arriba sobre el mes pasa a «Feb 1, 2027» y el panel la sigue.
+    - Al llegar con teclado aparece el anillo; con clic, no.
+    - Sin scroll en la barra ni en la etapa, sin errores en consola.
+- **Desviaciones de la spec / cambios en la guía:** ninguna.
+- **Problemas abiertos:**
+  - Fuera del área de B siguen fechas en ISO: el panorama («2027-01-11 00:00 UTC»), el reloj de misión (`lib/mission.ts`, de A), y `SitePanel` y `SiteLayout` (títulos de la tabla). Pedir a sus dueños que usen `lib/format.ts`.
+  - Con el input transparente, quien edita con el teclado no ve qué segmento (mes, día o año) está cambiando. Enter abre el selector y siguen las flechas ‹ ›.
+- **Siguiente tarea:** B9 (botones fijos y detalles; también corrige el desborde de 1280×720 anotado en B2).
