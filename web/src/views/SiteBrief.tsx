@@ -1,10 +1,11 @@
 import { useMemo } from "react";
 import { ErrorMessage } from "../components/ErrorMessage";
+import { VerdictMarks } from "../components/VerdictMarks";
 import { lookup } from "../lib/constraints";
 import { parseInstant } from "../lib/contract";
 import { describeError } from "../lib/errors";
 import { distanceKm, fmtDuration, type Change } from "../lib/moonMap";
-import { readAt, visibleSpans, type Span } from "../lib/siteBrief";
+import { planVerdict, readAt, visibleSpans, type Span } from "../lib/siteBrief";
 import { STRINGS } from "../lib/strings";
 import { fmtMetric, num, round } from "../lib/why";
 import { useApp } from "../store/appStore";
@@ -38,6 +39,7 @@ export function SiteBrief({ onLand }: { onLand(): void }) {
   if (!plan || !site) return null;
   const day = plan.arrival_utc.slice(0, 10);
   const m = index ? lookup(index, site.id, day) : null;
+  const v = m ? planVerdict(m) : null;
   const others = sites
     .filter((s) => s.id !== site.id)
     .map((s) => ({ s, km: distanceKm(site, s), m: index ? lookup(index, s.id, day) : null }))
@@ -50,6 +52,13 @@ export function SiteBrief({ onLand }: { onLand(): void }) {
         <h2 id="brief-title" className="brief-name">
           {site.name}
         </h2>
+        {/* B2: one line on energy AND Earth contact, so a plan without the Earth never reads as a good one */}
+        {v && (
+          <p className="brief-verdict" data-tone={v.tone} data-testid="brief-verdict">
+            <VerdictMarks sun={v.sun} earth={v.earth} />
+            {STRINGS.planner.verdict(v.sun, v.earth, v.darkH, v.gapH)}
+          </p>
+        )}
       </div>
 
       {error !== null && <ErrorMessage what={STRINGS.errors.site} info={describeError(error)} onRetry={retry} />}

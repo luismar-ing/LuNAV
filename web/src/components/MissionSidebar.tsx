@@ -1,7 +1,9 @@
 import { useEffect, useMemo } from "react";
 import { lookup, dayIndex } from "../lib/constraints";
 import { lutIndex, rampLut } from "../lib/colorScale";
+import { planVerdict } from "../lib/siteBrief";
 import { STRINGS } from "../lib/strings";
+import { VerdictMarks } from "./VerdictMarks";
 import { round } from "../lib/why";
 import { useApp } from "../store/appStore";
 
@@ -116,14 +118,19 @@ export function MissionSidebar({ onLaunch, onOpenSearch }: { onLaunch(): void; o
         <ul className="site-list">
           {sites.map((s) => {
             const m = index ? lookup(index, s.id, arrival) : null;
+            const v = m ? planVerdict(m) : null;
             return (
               <li key={s.id}>
                 <button type="button" className="site-row" aria-pressed={s.id === plan.site_id} onClick={() => selectSite(s.id)}>
-                  <span>{s.name}</span>
-                  {/* planner redesign: the night length tells the sites apart at a glance (the % is in the brief) */}
-                  <span className="site-status" data-tone={m ? (m.longest_dark_h === 0 ? "lit" : "night") : undefined} title={m ? STRINGS.planner.sun(round(m.sun_pct, 1)) : undefined}>
-                    {m ? STRINGS.planner.status(m.longest_dark_h) : ""}
-                  </span>
+                  <span className="site-name">{s.name}</span>
+                  {/* B2: the Sun and the Earth together, with marks for each (shape, not colour alone); green only when both hold */}
+                  {v && (
+                    <span className="site-status" data-tone={v.tone} title={m ? STRINGS.planner.sun(round(m.sun_pct, 1)) : undefined}>
+                      <span className="visually-hidden">, </span>
+                      <VerdictMarks sun={v.sun} earth={v.earth} />
+                      {`${STRINGS.planner.statusSun(v.darkH)} · ${STRINGS.planner.statusEarth(v.earth, v.gapH)}`}
+                    </span>
+                  )}
                 </button>
               </li>
             );

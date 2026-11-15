@@ -3,6 +3,10 @@
  * (spec 9) without touching components.
  */
 import { round } from "./why";
+
+/** Hours as the planner writes them: one decimal, "34" rather than "34.0". */
+const hours = (h: number) => round(h, 1).replace(/\.0$/, "");
+
 export const STRINGS = {
   appTitle: "PolePlanner",
   appSubtitle: "Lunar south pole landing planner",
@@ -50,7 +54,24 @@ export const STRINGS = {
     closeSearch: "Close",
     searchTitle: "Search and compare plans",
     // planner redesign (REDIS + 3C): night length of each site for the chosen dates, Moon map and site brief
-    status: (darkH: number) => (darkH === 0 ? "Sunlit all stay" : `${round(darkH, 1).replace(/\.0$/, "")} h night`),
+    // B2: the Sun and the Earth together, so a plan without Earth contact never reads as a good one
+    statusSun: (darkH: number) => (darkH === 0 ? "Sunlit all stay" : `${hours(darkH)} h night`),
+    statusEarth: (earth: "all" | "gaps" | "none", gapH: number) =>
+      earth === "all" ? "Earth all stay" : earth === "none" ? "No Earth all stay" : `Earth gap ${hours(gapH)} h`,
+    verdict: (sun: "lit" | "night", earth: "all" | "gaps" | "none", darkH: number, gapH: number) => {
+      if (sun === "lit")
+        return earth === "all"
+          ? "Sunlight and direct Earth contact for the whole stay."
+          : earth === "none"
+            ? "Sunlit all stay, but no direct Earth contact at any time."
+            : `Sunlit all stay, but up to ${hours(gapH)} h without direct Earth contact.`;
+      const night = `A ${hours(darkH)} h night`;
+      return earth === "all"
+        ? `${night}, with the Earth in view the whole stay.`
+        : earth === "none"
+          ? `${night} and no direct Earth contact at any time.`
+          : `${night} and up to ${hours(gapH)} h without direct Earth contact.`;
+    },
     map: "Moon map: landing sites on the average sunlight of the south pole",
     mapCaption: (km: number) =>
       `Average sunlight over 18.6 years (LOLA, Mazarico et al. 2011). Brighter ground sees the Sun more often. The pole is at the centre; the map is ${km} km across.`,

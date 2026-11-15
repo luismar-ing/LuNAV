@@ -3,8 +3,35 @@
  * tracks over the stay, the countdowns and the list of what happens next.
  * Everything is built from the site's own one-year series and window metrics; nothing is made up to fill a gap.
  */
-import type { Timeseries } from "./contract";
+import type { Timeseries, WindowRow } from "./contract";
 import { nextChange, sampleIndex, type Change } from "./moonMap";
+
+/** Sun over the stay: no night at all, or at least one stretch behind the terrain. */
+export type SunState = "lit" | "night";
+/** Earth over the stay: in view the whole time, with gaps, or never in view (no direct-to-Earth link). */
+export type EarthState = "all" | "gaps" | "none";
+
+/**
+ * How a plan fares for energy AND direct Earth contact (B2, finding H6), from its window row only.
+ * good = no night and no loss of Earth; poor = no Earth at all, or a night together with Earth gaps; mixed = the rest.
+ * Strict on purpose: any night or any gap counts (no tolerance invented here).
+ */
+export interface Verdict {
+  sun: SunState;
+  earth: EarthState;
+  tone: "good" | "mixed" | "poor";
+  /** longest night inside the stay (h) */
+  darkH: number;
+  /** longest stretch without the Earth inside the stay (h) */
+  gapH: number;
+}
+
+export function planVerdict(row: Pick<WindowRow, "longest_dark_h" | "earth_h_mean" | "longest_comm_gap_h">): Verdict {
+  const sun: SunState = row.longest_dark_h === 0 ? "lit" : "night";
+  const earth: EarthState = row.longest_comm_gap_h === 0 ? "all" : row.earth_h_mean === 0 ? "none" : "gaps";
+  const tone = sun === "lit" && earth === "all" ? "good" : earth === "none" || (sun === "night" && earth === "gaps") ? "poor" : "mixed";
+  return { sun, earth, tone, darkH: row.longest_dark_h, gapH: row.longest_comm_gap_h };
+}
 
 /** A stretch of the stay, as fractions of it (0..1), where a body is above the terrain. */
 export interface Span {

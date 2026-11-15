@@ -45,6 +45,14 @@ describe("Mission Planner sidebar (A2)", () => {
     expect(screen.queryByTestId("scene-host")).toBeNull();
     expect(screen.getByTestId("moon-map")).toBeTruthy();
 
+    // B2 (H6): the default plan is sunlit but has no Earth for the whole stay: list, pin and brief all say so
+    const cr = sidebar().getByRole("button", { name: /^Connecting Ridge/ });
+    await waitFor(() => expect(cr.querySelector(".site-status")?.textContent).toBe(", Sunlit all stay · No Earth all stay"));
+    expect(cr.querySelector(".site-status")?.getAttribute("data-tone")).toBe("poor");
+    const pin = within(screen.getByTestId("moon-map")).getByRole("button", { name: "Connecting Ridge (Shackleton rim)" });
+    expect(pin.dataset).toMatchObject({ sun: "lit", earth: "none", tone: "poor" });
+    expect((await screen.findByTestId("brief-verdict")).textContent).toBe("Sunlit all stay, but no direct Earth contact at any time.");
+
     fireEvent.click(sidebar().getByRole("button", { name: "Next day" }));
     expect(appStore.getState().selectedPlanId).toBe("connecting_ridge_20270102_7d");
 

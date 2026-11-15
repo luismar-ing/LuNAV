@@ -3084,3 +3084,40 @@ Las trayectorias ILLUSTRATIVE, los datos SYNTHETIC y toda desviación de la spec
   - Decidir si se borran `Calendar`, `ConstraintControls` y `SiteSection` o se recolocan en otra vista.
   - Siguen abiertos los de la entrada anterior (contexto WebGL, capturas).
 - **Siguiente tarea:** revisión del humano; después T5.2.e y la Fase 7.
+
+## AJUSTE · B2: Sol y Tierra juntos en la lista, el mapa y el panel del sitio
+
+- **Tarea:** B2 del plan de mejoras del 14-nov-2026 (persona B, hallazgo H6). Antes, la lista, el pin y el tono verde solo miraban `longest_dark_h`, así que un plan sin Tierra en toda la estancia se veía como bueno.
+- **Qué se hizo:**
+  - `lib/siteBrief.ts`: `planVerdict(row)` sale solo de la fila de `windows`.
+    - Sol: `lit` (sin noche) o `night`.
+    - Tierra: `all` (`longest_comm_gap_h = 0`), `none` (`earth_h_mean = 0`) o `gaps`.
+    - Tono: `good` solo si hay Sol y Tierra toda la estancia; `poor` si no hay Tierra nunca, o si hay noche y huecos de Tierra a la vez; `mixed` en el resto.
+    - Criterio estricto: no se inventa ninguna tolerancia. Se usa el hueco de Tierra y no `earth_h_min`, porque `earth_h_min = 0` aparece en planes con la Tierra casi todo el tiempo (Haworth 6-ene: hueco de 44 h).
+  - `components/VerdictMarks.tsx` (nuevo): dos marcas de forma. Sol: relleno = sin noche, anillo = noche. Tierra: relleno = toda la estancia, mitad = huecos, anillo = nunca. Los colores Sol y Tierra solo repiten la forma.
+  - Lista del sidebar (`MissionSidebar.tsx`): nombre arriba y, debajo, las marcas con «Sunlit all stay · No Earth all stay», «34 h night · Earth all stay» o «0.5 h night · Earth gap 164 h». El verde solo aparece con tono `good`. Las filas se compactaron (`line-height`, `padding`) para que quepan las dos líneas.
+  - Mapa (`MoonMap.tsx`, `PlannerView.tsx`): `SiteTone` pasa a ser el `Verdict`. Cada pin lleva `data-sun`, `data-earth` y `data-tone`, una marca de Tierra arriba a la derecha del punto, y el estado en `title`. El pin elegido conserva el anillo si hay noche (antes se volvía un disco ámbar sin forma).
+  - Panel del sitio (`SiteBrief.tsx`): una frase bajo el nombre con las marcas, por ejemplo «Sunlit all stay, but no direct Earth contact at any time.» o «A 0.5 h night and up to 164 h without direct Earth contact.».
+  - Se probó una cuarta métrica («Earth gap») y se descartó: rompía el ajuste sin scroll y repetía la cifra que ya da la frase.
+- **Cómo se verificó:**
+  ```
+  $ npm --prefix web run typecheck → sin errores
+  $ npm --prefix web test → 275 passed (46 archivos)
+  ```
+  - `tests/siteBrief.test.ts` (nuevo), con filas reales:
+    - Connecting Ridge 1-ene: `lit`/`none`/`poor`.
+    - Haworth 1-ene: `night 0.5 h`/`gaps 164 h`/`poor`.
+    - Haworth 9-ene: `good`.
+    - Haworth 11-ene: `night 34 h`/`all`/`mixed`.
+    - Haworth 6-ene usa el hueco y no el peor día.
+    - En los 5 sitios × 365 días (7 d), `good` coincide exactamente con «sin noche y sin hueco», y todo plan sin Tierra es `poor`.
+  - `tests/plannerSidebar.test.tsx`: el plan por defecto (Connecting Ridge 1-ene) dice «Sunlit all stay · No Earth all stay» con tono `poor` en la lista, `earth: none` en el pin y la frase en el panel.
+  - Navegador (servidor de desarrollo), Connecting Ridge 1-ene:
+    - Los 5 sitios salen `poor` ese día; ninguno se ve verde.
+    - Sin scroll a 1366×768, 1440×900, 1536×700 y 1920×1080; sin scroll horizontal; sin errores en consola.
+- **Desviaciones de la spec / cambios en la guía:** ninguna. La spec 9 pide «no solo color»: se cumple con las marcas.
+- **Problemas abiertos:**
+  - A 1280×720 el panel del sitio desborda 44 px (en `main` no desbordaba): la frase nueva ocupa 28 px y los botones «Land at Connecting Ridge (Shackleton rim)» y «Pin» van en dos filas (126 px). Lo corrige B9 (botones fijos en una fila). Fuera de las resoluciones objetivo; actúa el scroll de respaldo.
+  - A 1366×650 el sidebar desborda 8 px. El panel ya desbordaba 31 px en `main` (con B2, 23 px).
+  - Pendiente de confirmar con el equipo: criterio estricto (cualquier hueco de Tierra cuenta) frente a una tolerancia.
+- **Siguiente tarea:** B3 (cifra única de noche).

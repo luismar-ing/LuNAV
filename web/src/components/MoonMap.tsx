@@ -2,11 +2,12 @@ import { useEffect, useMemo, useState } from "react";
 import type { Site } from "../lib/contract";
 import type { IlluminationHeader } from "../lib/data";
 import { distanceKm, mapFraction } from "../lib/moonMap";
+import type { Verdict } from "../lib/siteBrief";
 import { STRINGS } from "../lib/strings";
 import { useApp } from "../store/appStore";
 
-/** How a site fares for the chosen dates: no night in the stay, a night, or not known yet. */
-export type SiteTone = "lit" | "night" | undefined;
+/** How a site fares for the chosen dates, Sun and Earth together (B2), or undefined while not known yet. */
+export type SiteTone = Verdict | undefined;
 
 /**
  * Moon map of the Mission Planner (planner redesign: REDIS screen 1 with the 3C porthole). The published LOLA
@@ -68,17 +69,23 @@ export function MoonMap({ sites, selectedId, tone, onSelect }: { sites: Site[]; 
         )}
         {pins.map(({ site, fx, fy }) => {
           const on = site.id === selectedId;
+          const v = tone(site.id);
           return (
             <button
               key={site.id}
               type="button"
               className="moon-pin"
               aria-pressed={on}
-              data-tone={tone(site.id)}
+              data-tone={v?.tone}
+              data-sun={v?.sun}
+              data-earth={v?.earth}
+              title={v ? `${STRINGS.planner.statusSun(v.darkH)} · ${STRINGS.planner.statusEarth(v.earth, v.gapH)}` : undefined}
               style={{ left: `${fx * 100}%`, top: `${fy * 100}%` }}
               onClick={() => onSelect(site.id)}
             >
               <span className="moon-pin-dot" aria-hidden="true" />
+              {/* B2: the Earth beside the Sun-shaped dot: filled = all stay, half = gaps, ring = never in view */}
+              {v && <span className="verdict-mark moon-pin-earth" data-body="earth" data-state={v.earth === "all" ? "full" : v.earth === "gaps" ? "half" : "empty"} aria-hidden="true" />}
               <span className="moon-pin-label">{site.name}</span>
             </button>
           );
