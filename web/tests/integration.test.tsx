@@ -259,7 +259,7 @@ describe("same figures in every view (T5.1.b)", () => {
       const expected = Object.fromEntries(METRICS.map(({ key }) => [key, fmtMetric(key, row[key])])) as Record<MetricKey, string>;
 
       // tray: metrics box
-      const box = within(panelOf(id)).getByTestId("metrics-box");
+      const box = await within(panelOf(id)).findByTestId("metrics-box"); // the panel's data load is async
       for (const { key } of METRICS) expect(box.querySelector(`[data-metric="${key}"] .metric-value`)!.textContent, `${id} tray ${key}`).toBe(expected[key]);
       // tray: time ribbon's longest dark = the metric. The ribbon draws its SVG only after its effect has measured
       // the width, and the panels mount from an async load, so the label may land a tick after the panel: wait for it.

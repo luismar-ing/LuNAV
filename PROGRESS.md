@@ -3340,6 +3340,7 @@ Las trayectorias ILLUSTRATIVE, los datos SYNTHETIC y toda desviación de la spec
     - regulador de la telemetría.
   - Chrome sin cabeza sobre el servidor de desarrollo, «Launch» a 6 h/s, frecuencias programadas en orden: `1000 1000 1000 45 1400 1800 ×4 660 990 880 1100 1320`. La quinta telemetría cayó dentro del límite de 1.5 s por cuadros lentos. Con «Reduce motion»: ningún nodo de audio.
   - Corrección durante la verificación: en la aproximación los cuadros se alargan al cargar el terreno, y un límite de 6 h por paso callaba la órbita y el toque. Se quitó: solo el bucle de reproducción llama a `crossedCues`.
+  - `integration.test.tsx` T5.1.b falla de forma intermitente con la suite completa, también en `main`. Se aplica el mismo arreglo que en la rama de A1 (esperar la caja de métricas y la cinta con `findBy…`); el cambio es idéntico, así que las dos ramas se fusionan sin conflicto. Con el arreglo, 275/275 dos veces seguidas.
 - **Desviaciones de la spec / cambios en la guía:** ninguna. Los sonidos son ILLUSTRATIVE, como el viaje.
 - **Problemas abiertos:** falta oírlos con altavoces reales para ajustar el volumen (`LEVEL` en `sfx.ts`).
 - **Siguiente tarea:** A5.
