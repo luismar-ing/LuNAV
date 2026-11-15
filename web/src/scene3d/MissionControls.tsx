@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { clampMission, missionClock, phaseAt, phaseStart, playbackRate, PLAY_PHASES, type MissionTimeline } from "../lib/mission";
+import { clampMission, MAX_FRAME_MS, missionClock, phaseAt, phaseStart, playbackRate, PLAY_PHASES, type MissionTimeline } from "../lib/mission";
 import { fmtUtc } from "../lib/format";
 import { stayDay } from "../lib/siteBrief";
 import { crossedCues, sfx } from "../lib/sfx";
@@ -58,7 +58,8 @@ export function MissionControls({ timeline, planId, autoPlay = false }: { timeli
       }
       const cur = appStore.getState().missionTime ?? timeline.startMs;
       const hold = appStore.getState().detailedLaunch ? ASCENT_MS : 0; // staging stays watchable (T6.3.a)
-      const t = cur + (now - last) * playbackRate(timeline, cur, speed, hold); // slow motion around launch (T5.2.a)
+      // a stalled frame (terrain loading) advances at most MAX_FRAME_MS, so it never skips the slow parts (A9)
+      const t = cur + Math.min(now - last, MAX_FRAME_MS) * playbackRate(timeline, cur, speed, hold); // slow motion around launch and landing
       last = now;
       if (t >= timeline.endMs) {
         go(timeline.endMs);

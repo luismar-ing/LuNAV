@@ -13,11 +13,11 @@ import { phaseAt, type MissionTimeline } from "../lib/mission";
 import { STRINGS } from "../lib/strings";
 import { COLORS } from "../styles/tokens";
 import { createBodies, loadTextures, updateBodies } from "./bodies";
-import { approachPose, CameraController, directorPose, fromFrame, hopPose, localBlend, planningPose, reducedMotionPose, switchEase, toFrame, transitPose, type BodyFrame, type DirectorInput, type Pose } from "./cameraDirector";
-import { indexEphemeris, rotate, sceneStateAt } from "./ephemeris";
+import { approachPose, CameraController, directorPose, FOLLOW_WINDOWS, fromFrame, hopPose, localBlend, planningPose, reducedMotionPose, switchEase, toFrame, transitPose, type BodyFrame, type DirectorInput, type Pose } from "./cameraDirector";
+import { conjugate, indexEphemeris, rotate, sceneStateAt, type SceneState } from "./ephemeris";
 import { launchPositionKm, launchStage, padPositionKm, padUp, plumeIntensity, stagingAt } from "./launch";
 import { apparentLength, createPlume, createRocket, ROCKET_SCREEN_FRACTION, setPlume, setStaging } from "./rocket";
-import { bodyRadius, EARTH_RADII_KM, MOON_RADIUS_KM, earthOffset, pointToScene, RelativeOrigin, rocketScenePoint, SPACE_SCALE, toScene, type Vec3 } from "./scale";
+import { bodyRadius, EARTH_RADII_KM, MOON_RADIUS_KM, earthOffset, drawnMoonCentre, pointToScene, RelativeOrigin, rocketScenePoint, SPACE_SCALE, toScene, type Vec3 } from "./scale";
 import { siteBodyFixedKm, sitePositionKm, trailSamples, trailStyle } from "./trajectory";
 import { TerrainManager, type TerrainData } from "./terrain";
 import type { PlanSpec } from "./bridge";
@@ -243,6 +243,9 @@ export function mountScene(container: HTMLElement, opts: MountOptions): SceneCon
     traj: Trajectory | null;
     tl: MissionTimeline | null;
     trail: ReturnType<typeof trailSamples> | null;
+    /** the Moon at each trail sample (A9: the arrival part of the trail is drawn riding with the Moon) */
+    trailMoon: { km: Vec3; quat: [number, number, number, number] }[] | null;
+    lunarArrivalMs: number;
     style: ReturnType<typeof trailStyle> | null;
     flown: THREE.Line;
     ahead: THREE.Line;
@@ -256,7 +259,8 @@ export function mountScene(container: HTMLElement, opts: MountOptions): SceneCon
 
   const buildRig = (p: PlanSpec): PlanRig => {
     const traj = p.trajectory;
-    const trail = traj ? trailSamples(traj) : null;
+    // denser than before (A9): the low orbits round the Moon are drawn as smooth loops
+    const trail = traj ? trailSamples(traj, 2400) : null;
     const style = traj ? trailStyle(traj.mode) : null;
     // trail (T4.2.c): flown part in light text, remaining part in medium grey; dashed if ILLUSTRATIVE (rule 2)
     const makeLine = (color: string, name: string) => {
@@ -282,6 +286,13 @@ export function mountScene(container: HTMLElement, opts: MountOptions): SceneCon
       traj,
       tl: p.timeline,
       trail,
+      trailMoon: trail
+        ? trail.tMs.map((tt) => {
+            const s = sceneStateAt(ix, tt);
+            return { km: s.moonKm, quat: s.moonQuat };
+          })
+        : null,
+      lunarArrivalMs: traj ? parseInstant(traj.phases.lunar_arrival_utc) : Number.POSITIVE_INFINITY,
       style,
       flown: makeLine(COLORS.text, "trail-flown"),
       ahead: makeLine(COLORS.borderStrong, "trail-ahead"),
@@ -311,9 +322,24 @@ export function mountScene(container: HTMLElement, opts: MountOptions): SceneCon
   let rig = buildRig({ trajectory: opts.trajectory, timeline: opts.timeline, siteId: opts.siteId });
 
   /** Fills the two trail lines for instant t (points near the bodies pushed out like the rocket). */
-  const updateTrail = (t: number, moonKm: Vec3, rocketAt: Vec3) => {
-    const { trail, style, flown, ahead } = rig;
-    if (!trail) return;
+  const updateTrail = (t: number, state: SceneState, siteKm: Vec3 | null, anchor: Vec3, lambda: number, rocketAt: Vec3) => {
+    const { trail, trailMoon, lunarArrivalMs, style, flown, ahead } = rig;
+    if (!trail || !trailMoon) return;
+    const moonKm = state.moonKm;
+    // A9: from 3 h before lunar arrival on, each point is carried with the Moon (moved and turned) from its own
+    // instant to now, so the path round the Moon (approach, low orbits, descent to the site) is drawn as it is
+    // relative to the Moon, which the camera follows; before that, the path through space as it was. A smooth
+    // weight joins the two. Points are drawn like the rocket (rocketScenePoint), so they meet it at every scale.
+    const ride = (i: number): Vec3 => {
+      const w = smoothstep01((trail.tMs[i] - (lunarArrivalMs + FOLLOW_WINDOWS.in[0])) / -FOLLOW_WINDOWS.in[0]);
+      const km = trail.km[i];
+      if (w <= 0) return km;
+      const m = trailMoon[i];
+      const body = rotate(conjugate(m.quat), [km[0] - m.km[0], km[1] - m.km[1], km[2] - m.km[2]]);
+      const now = rotate(state.moonQuat, body);
+      const carried: Vec3 = [moonKm[0] + now[0], moonKm[1] + now[1], moonKm[2] + now[2]];
+      return [km[0] + (carried[0] - km[0]) * w, km[1] + (carried[1] - km[1]) * w, km[2] + (carried[2] - km[2]) * w];
+    };
     let split = trail.tMs.findIndex((x) => x > t);
     if (split < 0) split = trail.tMs.length;
     const fill = (line: THREE.Line, from: number, to: number, last: Vec3 | null, first: Vec3 | null) => {
@@ -321,7 +347,7 @@ export function mountScene(container: HTMLElement, opts: MountOptions): SceneCon
       let n = 0;
       const put = (p: Vec3) => attr.setXYZ(n++, p[0], p[1], p[2]);
       if (first) put(first);
-      for (let i = from; i < to; i++) put(pointToScene(trail.km[i], moonKm));
+      for (let i = from; i < to; i++) put(rocketScenePoint(ride(i), moonKm, siteKm, anchor, lambda));
       if (last) put(last);
       line.geometry.setDrawRange(0, n);
       attr.needsUpdate = true;
@@ -343,6 +369,8 @@ export function mountScene(container: HTMLElement, opts: MountOptions): SceneCon
   let moonW: Vec3 = [0, 0, 0];
   // body frames of the last drawn instant, to carry the camera across a change of plan (T4.4.b)
   let lastFrames: { earth: BodyFrame; moon: BodyFrame } | null = null;
+  /** the site where lastPose was drawn: the site moves with the Moon between frames */
+  let lastSite: Vec3 | null = null;
   let switching: { from: { earth: Pose; moon: Pose }; startMs: number } | null = null;
   let wasPlanning = opts.planning?.() ?? false;
   // surface view (TR.3.a): the gaze, and the hop between the aerial site framing and standing on the site
@@ -496,6 +524,18 @@ export function mountScene(container: HTMLElement, opts: MountOptions): SceneCon
     const rocketKm = traj ? (t >= landingMs && siteKm ? siteKm : launchPositionKm(traj, state.earthQuat, t)) : null;
     const rocketAt = rocketKm ? rocketScenePoint(rocketKm, state.moonKm, siteKm, anchor, lambda) : null;
     if (rocketAt && !planning) input.rocket = rocketAt;
+    // …and 1 minute later, carried back with the Moon to now: its heading relative to the Moon, which the camera
+    // follows round the Moon (A9); after landing it stays on the site
+    let rocketAhead: Vec3 | null = null;
+    if (traj && rocketAt) {
+      const ta = t + 60_000;
+      const s2 = sceneStateAt(ix, ta);
+      const site2 = siteBody ? sitePositionKm(siteBody, s2.moonKm, s2.moonQuat) : null;
+      const km2 = ta >= landingMs && site2 ? site2 : launchPositionKm(traj, s2.earthQuat, ta);
+      const back: Vec3 = [km2[0] + state.moonKm[0] - s2.moonKm[0], km2[1] + state.moonKm[1] - s2.moonKm[1], km2[2] + state.moonKm[2] - s2.moonKm[2]];
+      rocketAhead = t >= landingMs ? rocketAt : rocketScenePoint(back, state.moonKm, siteKm, anchor, lambda);
+      if (!planning) input.rocketAhead = rocketAhead;
+    }
     const scaleNow = lambda >= 0.5 ? "local" : "space";
     if (scaleNow !== reportedScale) {
       reportedScale = scaleNow;
@@ -536,6 +576,7 @@ export function mountScene(container: HTMLElement, opts: MountOptions): SceneCon
       if (step.zoom) controller.zoom(Math.exp(step.zoom), minDist());
       if (step.yaw || step.pitch) controller.rotate(step.yaw, step.pitch);
     } else if (!motion.idle) motion.stop(); // the guided camera is back: drop what was left
+    input.moonDrawn = drawnMoonCentre(input.moon, anchor, siteBody ? lambda : 0, siteRadiusUnits);
     let pose =
       (controller.mode === "manual" ? controller.manualPose(earthW, moonW) : null) ??
       (planning ? planningPose(input) : tl ? (reduced?.matches ? reducedMotionPose(tl, input) : directorPose(tl, input)) : transitPose(input));
@@ -566,7 +607,9 @@ export function mountScene(container: HTMLElement, opts: MountOptions): SceneCon
     }
     if (surface !== surfaceOn) {
       // hop between the aerial framing and the observer's eye: log distance to the site, smooth turn (no cut)
-      if (lastPose && !reduced?.matches) surfaceHop = { rel: { position: sub3(lastPose.position, input.site), target: sub3(lastPose.target, input.site), up: lastPose.up }, startMs: performance.now() };
+      // relative to the site of lastPose's own frame (A9: at touchdown in slow motion the site moves km per frame)
+      const from = lastSite ?? input.site;
+      if (lastPose && !reduced?.matches) surfaceHop = { rel: { position: sub3(lastPose.position, from), target: sub3(lastPose.target, from), up: lastPose.up }, startMs: performance.now() };
       if (surface && Number.isNaN(look.az) && sky) look.az = sky.earth[0]; // first look: towards the Earth
       if (surface && controller.mode === "manual") {
         controller.resume();
@@ -602,6 +645,7 @@ export function mountScene(container: HTMLElement, opts: MountOptions): SceneCon
     }
     lastPose = pose;
     lastFrames = frames;
+    lastSite = input.site;
     handle.cameraWorld = pose.position;
 
     if (terrain && siteBody) {
@@ -621,11 +665,8 @@ export function mountScene(container: HTMLElement, opts: MountOptions): SceneCon
       handle.world.set(rocket, p);
       if (t >= landingMs) dir.set(input.site[0] - moonW[0], input.site[1] - moonW[1], input.site[2] - moonW[2]); // standing on the site
       else if (stage === "flight") {
-        // nose along the motion: the point 2 minutes on, drawn the same way (near the site, relative to the site at
-        // that instant, so the Moon's own motion does not tilt the lander at real local scale)
-        const s2 = sceneStateAt(ix, t + 120_000);
-        const site2 = siteBody ? sitePositionKm(siteBody, s2.moonKm, s2.moonQuat) : null;
-        const next = rocketScenePoint(launchPositionKm(traj, s2.earthQuat, t + 120_000), s2.moonKm, site2, anchor, lambda);
+        // nose along the motion relative to the Moon (the heading the camera follows, A9)
+        const next = rocketAhead ?? p;
         dir.set(next[0] - p[0], next[1] - p[1], next[2] - p[2]).normalize();
         // A9: through the powered descent the lander turns upright, so it touches down standing (no flip)
         const upright = smoothstep01((t - (landingMs - DESCENT_UPRIGHT_MS)) / DESCENT_UPRIGHT_MS);
@@ -634,14 +675,28 @@ export function mountScene(container: HTMLElement, opts: MountOptions): SceneCon
       if (dir.lengthSq() > 0) rocket.quaternion.setFromUnitVectors(Y, dir.normalize());
       const dist = Math.hypot(p[0] - pose.position[0], p[1] - pose.position[1], p[2] - pose.position[2]);
       // enlarged in space (constant apparent size), real size (~100 m) at real local scale
-      rocket.scale.setScalar(apparentLength(dist, camera.fov, ROCKET_SCREEN_FRACTION) * (1 - lambda) + ROCKET_REAL_LENGTH_UNITS * lambda);
+      const drawn = apparentLength(dist, camera.fov, ROCKET_SCREEN_FRACTION) * (1 - lambda) + ROCKET_REAL_LENGTH_UNITS * lambda;
+      // A9: while it flies, never smaller than 6 % of the view, so the camera's subject stays in sight from the
+      // low orbits (km away) down to the descent; on the ground, its real size
+      rocket.scale.setScalar(t < landingMs ? Math.max(drawn, apparentLength(dist, camera.fov, 0.06)) : drawn);
       setPlume(plume, plumeIntensity(traj, t));
       // detailed launch (T6.3.a): stage separation and fairing; off = the MVP rocket, all in one piece
       setStaging(rocket, plume, opts.detailedLaunch?.() ? stagingAt(traj, t) : null);
       // the trail belongs to the flight: hidden once landed (its end stays in space while the Moon moves on)
-      flown.visible = ahead.visible = t < landingMs && lambda < 1;
-      (flown.material as THREE.LineBasicMaterial).opacity = (ahead.material as THREE.LineBasicMaterial).opacity = 0.9 * (1 - lambda);
-      if (flown.visible) updateTrail(t, state.moonKm, p);
+      // A9: the path ahead stays in view down to the site (it is what the camera follows); the path already flown
+      // fades as the real scale comes in (seen from beside the lander it would be lines across the sky); dashes
+      // shrink with the scale
+      ahead.visible = t < landingMs;
+      flown.visible = t < landingMs && lambda < 1;
+      for (const line of [flown, ahead]) {
+        const m = line.material as THREE.LineDashedMaterial;
+        m.opacity = line === flown ? 0.9 * (1 - lambda) : 0.9;
+        if (m.isLineDashedMaterial) {
+          m.dashSize = 2.5 * (1 - lambda) + 0.0004 * lambda; // 2 500 km in space, 400 m at real scale
+          m.gapSize = 1.8 * (1 - lambda) + 0.0003 * lambda;
+        }
+      }
+      if (ahead.visible) updateTrail(t, state, siteKm, anchor, lambda, p);
       // pad marker while the launch phase lasts
       pad.visible = t < rig.injectionMs;
       if (pad.visible) handle.world.set(pad, pointToScene(padPositionKm(state.earthQuat), state.moonKm));

@@ -234,14 +234,15 @@ export interface TrajectorySite {
 }
 
 const r1 = (v: number) => Math.round(v * 10) / 10;
+const r3 = (v: number) => Math.round(v * 1000) / 1000;
 const stampOf = (ms: number) => formatInstant(ms).slice(0, 10).replaceAll("-", "");
 
 /** trajectory/{id}.json (contract §11) for a site and an arrival day, from the scene ephemeris (build()). */
 export function buildTrajectory(site: TrajectorySite, arrivalMs: number, ix: EphemerisIndex, transitDays = 3): Trajectory {
   const ph = phasesFor(arrivalMs, transitDays);
-  // pipeline/spice_utils.utc_to_et formats the instant with whole seconds (strftime %S), so the pipeline reads the
-  // Moon up to 1 s early (~1 km); the same truncation here keeps the two curves together
-  const state = (ms: number) => sceneStateAt(ix, Math.floor(ms / 1000) * 1000);
+  // the Moon at the exact instant, like pipeline/spice_utils.utc_to_et (it used to truncate to the second, ~1 km off
+  // in the descent, and this port copied it; A9 fixed both)
+  const state = (ms: number) => sceneStateAt(ix, ms);
   const moonPos = (ms: number) => state(ms).moonKm as V;
   const tS = sampleTimesS(ph);
   const tInj = (ph.injectionMs - ph.launchMs) / 1000;
@@ -306,8 +307,9 @@ export function buildTrajectory(site: TrajectorySite, arrivalMs: number, ix: Eph
     mode: MODE,
     frame: "J2000",
     t0_utc: iso(ph.launchMs),
-    t_s: tS.map(r1),
-    pos_km: pos.map((p) => p.map(r1)),
+    t_s: tS.map(r3), // to the millisecond: at ~1 km/s a 0.1 s rounding put the lander ~50 m off the site (A9)
+    // A9: the last hour (the descent, which the camera follows from 0.8 km) to the metre, the rest to 0.1 km
+    pos_km: pos.map((p, i) => p.map(tS[i] >= tS[tS.length - 1] - 3600 ? r3 : r1)),
     phases: { launch_utc: iso(ph.launchMs), injection_utc: iso(ph.injectionMs), lunar_arrival_utc: iso(ph.lunarArrivalMs), landing_utc: iso(ph.landingMs) },
   };
 }

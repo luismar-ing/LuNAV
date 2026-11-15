@@ -10,12 +10,12 @@ import type { Plan, SceneEphemeris, Trajectory } from "../src/lib/contract";
 import { parseInstant } from "../src/lib/contract";
 import { timelineOf, type MissionTimeline } from "../src/lib/mission";
 import { CameraMotion, MAX_STEP, wheelZoom } from "../src/scene3d/cameraInput";
-import { CHASE_KM, CHASE_WINDOWS, localBlend } from "../src/scene3d/cameraDirector";
+import { FOLLOW, FOLLOW_WINDOWS, localBlend } from "../src/scene3d/cameraDirector";
 import { playbackRate } from "../src/lib/mission";
 import { CameraController, directorPose, hopPose, planningPose, reducedMotionPose, SWITCH_MS, sitePose, switchEase, type DirectorInput, type Pose } from "../src/scene3d/cameraDirector";
 import { indexEphemeris, rotate, sceneStateAt } from "../src/scene3d/ephemeris";
 import { launchPositionKm, padUp } from "../src/scene3d/launch";
-import { bodyRadius, EARTH_RADII_KM, MOON_RADIUS_KM, pointToScene, rocketScenePoint, toScene, type Vec3 } from "../src/scene3d/scale";
+import { bodyRadius, drawnMoonCentre, EARTH_RADII_KM, MOON_RADIUS_KM, pointToScene, rocketScenePoint, toScene, type Vec3 } from "../src/scene3d/scale";
 import { siteBodyFixedKm, sitePositionKm } from "../src/scene3d/trajectory";
 
 const DATA = join(__dirname, "..", "public", "data");
@@ -32,12 +32,21 @@ function setup(planId: string) {
   const siteBody = siteBodyFixedKm(traj, ix);
   const input = (t: number): DirectorInput => {
     const s = sceneStateAt(ix, t);
-    // the rocket as the renderer draws it (A9: the director follows it down to the site)
+    // the rocket as the renderer draws it, and 1 minute later carried back with the Moon (its heading), and the
+    // Moon's drawn centre (A9: the director follows the lander round the Moon and down to the site)
     const siteKm = sitePositionKm(siteBody, s.moonKm, s.moonQuat);
     const anchor = pointToScene(siteKm, s.moonKm);
+    const lambda = localBlend(tl, t);
     const rocketKm = t >= tl.landingMs ? siteKm : launchPositionKm(traj, s.earthQuat, t);
+    const rocket = rocketScenePoint(rocketKm, s.moonKm, siteKm, anchor, lambda);
+    const s2 = sceneStateAt(ix, t + 60_000);
+    const site2 = sitePositionKm(siteBody, s2.moonKm, s2.moonQuat);
+    const km2 = t + 60_000 >= tl.landingMs ? site2 : launchPositionKm(traj, s2.earthQuat, t + 60_000);
+    const back = [0, 1, 2].map((c) => km2[c] + s.moonKm[c] - s2.moonKm[c]) as Vec3;
     return {
-      rocket: rocketScenePoint(rocketKm, s.moonKm, siteKm, anchor, localBlend(tl, t)),
+      rocket,
+      rocketAhead: t >= tl.landingMs ? rocket : rocketScenePoint(back, s.moonKm, siteKm, anchor, lambda),
+      moonDrawn: drawnMoonCentre(toScene(s.moonKm), anchor, lambda, Math.hypot(...siteBody) / 1000),
       t,
       moon: toScene(s.moonKm),
       sunDir: s.sunDir,
@@ -96,7 +105,9 @@ describe("camera director: continuous path, no jumps between frames", () => {
       expect(fast.maxDir).toBeLessThan(6);
       expect(fast.maxUp).toBeLessThan(6);
       expect(fast.maxRel).toBeLessThan(0.2);
-      expect(slow.maxDir).toBeLessThan(1.5);
+      // A9: round the Moon the camera turns with the lander's orbit (~2° a frame at the arrival's 40 min/s)
+      expect(slow.maxDir).toBeLessThan(6);
+      expect(slow.maxUp).toBeLessThan(6);
     });
   }
 
@@ -119,7 +130,7 @@ describe("camera director: continuous path, no jumps between frames", () => {
 
   it("ends at the site framing once the lander has touched down, after travelling Earth → Moon", () => {
     const { tl, input } = setup("haworth_20270309_7d");
-    const settled = tl.landingMs + CHASE_WINDOWS.out[1];
+    const settled = tl.landingMs + FOLLOW_WINDOWS.out[1];
     const atEnd = directorPose(tl, input(settled));
     const framing = sitePose(input(settled));
     expect(len(sub(atEnd.position, framing.position))).toBeLessThan(1e-12);
@@ -131,25 +142,29 @@ describe("camera director: continuous path, no jumps between frames", () => {
     expect(len(sub(atEnd.target, site)) * 1000).toBeCloseTo(10, 6);
   });
 
-  it("A9: follows the lander down the powered descent, keeping it in view, and touches down with it", () => {
+  it("A9: follows the lander along its whole path round the Moon and down, keeping it in view, and lands with it", () => {
     for (const planId of ["haworth_20270309_7d", "connecting_ridge_20270102_7d", "malapert_massif_20271015_14d"]) {
       const { tl, input } = setup(planId);
-      let far = 0;
       let off = 0;
-      // from the end of the catch-up to touchdown, every 10 s of mission
-      for (let t = tl.landingMs + CHASE_WINDOWS.in[1]; t <= tl.landingMs; t += 10_000) {
+      let worstGap = 0;
+      // from the end of the hand-over (30 min after lunar arrival) to touchdown, every minute of mission
+      for (let t = tl.lunarArrivalMs + FOLLOW_WINDOWS.in[1]; t <= tl.landingMs; t += 60_000) {
         const i = input(t);
         const p = directorPose(tl, i);
         const toRocket = sub(i.rocket as Vec3, p.position);
-        far = Math.max(far, len(toRocket) * 1000); // km
         off = Math.max(off, angle(view(p), toRocket)); // the lander's angle from the centre of the view
+        // the camera stays at its following distance (it never goes off to the site on its own)
+        const height = Math.max(0, len(sub(i.rocket as Vec3, i.moonDrawn as Vec3)) - len(sub(i.site, i.moonDrawn as Vec3)));
+        const back = FOLLOW.minBackKm / 1000 + FOLLOW.backPerAlt * height;
+        worstGap = Math.max(worstGap, Math.abs(len(toRocket) / (back * Math.hypot(1, FOLLOW.rise)) - 1));
       }
-      expect(far, planId).toBeLessThan(Math.hypot(CHASE_KM.back, CHASE_KM.up) + 0.01);
       expect(off, planId).toBeLessThan(25); // well inside the 45° field of view
-      // at touchdown the camera is behind the lander, on the site, and already looks the site framing's way
+      expect(worstGap, planId).toBeLessThan(0.01);
+      // at touchdown the camera is just behind the lander, on the site, and already looks the site framing's way
       const i = input(tl.landingMs);
       const atTouchdown = directorPose(tl, i);
       expect(len(sub(i.rocket as Vec3, i.site))).toBeLessThan(1e-9);
+      expect(len(sub(atTouchdown.position, i.site)) * 1000).toBeLessThan(0.85); // km
       expect(angle(view(atTouchdown), view(sitePose(i)))).toBeLessThan(15);
     }
   });

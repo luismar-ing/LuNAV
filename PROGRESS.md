@@ -4000,3 +4000,38 @@ Las trayectorias ILLUSTRATIVE, los datos SYNTHETIC y toda desviación de la spec
   - Escena real (Chrome sin cabeza, reproducción real a 6 h/s desde 15 min antes, captura cada 1.5 s): la cámara alcanza al módulo (15.5 km → 0.83 km) y lo acompaña a 0.83 km hasta el contacto. El módulo baja enderezándose hacia el marcador de aterrizaje. Luego entra la vista desde la superficie. Sin errores en consola.
 - **Desviaciones de la spec / cambios en la guía:** ninguna. La trayectoria sigue siendo ILLUSTRATIVE.
 - **Problemas abiertos:** el polvo al tocar suelo (A5) sigue sin hacer.
+
+## AJUSTE · A9 · La cámara sigue todo el trazado hasta el sitio; «Watch a full day» más rápido
+
+- **Tarea:** petición del humano: al aterrizar, la cámara dejaba el trazado y se iba directa al sitio, con un movimiento brusco. Debe seguir el trazado completo y aterrizar en el sitio, en Educator y en Mission Planner. Además, «Watch a full day» era muy lento.
+- **Causa:**
+  - El seguimiento de A9 solo cubría los últimos 16 min. Antes, el director hacía su acercamiento fijo al sitio mientras el módulo daba dos vueltas en órbita baja.
+  - `pipeline/spice_utils.utc_to_et` formateaba el instante con segundos enteros. Las muestras fraccionarias del descenso tomaban la Luna hasta 1 s antes; a ~1 km/s, el módulo se dibujaba a 0.2–0.8 km del sitio y saltaba sobre él al tocar suelo. El port TS (`lib/trajectoryBuilder.ts`) copiaba esa truncación a propósito.
+  - `t_s` iba redondeado a 0.1 s (~50 m a esa velocidad).
+  - Al entrar la vista desde la superficie, el salto suave partía de la pose anterior medida contra el sitio del cuadro nuevo; en cámara lenta el sitio se mueve km entre cuadros.
+  - Educator: al pasar de capítulo, el último cuadro del capítulo anterior podía anular la reproducción del nuevo (el capítulo «Landing» a veces no se reproducía).
+  - «Watch a full day» iba a 1 h/s y además frenaba con la cámara lenta del aterrizaje.
+- **Qué se hizo:**
+  - `scene3d/cameraDirector.ts`: `followPose()` sustituye a `chasePose()`. La cámara va detrás del módulo (0.8 km + 0.12 × altura), mirando hacia donde va respecto a la Luna, desde la llegada a la Luna (entra en las 3 h previas) hasta el contacto. Bajo 30 km solo cuenta el movimiento horizontal; bajo 3 km gira hacia el encuadre del sitio. Tras el contacto pasa al encuadre del sitio en 3 min.
+  - `scene3d/scale.ts`: `drawnMoonCentre()`, el centro de la Luna tal como se dibuja (altura del módulo a cualquier escala).
+  - `scene3d/renderer.ts`:
+    - El trazado de la llegada viaja con la Luna (posición y giro), así que las órbitas bajas se ven como lazos alrededor de ella.
+    - El tramo ya recorrido se desvanece al entrar la escala real; el módulo nunca baja del 6 % de la vista mientras vuela.
+    - El salto a la vista desde la superficie parte del sitio del cuadro anterior.
+  - `lib/mission.ts`: alrededor de la Luna la reproducción va a 40 min/s como máximo (`ARRIVAL_RATE`) y cada cuadro avanza como mucho 100 ms (`MAX_FRAME_MS`), para que un cuadro lento no se salte la cámara lenta.
+  - `views/useMissionPlayback.ts`: un tramo que termina solo se borra a sí mismo; `steady` reproduce sin cámara lenta.
+  - `views/EducatorView.tsx`: «Watch a full day» a 6 h/s constantes (un día en 4 s).
+  - `pipeline/spice_utils.py`: `utc_to_et` con microsegundos. `pipeline/trajectory.py` y `lib/trajectoryBuilder.ts`: `t_s` al milisegundo y la última hora de posiciones al metro. El port TS ya no trunca.
+  - Datos regenerados (`pipeline.trajectory` + `build_all --assemble`): 1825 trayectorias, 14.32 MB (antes 13.75 MB).
+- **Cómo se verificó:**
+  ```
+  $ npm --prefix web run typecheck → sin errores
+  $ npm --prefix web test → 431 passed
+  $ .venv/Scripts/python -m pytest → 287 passed
+  ```
+  - `camera.test.ts`: desde 30 min tras la llegada a la Luna hasta el contacto, el módulo queda a < 25° del centro de la vista y la cámara a su distancia de seguimiento (±1 %); al tocar suelo está a < 0.85 km del sitio y mira como el encuadre del sitio (< 15°).
+  - `trajectoryBuilder.test.ts`: el port TS coincide con los archivos publicados (llegada ≤ 0.17 km, última hora ≤ 0.05 km).
+  - Distancia módulo–sitio antes del contacto: 106 m a −24.5 s, 27 m a −13.8 s, 4 m a −6.2 s, 0 al tocar suelo (antes 0.2–0.8 km, con altitudes negativas).
+  - Escena real (Chrome sin cabeza), cuadro a cuadro desde el último km hasta 3 s después del contacto: Educator, giro máximo 0.09°/cuadro y desplazamiento máximo 79 m/cuadro; Mission Planner, 0.08° y 69 m (antes, salto de 1.2–3.5 km al tocar suelo). Capítulo «Landing»: la cámara sigue al módulo (1 569 km → 5.4 km en órbita baja → 0.84 km) durante 33 s, con el módulo a 5.5° del centro. «Watch a full day»: 4.1 s. Sin errores en consola.
+- **Desviaciones de la spec / cambios en la guía:** ninguna. La trayectoria sigue siendo ILLUSTRATIVE.
+- **Problemas abiertos:** el polvo al tocar suelo (A5) sigue sin hacer.

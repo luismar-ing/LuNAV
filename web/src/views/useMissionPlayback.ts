@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { phaseAt, playbackRate, type MissionTimeline } from "../lib/mission";
+import { MAX_FRAME_MS, phaseAt, playbackRate, type MissionTimeline } from "../lib/mission";
 import { ASCENT_MS } from "../scene3d/launch";
 import { appStore } from "../store/appStore";
 
@@ -7,6 +7,8 @@ import { appStore } from "../store/appStore";
 export interface Playback {
   to: number;
   hoursPerSecond: number;
+  /** at that speed all the way, without the slow motion around launch and landing ("Watch a full day") */
+  steady?: boolean;
 }
 
 /**
@@ -29,10 +31,12 @@ export function useMissionPlayback(timeline: MissionTimeline | null) {
       if (last !== null) {
         const cur = appStore.getState().missionTime ?? timeline.startMs;
         const hold = appStore.getState().detailedLaunch ? ASCENT_MS : 0; // staging stays watchable (T6.3.a)
-        const t = cur + (now - last) * playbackRate(timeline, cur, play.hoursPerSecond, hold);
+        const rate = play.steady ? play.hoursPerSecond * 3600 : playbackRate(timeline, cur, play.hoursPerSecond, hold);
+        const t = cur + Math.min(now - last, MAX_FRAME_MS) * rate; // a stalled frame never skips the slow parts (A9)
         if (t >= play.to) {
           go(play.to);
-          setPlay(null);
+          // only this stretch: a chapter that just set the next one (Educator "Next chapter") keeps it playing
+          setPlay((p) => (p === play ? null : p));
           return;
         }
         go(t);

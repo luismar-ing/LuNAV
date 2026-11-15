@@ -304,8 +304,9 @@ def build(site: dict, arrival: datetime, geo: Geometry | None = None) -> dict:
         "mode": MODE,
         "frame": SCENE_FRAME,
         "t0_utc": iso(ph.launch),
-        "t_s": [round(float(x), 1) for x in t_s],
-        "pos_km": np.round(np.array(pos), 1).tolist(),
+        "t_s": [round(float(x), 3) for x in t_s],  # al milisegundo: a ~1 km/s, 0.1 s eran ~50 m (A9)
+        # A9: the last hour (the descent, which the camera follows from 0.8 km) to the metre, the rest to 0.1 km
+        "pos_km": np.where((t_s >= t_s[-1] - 3600.0)[:, None], np.round(np.array(pos), 3), np.round(np.array(pos), 1)).tolist(),
         "phases": {"launch_utc": iso(ph.launch), "injection_utc": iso(ph.injection),
                    "lunar_arrival_utc": iso(ph.lunar_arrival), "landing_utc": iso(ph.landing)},
     }
