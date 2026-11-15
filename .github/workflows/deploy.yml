@@ -39,8 +39,8 @@ jobs:
         run: |
           cd web/dist
           git init -q -b deploy
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git config user.name "Jesus Rodríguez"
+          git config user.email "jesus29er@hotmail.com"
           git add -A
           git commit -q -m "Build of ${GITHUB_SHA::7}"
           git push -q -f "https://x-access-token:${TOKEN}@github.com/${GITHUB_REPOSITORY}.git" deploy
