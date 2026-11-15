@@ -414,6 +414,9 @@ export const STRINGS = {
   thumbs: {
     aria: "Other pinned plans, at the same time since arrival as the live plan",
     title: "Other plans · since arrival",
+    // B5: before the live plan lands (launch, transit) there is no "since arrival" yet
+    ariaBefore: "Other pinned plans",
+    titleBefore: "Other plans",
     empty: "Pin more plans in the tray to compare them here.",
     score: "Score",
     switch: (site: string, date: string, L: number) => `Show ${site} (arrival ${date}, ${L}-day window) in the 3D view`,

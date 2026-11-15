@@ -3085,6 +3085,26 @@ Las trayectorias ILLUSTRATIVE, los datos SYNTHETIC y toda desviación de la spec
   - Siguen abiertos los de la entrada anterior (contexto WebGL, capturas).
 - **Siguiente tarea:** revisión del humano; después T5.2.e y la Fase 7.
 
+## AJUSTE · B5a: sin etiquetas fuera de lugar en la planificación y el viaje
+
+- **Tarea:** primera parte de B5 del plan de mejoras del 14-nov-2026 (persona B, hallazgo H13). La fecha legible (H12) va aparte, en B5b.
+- **Qué se hizo:**
+  - `views/PlannerView.tsx`: fuera la etiqueta ILLUSTRATIVE de la planificación (`planner-badge`). Mientras se planifica no se dibuja ninguna trayectoria, solo el mapa y los datos reales. El viaje conserva su propio chip ILLUSTRATIVE (`MissionStage.tsx`, `illustrative-label`). También se borraron el CSS de `.planner-badge` y su regla para teléfono.
+  - `panels2d/ThumbnailStrip.tsx`: antes de que aterrice el plan vivo (lanzamiento y tránsito), la tira dice «Other plans», sin reloj, con la etiqueta accesible «Other pinned plans». Desde la llegada vuelve a decir «Other plans · since arrival» con «Day N, HH:MM». Las miniaturas siguen esperando en el instante de llegada, como antes.
+  - `lib/strings.ts`: `thumbs.titleBefore` y `thumbs.ariaBefore`.
+  - No se movió `.plan-stage`: el hueco que dejaba la etiqueta se queda, para no tocar el ajuste sin scroll de A9.
+- **Cómo se verificó:**
+  ```
+  $ npm --prefix web run typecheck → sin errores
+  $ npm --prefix web test → 269 passed (45 archivos)
+  ```
+  - `tests/plannerSidebar.test.tsx`: sin «ILLUSTRATIVE» en la planificación.
+  - `tests/modeTransition.test.tsx`: título y etiqueta de la tira antes y después de la llegada; sin `thumb-clock` antes.
+  - Navegador (servidor de desarrollo, 1366×768, dos planes anclados): en la planificación no aparece ILLUSTRATIVE, sin scroll en la barra ni en la etapa, sin scroll horizontal. En el lanzamiento y el tránsito se ve «Other plans», sin reloj, con el chip ILLUSTRATIVE. En el sitio se ve «Other plans · since arrival» y «Day 1, 12:03». Sin errores en consola.
+- **Desviaciones de la spec / cambios en la guía:** ninguna. La regla «trayectoria no real = ILLUSTRATIVE» se sigue cumpliendo donde hay trayectoria.
+- **Problemas abiertos:** sigue el fallo intermitente de `integration.test.tsx` (T5.1.b) anotado en B1; esta vez pasó.
+- **Siguiente tarea:** B2 (Sol y Tierra juntos en la lista, el pin y el resumen).
+
 ## AJUSTE · B1: hover legible en los botones primarios
 
 - **Tarea:** B1 del plan de mejoras del 14-nov-2026 (persona B, hallazgo H1).

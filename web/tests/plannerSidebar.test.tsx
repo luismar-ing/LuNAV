@@ -44,6 +44,8 @@ describe("Mission Planner sidebar (A2)", () => {
     // planning is 2D (planner redesign): the Moon map instead of the globe, no WebGL until the journey
     expect(screen.queryByTestId("scene-host")).toBeNull();
     expect(screen.getByTestId("moon-map")).toBeTruthy();
+    // B5: no trajectory is drawn while planning, so no ILLUSTRATIVE label there (the journey has its own)
+    expect(screen.queryByText("ILLUSTRATIVE")).toBeNull();
 
     // B2 (H6): the default plan is sunlit but has no Earth for the whole stay: list, pin and brief all say so
     const cr = sidebar().getByRole("button", { name: /^Connecting Ridge/ });

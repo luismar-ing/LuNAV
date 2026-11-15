@@ -2192,18 +2192,6 @@ input[type="range"] {
   font-size: var(--font-md);
 }
 
-.planner-badge {
-  position: absolute;
-  top: clamp(68px, 8vh + 16px, 84px);
-  right: 24px;
-  z-index: 2;
-  margin: 0;
-  max-width: 44rem; /* one line over the planning stage, which starts right under it */
-  text-align: right;
-  font-size: var(--font-sm);
-  color: var(--color-text-muted);
-}
-
 .phase-rail {
   position: absolute;
   left: 400px;
@@ -3369,7 +3357,6 @@ button.brief-day-btn:hover {
     right: 8px;
     left: 8px;
   }
-  .planner-badge,
   .planner[data-stage="planning"] .phase-rail {
     display: none;
   }
