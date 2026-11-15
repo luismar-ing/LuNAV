@@ -1,11 +1,13 @@
 // @vitest-environment jsdom
-/** C3: the challenge screen ("Can your lander make it?", level 1) launches a site + day and explains the result. */
+/** C3: the challenge screen ("Can your lander make it?", level 1): the 3D scene and a sidebar to choose the plan. */
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
-import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
-import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
+import { App } from "../src/App";
 import { appStore } from "../src/store/appStore";
-import { Challenge } from "../src/views/Challenge";
+
+vi.mock("../src/scene3d/SceneHost", () => ({ SceneHost: () => <div data-testid="scene-host" /> }));
 
 const REAL = join(__dirname, "..", "public", "data");
 const fileFetch = (async (url: string) => {
@@ -24,48 +26,44 @@ beforeAll(async () => {
   globalThis.fetch = fileFetch;
   await appStore.getState().loadCore();
 });
+beforeEach(() => {
+  appStore.getState().setScreen("landing");
+  appStore.getState().selectPlan(null);
+});
 afterEach(cleanup);
 
-const days = () => within(screen.getByRole("group", { name: "2. Choose a landing day in March 2027" }));
-
 describe("Challenge screen (C3)", () => {
-  it("needs a site and a day before launching", () => {
-    render(<Challenge onWatch={() => {}} onClose={() => {}} />);
-    expect(screen.getByRole("heading", { name: "Can your lander make it?" })).toBeTruthy();
-    expect(screen.getByText("ASSUMED")).toBeTruthy();
-    expect(days().getAllByRole("button")).toHaveLength(31);
-    expect((screen.getByRole("button", { name: "Launch the mission" }) as HTMLButtonElement).disabled).toBe(true);
+  it("shows the mission, the ASSUMED lander, the sites and the 31 days of March over the 3D scene", async () => {
+    render(<App />);
+    act(() => appStore.getState().setScreen("challenge"));
+    const ch = within(screen.getByTestId("challenge"));
+    expect(ch.getByRole("heading", { name: "Can your lander make it?" })).toBeTruthy();
+    expect(ch.getByText("ASSUMED")).toBeTruthy();
+    expect(ch.getByText(/keep the lander powered for 7 days/)).toBeTruthy();
+    expect(within(ch.getByRole("group", { name: "1. Choose a landing site" })).getAllByRole("button")).toHaveLength(5);
+    expect(within(ch.getByRole("group", { name: "2. Choose a landing day in March 2027" })).getAllByRole("button")).toHaveLength(31);
+    await waitFor(() => expect(screen.getByTestId("scene-host")).toBeTruthy());
   });
 
-  it("explains a lost lander, reveals the site's good days, and a good day can be watched", async () => {
-    const onWatch = vi.fn();
-    render(<Challenge onWatch={onWatch} onClose={() => {}} />);
+  it("the chosen site and day become the mission's plan; the clock waits at the countdown", async () => {
+    render(<App />);
+    act(() => appStore.getState().setScreen("challenge"));
+    fireEvent.click(screen.getByRole("button", { name: "Haworth" }));
+    fireEvent.click(screen.getByRole("button", { name: "Mar 10, 2027" }));
+    expect(appStore.getState().selectedPlanId).toBe("haworth_20270310_7d");
     fireEvent.click(screen.getByRole("button", { name: "Nobile Rim 1" }));
-    fireEvent.click(days().getByRole("button", { name: "Mar 2, 2027" }));
-    const launch = screen.getByRole("button", { name: "Launch the mission" }) as HTMLButtonElement;
-    await vi.waitFor(() => expect(launch.disabled).toBe(false));
-    fireEvent.click(launch);
+    expect(appStore.getState().selectedPlanId).toBe("nobile_rim_1_20270310_7d");
+    await waitFor(() => expect(appStore.getState().missionPhase).toBe("overview"));
+    expect(screen.getByRole("button", { name: "Nobile Rim 1" }).getAttribute("aria-pressed")).toBe("true");
+  });
 
-    const result = screen.getByTestId("challenge-result");
-    expect(result.dataset.success).toBe("false");
-    expect(within(result).getByText(/Your lander lost power$/)).toBeTruthy();
-    expect(screen.getByTestId("challenge-why").textContent).toMatch(
-      /^The battery ran empty for [\d.]+ h\. You landed in the middle of a 235\.5 h night: the Sun was already behind the terrain\. A full battery lasts 20 h\.$/,
-    );
-    expect(screen.queryByRole("button", { name: "Watch your landing" })).toBeNull();
-
-    // the site's month is revealed: 12 of 31 March days keep the lander powered at Nobile Rim 1 (challenge.test.ts)
-    const ok = days().getAllByRole("button").filter((b) => b.dataset.outcome === "ok");
-    expect(ok).toHaveLength(12);
-    expect(days().getByRole("button", { name: "Mar 2, 2027, the lander loses power" })).toBeTruthy();
-
-    // picking another day clears the result; a good day succeeds and can be watched
-    fireEvent.click(ok[0]);
-    expect(screen.queryByTestId("challenge-result")).toBeNull();
-    fireEvent.click(screen.getByRole("button", { name: "Launch the mission" }));
-    expect(screen.getByTestId("challenge-result").dataset.success).toBe("true");
-    expect(screen.getByText(/^Attempt 2 · Nobile Rim 1/)).toBeTruthy();
-    fireEvent.click(screen.getByRole("button", { name: "Watch your landing" }));
-    expect(onWatch).toHaveBeenCalledWith("nobile_rim_1", expect.stringMatching(/^2027-03-\d\d$/));
+  it("'Back to the story' returns to the Educator; Esc leaves for the start page", () => {
+    render(<App />);
+    act(() => appStore.getState().setScreen("challenge"));
+    fireEvent.click(screen.getByRole("button", { name: "Back to the story" }));
+    expect(appStore.getState().screen).toBe("educator");
+    act(() => appStore.getState().setScreen("challenge"));
+    fireEvent.keyDown(window, { key: "Escape" });
+    expect(appStore.getState().screen).toBe("landing");
   });
 });

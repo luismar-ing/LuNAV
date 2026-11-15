@@ -1,8 +1,8 @@
 // @vitest-environment jsdom
-/** C3: the Educator's last chapter opens the challenge; a successful landing is replayed in the story; Esc closes it. */
+/** C3: the Educator's last chapter opens the challenge screen. */
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
-import { act, cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { App } from "../src/App";
 import { appStore } from "../src/store/appStore";
@@ -32,54 +32,20 @@ beforeEach(() => {
 });
 afterEach(cleanup);
 
-/** Through the story to chapter 4 ("On the surface"). */
-async function toSurface() {
-  render(<App />);
-  act(() => appStore.getState().setScreen("educator"));
-  await waitFor(() => expect(appStore.getState().selectedPlanId).not.toBeNull());
-  fireEvent.click(await screen.findByRole("button", { name: "Begin the journey" }));
-  fireEvent.click(await screen.findByRole("button", { name: "Skip ahead" }));
-  fireEvent.click(screen.getByRole("button", { name: "Next chapter" })); // landing
-  fireEvent.click(screen.getByRole("button", { name: "Next chapter" })); // surface
-  expect(screen.getByRole("heading", { name: "On the surface" })).toBeTruthy();
-}
-
 describe("Challenge from the Educator (C3)", () => {
-  it("'Take the challenge' opens it; Esc closes it and stays in the story", async () => {
-    await toSurface();
+  it("'Take the challenge' in chapter 4 opens the challenge screen", async () => {
+    render(<App />);
+    act(() => appStore.getState().setScreen("educator"));
+    await waitFor(() => expect(appStore.getState().selectedPlanId).not.toBeNull());
+    fireEvent.click(await screen.findByRole("button", { name: "Begin the journey" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Skip ahead" }));
+    fireEvent.click(screen.getByRole("button", { name: "Next chapter" })); // landing
+    fireEvent.click(screen.getByRole("button", { name: "Next chapter" })); // surface
+    expect(screen.getByRole("heading", { name: "On the surface" })).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "Take the challenge" })).toBeTruthy();
     fireEvent.click(screen.getByRole("button", { name: "Take the challenge" }));
+    expect(appStore.getState().screen).toBe("challenge");
     expect(screen.getByTestId("challenge")).toBeTruthy();
-    fireEvent.keyDown(window, { key: "Escape" });
-    expect(screen.queryByTestId("challenge")).toBeNull();
-    expect(appStore.getState().screen).toBe("educator");
-    fireEvent.click(screen.getByRole("button", { name: "Take the challenge" }));
-    fireEvent.click(screen.getByRole("button", { name: "Back to the story" }));
-    expect(screen.queryByTestId("challenge")).toBeNull();
-  });
-
-  it("'Watch your landing' selects the chosen plan and replays the landing chapter", async () => {
-    await toSurface();
-    fireEvent.click(screen.getByRole("button", { name: "Take the challenge" }));
-    const ch = within(screen.getByTestId("challenge"));
-    fireEvent.click(ch.getByRole("button", { name: "Haworth" }));
-    const days = within(ch.getByRole("group", { name: /Choose a landing day/ }));
-    fireEvent.click(days.getByRole("button", { name: "Mar 1, 2027" }));
-    const launch = ch.getByRole("button", { name: "Launch the mission" }) as HTMLButtonElement;
-    await waitFor(() => expect(launch.disabled).toBe(false));
-    fireEvent.click(launch);
-
-    // a day that works at Haworth (revealed after the first attempt)
-    const ok = days.getAllByRole("button").find((b) => b.dataset.outcome === "ok")!;
-    const day = ok.getAttribute("aria-label")!.replace(/, the lander.*$/, "");
-    const ymd = new Date(`${day} UTC`).toISOString().slice(0, 10);
-    if (ok.getAttribute("aria-pressed") !== "true") {
-      fireEvent.click(ok);
-      fireEvent.click(ch.getByRole("button", { name: "Launch the mission" }));
-    }
-    fireEvent.click(ch.getByRole("button", { name: "Watch your landing" }));
-
-    expect(screen.queryByTestId("challenge")).toBeNull();
-    expect(appStore.getState().selectedPlanId).toBe(`haworth_${ymd.replace(/-/g, "")}_7d`);
-    expect(screen.getByRole("heading", { name: "Landing" })).toBeTruthy();
+    expect(screen.queryByTestId("educator")).toBeNull();
   });
 });

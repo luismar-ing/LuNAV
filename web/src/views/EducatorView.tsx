@@ -13,7 +13,6 @@ import { fmtMetric, round } from "../lib/why";
 import { sceneBridge } from "../scene3d/bridge";
 import { SceneHost } from "../scene3d/SceneHost";
 import { appStore, useApp } from "../store/appStore";
-import { Challenge } from "./Challenge";
 import { useMissionPlayback } from "./useMissionPlayback";
 
 const STRIP_DAYS = 21;
@@ -23,8 +22,6 @@ const ymd = (ms: number) => new Date(ms).toISOString().slice(0, 10);
 /** The chapter currently shown (read by the scene every frame: chapter 1 is the globe). */
 const chapterNow = { index: 0 };
 const isPlanning = () => CHAPTERS[chapterNow.index].planning;
-/** "Watch your landing" from the challenge replays the mission from lunar arrival. */
-const LANDING_CHAPTER = CHAPTERS.findIndex((ch) => ch.id === "landing");
 
 /** The highest-scoring 7-day plan of the year: a good mission to tell the story with. */
 async function bestPlanId(): Promise<string | null> {
@@ -116,26 +113,10 @@ export function EducatorView({ tools }: { tools: ReactNode }) {
     else setPanorama(true);
   };
 
-  // C3: "Can your lander make it?" over the story; a successful landing can be watched in the story itself
-  const [challenge, setChallengeState] = useState(false);
-  const challengeOpen = useRef(false);
-  const setChallenge = (open: boolean) => {
-    challengeOpen.current = open;
-    setChallengeState(open);
-  };
-  const watchLanding = (siteId: string, day: string) => {
-    const id = `${siteId}_${day.replace(/-/g, "")}_7d`;
-    if (appStore.getState().plansById.has(id)) appStore.getState().selectPlan(id);
-    setChallenge(false);
-    setChapter(LANDING_CHAPTER);
-  };
-
-  // Esc closes the challenge, otherwise leaves the story for the start page (no dialog of this view handles it first)
+  // Esc leaves the story for the start page (no dialog of this view handles it first)
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (e.key !== "Escape" || e.defaultPrevented) return;
-      if (challengeOpen.current) setChallenge(false);
-      else appStore.getState().setScreen("landing");
+      if (e.key === "Escape" && !e.defaultPrevented) appStore.getState().setScreen("landing");
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
@@ -162,7 +143,6 @@ export function EducatorView({ tools }: { tools: ReactNode }) {
           <SceneHost planning={isPlanning} />
         </div>
       )}
-      {challenge && <Challenge onWatch={watchLanding} onClose={() => setChallenge(false)} />}
       <header className="planner-top">
         <div className="landing-tools">{tools}</div>
       </header>
@@ -219,7 +199,7 @@ export function EducatorView({ tools }: { tools: ReactNode }) {
                 <button type="button" className="btn pill" onClick={lookAround}>
                   {STRINGS.educator.lookAround}
                 </button>
-                <button type="button" className="btn pill" onClick={() => setChallenge(true)}>
+                <button type="button" className="btn pill" onClick={() => appStore.getState().setScreen("challenge")}>
                   {STRINGS.challenge.open}
                 </button>
               </>

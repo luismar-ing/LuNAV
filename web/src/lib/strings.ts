@@ -224,7 +224,6 @@ export const STRINGS = {
     dayStep: (month: string) => `2. Choose a landing day in ${month}`,
     dayLabel: (day: string, outcome: boolean | undefined) =>
       outcome === undefined ? day : `${day}, ${outcome ? "the lander keeps its power" : "the lander loses power"}`,
-    revealHint: (site: string) => `✓ and ✗ show which landing days work at ${site}. Try another site to compare.`,
     launch: "Launch the mission",
     pickFirst: "Choose a site and a day first.",
     loading: "Loading the site data…",
