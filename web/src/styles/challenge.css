@@ -34,32 +34,31 @@
   flex: 1;
   min-width: 0;
 }
-/* B14b: map on the left, coordinate and status on the right, so the whole sidebar fits without scrolling */
-.challenge-point-row {
-  display: grid;
-  grid-template-columns: clamp(104px, 15vh, 140px) minmax(0, 1fr);
-  gap: 12px;
-  align-items: start;
-  margin-top: 6px;
-}
-.challenge-point-side {
+/* B14d: step 1 stacked: the map as large as the height allows, the coordinate field and the chosen point under it */
+.challenge-point-col {
   display: flex;
   flex-direction: column;
+  align-items: stretch;
   gap: 8px;
+  margin-top: 8px;
 }
-.challenge-point-side .challenge-hint {
-  margin: 0;
-  font-size: 12px;
-  line-height: 1.35;
+.challenge-sidebar .point-picker-disc {
+  width: clamp(130px, 24vh, 260px);
+}
+/* "Enlarge map" in the map's corner, so the map keeps the height */
+.challenge-sidebar .point-picker {
+  position: relative;
+}
+.challenge-sidebar .point-picker > .btn {
+  position: absolute;
+  right: 0;
+  bottom: 0;
 }
 .challenge-sidebar .point-picker {
   margin: 0;
   display: grid;
   gap: 4px;
   justify-items: center;
-}
-.challenge-sidebar .point-picker-disc {
-  width: 100%;
 }
 /* the hover readout is the map's description for screen readers; it stays in the page, not on screen */
 .challenge-sidebar .point-picker figcaption {
@@ -114,9 +113,6 @@
   display: grid;
   gap: 4px;
   justify-items: center;
-}
-.challenge-sidebar .point-picker-disc {
-  width: 100%;
 }
 /* the hover readout is the map's description for screen readers; it stays in the page, not on screen */
 .challenge-sidebar .point-picker figcaption {
@@ -415,7 +411,7 @@
   padding: 6px 12px;
 }
 .challenge-sidebar .challenge-mission {
-  font-size: 15px;
+  font-size: 14px;
 }
 .challenge-sidebar .challenge-launch .btn.pill {
   padding: 10px 12px;

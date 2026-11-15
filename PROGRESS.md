@@ -3894,3 +3894,20 @@ Las trayectorias ILLUSTRATIVE, los datos SYNTHETIC y toda desviación de la spec
 - **Desviaciones de la spec / cambios en la guía:** ninguna.
 - **Problemas abiertos:** ninguno nuevo.
 - **Siguiente tarea:** revisión del humano.
+
+## AJUSTE · B14d: más espacio para el paso 1 del reto
+
+- **Tarea:** petición del humano: dar más espacio al paso 1 y poner el campo de coordenadas debajo del mapa.
+- **Qué se hizo:**
+  - `views/Challenge.tsx`: el paso 1 se apila: mapa, debajo el campo con «Use», debajo el estado («Landing at lat°, lon°» + APPROXIMATE).
+  - El mapa escala con el alto de la ventana: `clamp(130px, 24vh, 260px)` → 173 px a 720, 184 px a 768 y 259 px a 1080 (antes 108–140 px). «Enlarge map» pasa a la esquina del mapa.
+  - La ayuda «Click the map or type a coordinate» pasa al tooltip y al placeholder («or type: -88.5, 45»); la misión a 14 px (dos líneas); «Computing…» se dice una vez (estado del paso 1) y es más corto.
+- **Cómo se verificó:**
+  ```
+  $ npm --prefix web run typecheck → sin errores
+  $ npm --prefix web test → Test Files 63 passed (63), Tests 429 passed (429)
+  ```
+  - Navegador, contenido frente a alto visible de la barra lateral: 1280×720 → 686/686 al empezar, calculando el punto, con punto, con día y tras un intento (margen mínimo 12 px); 1366×768 → 732/732; 1920×1080 → 1031/1031.
+- **Desviaciones de la spec / cambios en la guía:** ninguna.
+- **Problemas abiertos:** ninguno nuevo.
+- **Siguiente tarea:** revisión del humano.

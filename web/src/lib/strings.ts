@@ -231,16 +231,15 @@ export const STRINGS = {
     // B14b: the same, short enough for the sidebar to fit without scrolling (the full sentence is its tooltip)
     landerShort: (kWh: number, loadW: number, fullH: string) => `${kWh} kWh battery, ${loadW} W load: ${fullH} h of darkness on a full charge.`,
     siteStep: "1. Choose a landing point on the Moon",
-    pointShort: "Click the map or type a coordinate.",
     pointChosen: (lat: string, lon: string) => `Landing at ${lat}°, ${lon}°`,
-    pointMapTitle: "Average sunlight (LOLA): brighter ground sees the Sun more often. The rings are the five candidate sites.",
+    pointMapTitle: "Click the map or type a coordinate. Average sunlight (LOLA): brighter ground sees the Sun more often. The rings are the five candidate sites.",
     // B14: the landing point is any custom coordinate (decision A15)
     pointLabel: "Latitude, longitude",
-    pointPlaceholder: "-88.5, 45",
+    pointPlaceholder: "or type: -88.5, 45",
     pointUse: "Use",
     pointInvalid: "Write the latitude and the longitude, e.g. -88.5, 45.",
     pointOutside: "Outside the terrain data: choose a latitude from 85°S to the pole.",
-    pointBusy: "Computing the Sun, the Earth and the horizon at this point…",
+    pointBusy: "Computing the sky and the horizon here…",
     pointApproxTitle: "The horizon at a custom point is traced over the LOLA relief reduced to 160 m (APPROXIMATE).",
     dayStep: (month: string) => `2. Choose a landing day in ${month}`,
     dayLabel: (day: string, outcome: boolean | undefined) =>
