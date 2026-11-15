@@ -3458,3 +3458,15 @@ Las trayectorias ILLUSTRATIVE, los datos SYNTHETIC y toda desviación de la spec
 - **Desviaciones de la spec / cambios en la guía:** ninguna. No se tocó `scene3d/`.
 - **Problemas abiertos:** ninguno.
 - **Siguiente tarea:** C4 (niveles 2 y 3 del reto).
+
+## AJUSTE · C3c: marcador del punto de aterrizaje
+
+- **Tarea:** C3c (petición del humano al revisar la vista aérea). Rama `c3c-landing-marker`.
+- **Qué se hizo:**
+  - `scene3d/terrain.ts`: `siteMarker` dibuja, relativo al sitio en el marco fijo a la Luna, un anillo plano sobre el suelo (140 m de radio) y una baliza vertical de 700 m en el punto de aterrizaje. Va dentro del grupo del terreno, así que aparece con él al acercarse al sitio; se dibuja encima del terreno (sin prueba de profundidad) para que ninguna loma lo tape. Motivo: en la vista aérea (1.5 km de altura, ~5 km atrás) el lander a su tamaño real de 100 m no se ve.
+  - `scene3d/renderer.ts`: una línea que oculta el marcador cuando se está de pie en el sitio (rodearía al observador).
+- **Cómo se verificó:** `tests/siteMarker.test.ts` (anillo plano a 10 m sobre el suelo y con el radio previsto, baliza a lo largo de la vertical local, sin prueba de profundidad, oculto de pie). En el navegador: capítulo 4 del Educator, «Aerial view» muestra el anillo y la baliza en el sitio; «Stand on the site» los oculta.
+- **Desviaciones de la spec / cambios en la guía:** ninguna. Es un marcador visual, sin datos nuevos.
+- **Decisiones tomadas:** los niveles 2 y 3 del reto (C4) quedan como trabajo futuro, por decisión del humano. Propuesta calculada con los datos: nivel 2 «Stay in touch» (batería y Tierra ≥ 8 h cada día) en julio de 2027, 26% de éxito a ciegas; nivel 3 «Launch slip» (la regla del nivel 2 con retraso de 0 a 2 días) en julio, 19%.
+- **Problemas abiertos:** la plataforma de lanzamiento genérica está en latitud 0°, longitud 0° (golfo de Guinea), por eso la nave parece salir de África; cambiarla a un puerto real obliga a regenerar las trayectorias y choca con A5. La Luna fuera del sitio usa una imagen de 4k sin relieve (A6). Ambos se coordinan con la persona A.
+- **Siguiente tarea:** C5 (capturas y README) y C6 (guion y demo).
