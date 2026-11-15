@@ -83,6 +83,8 @@ export const STRINGS = {
     mapCaption: (km: number) =>
       `Average sunlight over 18.6 years (LOLA, Mazarico et al. 2011). Brighter ground sees the Sun more often. The pole is at the centre; the map is ${km} km across.`,
     mapError: "The Moon map could not be loaded. Choose the site in the list.",
+    // B12: a click on the map, away from the pins, analyses that point
+    mapPickHint: "Click anywhere on the map to analyse that point.",
     nearest: (km: number) => `${km} km`,
     nearestTitle: (a: string, b: string, km: number) => `${a} to ${b}, the nearest other site: ${km} km`,
     where: (lat: number, lon: number, elev: number) =>
@@ -366,6 +368,10 @@ export const STRINGS = {
     placeholder: "e.g. -89.45, -137.10 or 89.45S 137.10W",
     analyse: "Analyse",
     useSite: (name: string) => `Use the coordinates of ${name}`,
+    picker: "Pick a point on the map",
+    pickerAria: "Map of the south pole from 85°S: click a point to analyse it, or move the marker with the arrow keys (Shift for 5 km steps)",
+    pickerHover: (lat: string, lon: string) => `Pointer at ${lat}°, ${lon}°`,
+    pickerIdle: "Click the map to choose a point; arrow keys move the marker 1 km.",
     invalid: "Write the latitude and the longitude, e.g. -89.45, -137.10.",
     outside: (limit: number) => `Outside the terrain data: choose a latitude from ${Math.abs(limit)}°S to the pole.`,
     loading: "Loading the sky and the terrain…",

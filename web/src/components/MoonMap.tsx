@@ -1,7 +1,7 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import type { Site } from "../lib/contract";
 import type { IlluminationHeader } from "../lib/data";
-import { distanceKm, mapFraction, placeLabels, type Box, type LabelSide } from "../lib/moonMap";
+import { distanceKm, fractionToLatLon, mapFraction, placeLabels, type Box, type LabelSide } from "../lib/moonMap";
 import type { Verdict } from "../lib/siteBrief";
 import { STRINGS } from "../lib/strings";
 import { useApp } from "../store/appStore";
@@ -15,7 +15,20 @@ export type SiteTone = Verdict | undefined;
  * circle, with one button per landing site at its real place and a line to the nearest other site with the
  * distance. Choosing a pin selects that site, like the list in the sidebar. 2D only: no WebGL (rule 7).
  */
-export function MoonMap({ sites, selectedId, tone, onSelect }: { sites: Site[]; selectedId: string; tone(id: string): SiteTone; onSelect(id: string): void }) {
+export function MoonMap({
+  sites,
+  selectedId,
+  tone,
+  onSelect,
+  onPickPoint,
+}: {
+  sites: Site[];
+  selectedId: string;
+  tone(id: string): SiteTone;
+  onSelect(id: string): void;
+  /** B12: a click on the map away from the pins: that point, south of 85°S (the keyboard path is the sidebar link). */
+  onPickPoint?(lat: number, lon: number): void;
+}) {
   const data = useApp((s) => s.data);
   const [header, setHeader] = useState<IlluminationHeader | null>(null);
   const [failed, setFailed] = useState(false);
@@ -88,7 +101,18 @@ export function MoonMap({ sites, selectedId, tone, onSelect }: { sites: Site[]; 
 
   return (
     <figure className="moon-map" aria-label={STRINGS.planner.map} data-testid="moon-map">
-      <div className="moon-map-disc" ref={discRef}>
+      <div
+        className="moon-map-disc"
+        ref={discRef}
+        data-pickable={onPickPoint ? true : undefined}
+        onClick={(e) => {
+          if (!onPickPoint || !header || (e.target as HTMLElement).closest(".moon-pin, .moon-map-km")) return;
+          const r = e.currentTarget.getBoundingClientRect();
+          if (!r.width) return;
+          const p = fractionToLatLon(header.extent_m, (e.clientX - r.left) / r.width, (e.clientY - r.top) / r.height);
+          if (p.lat <= -85) onPickPoint(p.lat, p.lon);
+        }}
+      >
         <img src={data.illuminationImageUrl()} alt="" draggable={false} />
         {selected && nearest && (
           <>
@@ -138,7 +162,10 @@ export function MoonMap({ sites, selectedId, tone, onSelect }: { sites: Site[]; 
           );
         })}
       </div>
-      <figcaption className="moon-map-caption">{failed ? STRINGS.planner.mapError : header ? STRINGS.planner.mapCaption(widthKm) : STRINGS.loading}</figcaption>
+      <figcaption className="moon-map-caption">
+        {failed ? STRINGS.planner.mapError : header ? STRINGS.planner.mapCaption(widthKm) : STRINGS.loading}
+        {header && onPickPoint && ` ${STRINGS.planner.mapPickHint}`}
+      </figcaption>
     </figure>
   );
 }

@@ -3525,3 +3525,36 @@ Las trayectorias ILLUSTRATIVE, los datos SYNTHETIC y toda desviación de la spec
   - No se puede lanzar ni aterrizar en el 3D en una coordenada libre; solo el análisis 2D.
   - README (área de C): falta la función y los créditos de los nuevos datos (`sky/` de NAIF/SPICE, `terrain_custom/` de LOLA).
 - **Siguiente tarea:** revisión y PR de `b12-custom-coordinates` (apilada sobre `b11-best-plan-finder`).
+
+## AJUSTE · B12b: elegir la coordenada con un clic en la Luna
+
+- **Tarea:** ampliación de B12 pedida por la persona B el 15-nov-2026: además de escribir la coordenada, elegirla con un clic en un punto de la Luna. Decisión A13 (sin cambios de método).
+- **Qué se hizo:**
+  - `lib/moonMap.ts`: `fractionToLatLon`, el inverso de `mapFraction` (punto de la imagen → latitud y longitud).
+  - `components/PointPicker.tsx` (nuevo), en el panel «Custom coordinates»:
+    - el mapa de iluminación media de LOLA (85°S al polo) con los cinco sitios como anillos y una cruz en el punto elegido;
+    - un clic analiza ese punto, y al pasar el puntero se muestran sus coordenadas;
+    - teclado: el mapa es enfocable y las flechas mueven la cruz 1 km (Shift: 5 km), así que no depende del puntero.
+  - `components/MoonMap.tsx`: un clic en el mapa del planificador fuera de los pines abre el panel en ese punto (`appStore.openCustomAt`). Los pines siguen eligiendo su sitio. El pie del mapa lo indica: «Click anywhere on the map to analyse that point.».
+  - `store/appStore.ts` (`customAt`, `openCustomAt`), `lib/strings.ts`, `styles/tokens.css`, `views/PlannerView.tsx`.
+- **Cómo se verificó:**
+  ```
+  $ npm --prefix web run typecheck → sin errores
+  $ npm --prefix web test → 379 passed (55 archivos)
+  $ npm --prefix web run build -- --base=/LuNAV/ → built
+  ```
+  - `tests/customSite.test.ts`: `fractionToLatLon` invierte `mapFraction` (1e-9°) y el centro del mapa es el polo.
+  - `tests/customSite.view.test.tsx`:
+    - el clic en el mapa del panel escribe y analiza el punto, con la cruz en su sitio;
+    - Shift+↑ mueve la cruz 5 km (distancia de círculo máximo entre 4,9 y 5,1 km);
+    - un clic al norte de 85°S no hace nada;
+    - un clic en el mapa del planificador abre el panel en ese punto, y un pin sigue eligiendo su sitio sin abrir nada.
+  - Navegador (1366×768):
+    - clic en el mapa del planificador → panel en −87,580°, 129,648°;
+    - clic en el mapa del panel → −88,689°, −44,793° (fondo de un cráter: 0 % de sol, 168 h de noche, coherente con la zona oscura del mapa);
+    - Shift+↑ mueve la cruz;
+    - barra lateral sin scroll;
+    - sin errores en consola tras recargar. Los errores de React que aparecieron antes venían de recargas en caliente a medio editar y no se repiten.
+- **Desviaciones de la spec / cambios en la guía:** ninguna.
+- **Problemas abiertos:** el mapa del planificador no tiene camino de teclado propio para elegir un punto; ese camino es el enlace «Custom coordinates…» y las flechas del mapa del panel.
+- **Siguiente tarea:** revisión y PR de `b12-custom-coordinates`.

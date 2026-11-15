@@ -3813,3 +3813,95 @@ button.scene-chip {
   flex-direction: column;
   gap: var(--space-sm);
 }
+
+/* B12: pick a custom coordinate on the map (panel) and on the planner's Moon map */
+.moon-map-disc[data-pickable] {
+  cursor: crosshair;
+}
+
+.custom-input {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(200px, 260px);
+  gap: var(--space-lg);
+  align-items: start;
+}
+
+.point-picker {
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.point-picker-disc {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 1;
+  cursor: crosshair;
+  border-radius: 50%;
+}
+
+.point-picker-disc img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  box-shadow: 0 0 0 1px var(--color-border-strong);
+  user-select: none;
+  pointer-events: none;
+}
+
+.point-picker-disc:focus-visible {
+  outline: 2px solid var(--color-focus);
+  outline-offset: 4px;
+}
+
+.point-picker-site,
+.point-picker-marker {
+  position: absolute;
+  translate: -50% -50%;
+  border-radius: 50%;
+  pointer-events: none;
+}
+
+.point-picker-site {
+  width: 8px;
+  height: 8px;
+  border: 1.5px solid var(--color-text);
+  opacity: 0.8;
+}
+
+/* a crosshair ring with a dark halo, readable on bright and dark ground */
+.point-picker-marker {
+  width: 16px;
+  height: 16px;
+  border: 2px solid var(--color-sun);
+  box-shadow: 0 0 0 2px var(--color-bg);
+}
+
+.point-picker-marker::before,
+.point-picker-marker::after {
+  content: "";
+  position: absolute;
+  background: var(--color-sun);
+  left: 50%;
+  top: 50%;
+  translate: -50% -50%;
+}
+
+.point-picker-marker::before {
+  width: 26px;
+  height: 2px;
+}
+
+.point-picker-marker::after {
+  width: 2px;
+  height: 26px;
+}
+
+@media (max-width: 900px) {
+  .custom-input {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}

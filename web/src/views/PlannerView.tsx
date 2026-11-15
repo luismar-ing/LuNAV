@@ -111,7 +111,7 @@ export function PlannerView({ tools }: { tools: ReactNode }) {
       {!mission && <MissionSidebar onLaunch={launch} onOpenSearch={() => setDrawerOpen(true)} onOpenFinder={() => setFinderOpen(true)} onOpenCustom={() => setCustomOpen(true)} />}
       {!mission && plan && (
         <div className="plan-stage">
-          <MoonMap sites={sites} selectedId={plan.site_id} tone={tone} onSelect={(id) => selectSite(id)} />
+          <MoonMap sites={sites} selectedId={plan.site_id} tone={tone} onSelect={(id) => selectSite(id)} onPickPoint={(lat, lon) => appStore.getState().openCustomAt(lat, lon)} />
           <SiteBrief onLand={land} />
         </div>
       )}

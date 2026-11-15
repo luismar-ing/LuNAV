@@ -53,6 +53,9 @@ export interface AppState {
   /** "Custom coordinates" panel (B12, decision A13): any point from 85°S to the pole. */
   customOpen: boolean;
   setCustomOpen(open: boolean): void;
+  /** Point the panel opens on (a click on the Moon map); null = the selected site's coordinates. */
+  customAt: { lat: number; lon: number } | null;
+  openCustomAt(lat: number, lon: number): void;
   viewMode: ViewMode;
   setViewMode(mode: ViewMode): void;
   /** Reduced motion (spec 9, T5.2.b): no camera flights or animated transitions. Starts from the system setting. */
@@ -150,7 +153,11 @@ export function createAppStore(data: DataStore = DataStore.forPage()) {
     },
     customOpen: false,
     setCustomOpen(open) {
-      set({ customOpen: open });
+      set({ customOpen: open, customAt: null });
+    },
+    customAt: null,
+    openCustomAt(lat, lon) {
+      set({ customOpen: true, customAt: { lat, lon }, drawerOpen: false, finderOpen: false });
     },
     viewMode: "compare",
     reducedMotion: typeof window !== "undefined" && typeof window.matchMedia === "function" && window.matchMedia("(prefers-reduced-motion: reduce)").matches,

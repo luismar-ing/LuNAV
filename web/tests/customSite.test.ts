@@ -173,3 +173,17 @@ describe.runIf(HAS_TERRAIN)("horizon traced from the exact coordinate over the r
     });
   }
 });
+
+describe("map fractions (B12 picker)", () => {
+  it("fractionToLatLon inverts mapFraction", async () => {
+    const { fractionToLatLon, mapFraction } = await import("../src/lib/moonMap");
+    const ext = json<{ extent_m: { left: number; right: number; bottom: number; top: number } }>("illumination/south_avg.json").extent_m;
+    for (const [lat, lon] of [[-89.43904, -137.09641], [-86.2, 12.5], [-88, 179.9], [-85.5, -90]]) {
+      const f = mapFraction(ext, lat, lon);
+      const p = fractionToLatLon(ext, f.fx, f.fy);
+      expect(p.lat).toBeCloseTo(lat, 9);
+      expect(p.lon).toBeCloseTo(lon, 9);
+    }
+    expect(fractionToLatLon(ext, 0.5, 0.5).lat).toBeCloseTo(-90, 6);
+  });
+});

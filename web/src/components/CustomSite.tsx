@@ -9,6 +9,7 @@ import { STRINGS } from "../lib/strings";
 import { num } from "../lib/why";
 import { appStore, useApp } from "../store/appStore";
 import { Panorama } from "../views/Panorama";
+import { PointPicker } from "./PointPicker";
 import { VerdictMarks } from "./VerdictMarks";
 
 const C = STRINGS.custom;
@@ -18,7 +19,9 @@ const coord = (v: number) => v.toFixed(3);
 
 /** Better first: more sunlight, shorter night, more Earth time, shorter comm gap, earlier arrival. */
 function compareDays(a: Omit<WindowRow, "score">, b: Omit<WindowRow, "score">): number {
-  return b.sun_pct - a.sun_pct || a.longest_dark_h - b.longest_dark_h || b.earth_h_mean - a.earth_h_mean || a.longest_comm_gap_h - b.longest_comm_gap_h || a.start.localeCompare(b.start);
+  return (
+    b.sun_pct - a.sun_pct || a.longest_dark_h - b.longest_dark_h || b.earth_h_mean - a.earth_h_mean || a.longest_comm_gap_h - b.longest_comm_gap_h || a.start.localeCompare(b.start)
+  );
 }
 
 /**
@@ -76,15 +79,21 @@ export function CustomSite() {
   const loadWindows = useApp((s) => s.loadWindows);
 
   const site = sites.find((s) => s.id === plan?.site_id);
-  const [text, setText] = useState(site ? `${site.lat}, ${site.lon}` : "");
-  const [coords, setCoords] = useState<{ lat: number; lon: number } | null>(site ? { lat: site.lat, lon: site.lon } : null);
+  // a click on the planner's Moon map opens the panel on that point; otherwise on the selected site
+  const start = appStore.getState().customAt ?? (site ? { lat: site.lat, lon: site.lon } : null);
+  const fmtPair = (c: { lat: number; lon: number }) => `${Number(c.lat.toFixed(4))}, ${Number(c.lon.toFixed(4))}`;
+  const [text, setText] = useState(start ? fmtPair(start) : "");
+  const [coords, setCoords] = useState<{ lat: number; lon: number } | null>(start);
   const [error, setError] = useState<string | null>(null);
   const [stay, setStay] = useState<number>(plan?.window_days ?? 7);
   const first = manifest?.date_range.arrival_start.slice(0, 10) ?? "2027-01-01";
   const last = manifest?.date_range.arrival_end.slice(0, 10) ?? "2027-12-31";
   const [arrival, setArrival] = useState(plan?.arrival_utc.slice(0, 10) ?? first);
   const [offsetH, setOffsetH] = useState(0);
-  const [data, setData] = useState<{ sky: SkyData; terrain: CustomTerrain } | null>(null);
+  const [data, setData] = useState<{
+    sky: SkyData;
+    terrain: CustomTerrain;
+  } | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -101,7 +110,10 @@ export function CustomSite() {
   const params = manifest?.params;
   const result = useMemo(() => {
     if (!data || !coords || !params) return null;
-    return analyseCustomSite(data.sky, data.terrain, coords.lat, coords.lon, stay, nArrivals, { sunRadiusDeg: params.sun_radius_deg, antennaMarginDeg: params.antenna_margin_deg });
+    return analyseCustomSite(data.sky, data.terrain, coords.lat, coords.lon, stay, nArrivals, {
+      sunRadiusDeg: params.sun_radius_deg,
+      antennaMarginDeg: params.antenna_margin_deg,
+    });
   }, [data, coords, stay, nArrivals, params]);
   const lola = useLolaSunlight(result ? coords!.lat : null, result ? coords!.lon : null);
 
@@ -118,9 +130,26 @@ export function CustomSite() {
     const f32 = (a: Float64Array) => Float32Array.from(a.subarray(k0, k0 + n));
     const name = C.heading(coord(result.lat), coord(result.lon));
     return {
-      plan: { id: "custom", site_id: "custom", arrival_utc: `${arrival}T00:00:00Z`, window_days: stay } as unknown as Plan,
-      site: { id: "custom", name, lat: result.lat, lon: result.lon, elevation_m: result.point.elevationM } as unknown as Site,
-      horizon: { site_id: "custom", az_step_deg: data!.terrain.header.az_step_deg, h_obs_m: data!.terrain.header.h_obs_m, r_max_km: data!.terrain.header.r_max_km, elev_deg: Array.from(result.point.mask) } as Horizon,
+      plan: {
+        id: "custom",
+        site_id: "custom",
+        arrival_utc: `${arrival}T00:00:00Z`,
+        window_days: stay,
+      } as unknown as Plan,
+      site: {
+        id: "custom",
+        name,
+        lat: result.lat,
+        lon: result.lon,
+        elevation_m: result.point.elevationM,
+      } as unknown as Site,
+      horizon: {
+        site_id: "custom",
+        az_step_deg: data!.terrain.header.az_step_deg,
+        h_obs_m: data!.terrain.header.h_obs_m,
+        r_max_km: data!.terrain.header.r_max_km,
+        elev_deg: Array.from(result.point.mask),
+      } as Horizon,
       series: {
         startMs: Date.parse(`${arrival}T00:00:00Z`),
         stepMin: result.sky.stepMin,
@@ -136,6 +165,13 @@ export function CustomSite() {
     };
   }, [result, row, dayIdx, stay, arrival, data]);
 
+  const pick = (lat: number, lon: number) => {
+    const c = { lat: Number(lat.toFixed(4)), lon: Number(lon.toFixed(4)) };
+    setText(fmtPair(c));
+    setError(null);
+    setCoords(c);
+    setOffsetH(0);
+  };
   const analyse = (t = text) => {
     const c = parseCoordinates(t);
     if (!c) return setError(C.invalid);
@@ -150,43 +186,46 @@ export function CustomSite() {
   return (
     <div className="custom-site" data-testid="custom-site">
       <p className="finder-intro">{C.intro}</p>
-      <form
-        className="custom-form"
-        onSubmit={(e) => {
-          e.preventDefault();
-          analyse();
-        }}
-      >
-        <label htmlFor="custom-coords" className="sidebar-label">
-          {C.label}
-        </label>
-        <div className="nl-row">
-          <input id="custom-coords" className="nl-input" value={text} placeholder={C.placeholder} onChange={(e) => setText(e.target.value)} aria-describedby="custom-error" />
-          <button type="submit" className="btn primary">
-            {C.analyse}
-          </button>
-        </div>
-        <p id="custom-error" className="nl-result" role="status" aria-live="polite">
-          {error ?? (outside && data ? C.outside(data.terrain.header.lat_limit_deg) : "")}
-        </p>
-        <div className="custom-presets">
-          {sites.map((s) => (
-            <button
-              key={s.id}
-              type="button"
-              className="btn ghost"
-              title={C.useSite(s.name)}
-              onClick={() => {
-                const t = `${s.lat}, ${s.lon}`;
-                setText(t);
-                analyse(t);
-              }}
-            >
-              {s.name.replace(/ \(.*\)$/, "")}
+      <div className="custom-input">
+        <form
+          className="custom-form"
+          onSubmit={(e) => {
+            e.preventDefault();
+            analyse();
+          }}
+        >
+          <label htmlFor="custom-coords" className="sidebar-label">
+            {C.label}
+          </label>
+          <div className="nl-row">
+            <input id="custom-coords" className="nl-input" value={text} placeholder={C.placeholder} onChange={(e) => setText(e.target.value)} aria-describedby="custom-error" />
+            <button type="submit" className="btn primary">
+              {C.analyse}
             </button>
-          ))}
-        </div>
-      </form>
+          </div>
+          <p id="custom-error" className="nl-result" role="status" aria-live="polite">
+            {error ?? (outside && data ? C.outside(data.terrain.header.lat_limit_deg) : "")}
+          </p>
+          <div className="custom-presets">
+            {sites.map((s) => (
+              <button
+                key={s.id}
+                type="button"
+                className="btn ghost"
+                title={C.useSite(s.name)}
+                onClick={() => {
+                  const t = `${s.lat}, ${s.lon}`;
+                  setText(t);
+                  analyse(t);
+                }}
+              >
+                {s.name.replace(/ \(.*\)$/, "")}
+              </button>
+            ))}
+          </div>
+        </form>
+        <PointPicker lat={coords?.lat ?? null} lon={coords?.lon ?? null} limitDeg={data?.terrain.header.lat_limit_deg ?? -85} onPick={pick} />
+      </div>
 
       {loadError && <p className="nl-result">{loadError}</p>}
       {!data && !loadError && <p className="finder-summary">{C.loading}</p>}
@@ -321,7 +360,16 @@ export function CustomSite() {
               <span className="sidebar-label">
                 {C.time} · {fmtUtc(timeMs)}
               </span>
-              <input type="range" min={0} max={stay * 24 - 0.5} step={0.5} value={offsetH} aria-label={C.time} aria-valuetext={fmtUtc(timeMs)} onChange={(e) => setOffsetH(Number(e.target.value))} />
+              <input
+                type="range"
+                min={0}
+                max={stay * 24 - 0.5}
+                step={0.5}
+                value={offsetH}
+                aria-label={C.time}
+                aria-valuetext={fmtUtc(timeMs)}
+                onChange={(e) => setOffsetH(Number(e.target.value))}
+              />
             </label>
             <Panorama data={planData} timeMs={timeMs} />
           </section>
