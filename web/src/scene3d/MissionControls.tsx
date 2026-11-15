@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { clampMission, missionClock, phaseAt, phaseStart, playbackRate, PLAY_PHASES, type MissionTimeline } from "../lib/mission";
 import { fmtUtc } from "../lib/format";
 import { stayDay } from "../lib/siteBrief";
+import { crossedCues, sfx } from "../lib/sfx";
 import { STRINGS } from "../lib/strings";
 import { ASCENT_MS } from "./launch";
 import { appStore, useApp } from "../store/appStore";
@@ -64,6 +65,7 @@ export function MissionControls({ timeline, planId, autoPlay = false }: { timeli
         setPlaying(false);
         return;
       }
+      for (const cue of crossedCues(timeline, cur, t)) sfx.play(cue); // A4: only while playing, never on a jump
       go(t);
       raf = requestAnimationFrame(tick);
     };

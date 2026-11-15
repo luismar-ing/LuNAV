@@ -10,7 +10,7 @@ import { MissionControls } from "../scene3d/MissionControls";
 import { ScaleIndicator } from "../scene3d/ScaleIndicator";
 import { LOCAL_SCALE, SPACE_SCALE } from "../scene3d/scale";
 import { useApp } from "../store/appStore";
-import { SiteLayout } from "./SiteLayout";
+import { SiteLayout, SiteViewSwitch, type SiteView } from "./SiteLayout";
 
 /**
  * The journey of the Mission Planner (design B2): the scene stays full screen behind (PlannerView); over it, the
@@ -34,6 +34,11 @@ export function MissionStage({ autoPlay }: { autoPlay: boolean }) {
   const [failure, setFailure] = useState<unknown>(null);
   const [attempt, setAttempt] = useState(0);
   const atSite = missionPhase === "site";
+  // A10: each arrival at the site opens on the sky; the data view is one click away
+  const [siteView, setSiteView] = useState<SiteView>("sky");
+  useEffect(() => {
+    if (!atSite) setSiteView("sky");
+  }, [atSite]);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -60,13 +65,16 @@ export function MissionStage({ autoPlay }: { autoPlay: boolean }) {
   const scale = sceneScale === "local" ? LOCAL_SCALE : SPACE_SCALE;
   return (
     <section className={`mission-stage${atSite ? " at-site" : ""}`} aria-labelledby="live-title" data-testid="live-view">
-      {/* top-left corner, level with the tool bar on the right */}
-      <button type="button" className="btn ghost mission-back" onClick={closeLive} aria-keyshortcuts="Escape">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
-          <path d="M19 12H5M11 6l-6 6 6 6" />
-        </svg>
-        {STRINGS.live.back} <kbd>Esc</kbd>
-      </button>
+      {/* top-left corner, level with the tool bar on the right; at the site, the Sky | Data switch beside it */}
+      <div className="mission-topbar">
+        <button type="button" className="btn ghost mission-back" onClick={closeLive} aria-keyshortcuts="Escape">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+            <path d="M19 12H5M11 6l-6 6 6 6" />
+          </svg>
+          {STRINGS.live.back} <kbd>Esc</kbd>
+        </button>
+        {atSite && <SiteViewSwitch view={siteView} onChange={setSiteView} />}
+      </div>
       <div className="mission-head">
         <h2 id="live-title" className="telemetry-title">
           {STRINGS.live.title(site?.name ?? "")}
@@ -111,7 +119,7 @@ export function MissionStage({ autoPlay }: { autoPlay: boolean }) {
         {atSite && site ? STRINGS.live.arrived(site.name) : ""}
       </p>
 
-      {atSite && <SiteLayout />}
+      {atSite && <SiteLayout view={siteView} />}
 
       <div className="mission-dock">
         {failure !== null && <ErrorMessage what={STRINGS.errors.scene} info={describeError(failure)} onRetry={() => setAttempt((n) => n + 1)} />}

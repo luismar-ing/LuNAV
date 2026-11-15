@@ -25,6 +25,7 @@ import { createSkyOverlay, dirOf, type Enu } from "./skyOverlay";
 import { createPolarMap, polarMapOpacity } from "./polarMap";
 import { H_OBS_M, skyAzEl } from "./terrainLevelB";
 import { enuBasis } from "./terrain";
+import { CameraMotion, wheelZoom } from "./cameraInput";
 
 /** The part of THREE.WebGLRenderer the manager uses (lets tests run without WebGL). */
 export interface RendererLike {
@@ -352,10 +353,16 @@ export function mountScene(container: HTMLElement, opts: MountOptions): SceneCon
       opts.onCameraModeChange?.("manual");
     }
   };
-  const minDist = () => (controller.orbit?.body === "moon" ? moonR : earthR) * 0.05;
+  // closest approach of the manual camera: 5 % of the body as drawn in space, 0.5 km over the site at real
+  // scale (A3: the aerial framing is ~5 km away, and the space floor of ~520 km made the first zoom jump out)
+  const minDist = () => (lambda >= 0.5 ? 0.5 / 1000 : (controller.orbit?.body === "moon" ? moonR : earthR) * 0.05);
+  // A3: proportional wheel and pinch zoom that eases in, and a spin that coasts after the drag (cameraInput.ts)
+  const motion = new CameraMotion();
+  let lastStepMs = performance.now();
   let drag: { x: number; y: number } | null = null;
   const onDown = (e: PointerEvent) => {
     if (!surfaceOn) takeOver(); // standing on the site, dragging turns the gaze instead
+    motion.grab();
     drag = { x: e.clientX, y: e.clientY };
     canvas.setPointerCapture?.(e.pointerId);
   };
@@ -366,20 +373,26 @@ export function mountScene(container: HTMLElement, opts: MountOptions): SceneCon
       const k = look.fov / Math.max(1, container.clientHeight);
       look.az = (look.az - (e.clientX - drag.x) * k + 360) % 360;
       look.el = Math.max(-30, Math.min(85, look.el + (e.clientY - drag.y) * k));
-    } else controller.rotate(-(e.clientX - drag.x) * 0.005, (e.clientY - drag.y) * 0.005);
+    } else {
+      const dYaw = -(e.clientX - drag.x) * 0.005;
+      const dPitch = (e.clientY - drag.y) * 0.005;
+      controller.rotate(dYaw, dPitch);
+      motion.track(dYaw, dPitch, e.timeStamp);
+    }
     drag = { x: e.clientX, y: e.clientY };
   };
-  const onUp = () => {
+  const onUp = (e: PointerEvent) => {
+    if (drag && !surfaceOn) motion.release(e.timeStamp);
     drag = null;
   };
   const onWheel = (e: WheelEvent) => {
     e.preventDefault();
     if (surfaceOn) {
-      look.fov = Math.max(SURFACE_FOV.min, Math.min(SURFACE_FOV.max, look.fov * (e.deltaY > 0 ? 1.1 : 1 / 1.1)));
+      look.fov = Math.max(SURFACE_FOV.min, Math.min(SURFACE_FOV.max, look.fov * Math.exp(wheelZoom(e))));
       return;
     }
     takeOver();
-    controller.zoom(e.deltaY > 0 ? 1.1 : 1 / 1.1, minDist());
+    motion.addZoom(wheelZoom(e));
   };
   const onKey = (e: KeyboardEvent) => {
     const keys: Record<string, () => void> = {
@@ -387,8 +400,8 @@ export function mountScene(container: HTMLElement, opts: MountOptions): SceneCon
       ArrowRight: () => controller.rotate(-0.06, 0),
       ArrowUp: () => controller.rotate(0, 0.06),
       ArrowDown: () => controller.rotate(0, -0.06),
-      "+": () => controller.zoom(1 / 1.15, minDist()),
-      "-": () => controller.zoom(1.15, minDist()),
+      "+": () => motion.addZoom(-Math.log(1.15)),
+      "-": () => motion.addZoom(Math.log(1.15)),
     };
     const surfaceKeys: Record<string, () => void> = {
       ArrowLeft: () => (look.az = (look.az - 3 + 360) % 360),
@@ -414,7 +427,7 @@ export function mountScene(container: HTMLElement, opts: MountOptions): SceneCon
   const Y = new THREE.Vector3(0, 1, 0);
   const dir = new THREE.Vector3();
   let lambda = 0;
-  let reportedScale: "space" | "local" = "space";
+  let reportedScale: "space" | "local" | null = null; // A2: the first frame always reports its scale
   if (import.meta.env.DEV)
     (window as unknown as { __pp3d?: unknown }).__pp3d = {
       THREE,
@@ -503,6 +516,13 @@ export function mountScene(container: HTMLElement, opts: MountOptions): SceneCon
       }
     }
     wasPlanning = planning;
+    const stepNow = performance.now();
+    const step = motion.step(Math.min(stepNow - lastStepMs, 100), reduced.matches);
+    lastStepMs = stepNow;
+    if (controller.mode === "manual") {
+      if (step.zoom) controller.zoom(Math.exp(step.zoom), minDist());
+      if (step.yaw || step.pitch) controller.rotate(step.yaw, step.pitch);
+    } else if (!motion.idle) motion.stop(); // the guided camera is back: drop what was left
     let pose =
       (controller.mode === "manual" ? controller.manualPose(earthW, moonW) : null) ??
       (planning ? planningPose(input) : tl ? (reduced?.matches ? reducedMotionPose(tl, input) : directorPose(tl, input)) : transitPose(input));
