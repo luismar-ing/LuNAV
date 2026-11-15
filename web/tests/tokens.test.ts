@@ -44,11 +44,47 @@ describe("design tokens (spec 9)", () => {
     expect(Object.keys(vars).filter((k) => k.startsWith("--color-"))).toHaveLength(Object.keys(COLORS).length);
   });
 
+  it("B1: button hovers keep text at 4.5:1 (primary turns dark on white, ghost gets a faint fill)", () => {
+    const vars = cssVariables();
+    const value = (v: string) => v.replace(/var\((--[\w-]+)\)/g, (_, name: string) => vars[name] ?? name).trim();
+    const primary = cssRule(".btn.primary");
+    const primaryHover = cssRule(".btn.primary:hover:not(:disabled)");
+    // the hover rule must set its own colour: the generic .btn:hover colour is light and would sit on white
+    expect(primaryHover.color, ".btn.primary:hover sets color").toBeDefined();
+    expect(contrast(value(primary.color), value(primary.background))).toBeGreaterThanOrEqual(4.5);
+    expect(contrast(value(primaryHover.color), value(primaryHover.background))).toBeGreaterThanOrEqual(4.5);
+
+    const ghostHover = cssRule(".btn.ghost:hover:not(:disabled)");
+    const hoverText = value(cssRule(".btn:hover:not(:disabled)").color);
+    expect(ghostHover.background, ".btn.ghost:hover has a fill").toBeDefined();
+    const fill = value(ghostHover.background);
+    for (const under of [COLORS.bg, COLORS.panel, composite(GLASS.panel, GLASS.worstBackdrop)])
+      expect(contrast(hoverText, composite(fill, under)), `ghost hover on ${under}`).toBeGreaterThanOrEqual(4.5);
+  });
+
   it("UI strings are centralised and in English", () => {
     expect(STRINGS.appTitle).toBe("PolePlanner");
     expect(STRINGS.trayEmpty).toMatch(/Pin 2 to 5 plans/);
   });
 });
+
+/** Declarations of the last rule in tokens.css whose selector list contains exactly `selector`. */
+function cssRule(selector: string): Record<string, string> {
+  const css = readFileSync(join(SRC, "styles", "tokens.css"), "utf-8").replace(/\/\*[\s\S]*?\*\//g, "");
+  let found: Record<string, string> | null = null;
+  for (const [, sel, body] of css.matchAll(/([^{}]+)\{([^{}]*)\}/g)) {
+    if (!sel.split(",").some((s) => s.trim() === selector)) continue;
+    found = Object.fromEntries(
+      body
+        .split(";")
+        .map((d) => d.split(":"))
+        .filter((p) => p.length >= 2)
+        .map(([k, ...v]) => [k.trim(), v.join(":").trim()]),
+    );
+  }
+  if (!found) throw new Error(`no rule for ${selector} in tokens.css`);
+  return found;
+}
 
 const rgb = (hex: string) => [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16));
 const lum = (hex: string) => {
