@@ -67,7 +67,7 @@ describe("design tokens (spec 9)", () => {
   });
 
   it("UI strings are centralised and in English", () => {
-    expect(STRINGS.appTitle).toBe("PolePlanner");
+    expect(STRINGS.appTitle).toBe("LuNAV");
     expect(STRINGS.trayEmpty).toMatch(/Pin 2 to 5 plans/);
   });
 });

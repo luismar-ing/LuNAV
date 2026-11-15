@@ -8,7 +8,7 @@ import { round } from "./why";
 const hours = (h: number) => round(h, 1).replace(/\.0$/, "");
 
 export const STRINGS = {
-  appTitle: "PolePlanner",
+  appTitle: "LuNAV",
   appSubtitle: "Lunar south pole landing planner",
   loading: "Loading mission data…",
   loadError: "Could not load the mission data.",
@@ -222,7 +222,7 @@ export const STRINGS = {
     toggle: "Sunlight map",
     toggleTitle: "Show the average sunlight of the south polar region on the Moon during the landing (an optional step of the zoom)",
     legend: "Average sunlight, 18.6 years",
-    legendTitle: "LOLA average solar illumination, 85°S–90°S (NASA GSFC PGDA; Mazarico et al. 2011). Dark: almost never sunlit; orange: sunlit most of the time. Context only: the site figures come from PolePlanner's own one-year series.",
+    legendTitle: "LOLA average solar illumination, 85°S–90°S (NASA GSFC PGDA; Mazarico et al. 2011). Dark: almost never sunlit; orange: sunlit most of the time. Context only: the site figures come from LuNAV's own one-year series.",
     never: "never",
     always: "always",
   },
@@ -451,7 +451,7 @@ export const STRINGS = {
     open: "About & credits",
     title: "About & credits",
     close: "Close",
-    intro: "PolePlanner precomputes everything from public NASA data with a reproducible pipeline; the browser only filters and draws. Every Sun and Earth position is validated against JPL Horizons (docs/validation.md).",
+    intro: "LuNAV precomputes everything from public NASA data with a reproducible pipeline; the browser only filters and draws. Every Sun and Earth position is validated against JPL Horizons (docs/validation.md).",
     data: "Data sources",
     license: "Licence",
     notData: "What is not real data",
