@@ -60,9 +60,13 @@ export interface AppState {
   /** B13 (decision A14): the custom coordinate made a site of its own, so it can be flown to like the five
    *  candidates. One at a time; its plans join plansById (not `plans` or `sites`, which stay the five candidates). */
   customSite: Site | null;
+  /** Every custom site registered now: the current one, and earlier points kept because a plan of theirs is pinned
+   *  to the comparison tray or selected (B13b), so custom points can be compared with each other and the candidates. */
+  customSites: Site[];
   /** Builds and registers the virtual site of a point; resolves to its id, or null outside the terrain data. */
   addCustomSite(lat: number, lon: number): Promise<string | null>;
-  removeCustomSite(): void;
+  /** Removes a custom site (the current one by default): its plans, its pins and its files. */
+  removeCustomSite(id?: string): void;
   viewMode: ViewMode;
   setViewMode(mode: ViewMode): void;
   /** Reduced motion (spec 9, T5.2.b): no camera flights or animated transitions. Starts from the system setting. */
@@ -131,7 +135,14 @@ export function defaultPlanId(st: Pick<AppState, "sites" | "manifest" | "plansBy
 }
 
 export function createAppStore(data: DataStore = DataStore.forPage()) {
-  return createStore<AppState>()((set, get) => ({
+  return createStore<AppState>()((set, get) => {
+  /** Drops the custom sites nobody uses any more: not the current one, no pinned plan, not selected (B13b). */
+  const pruneCustomSites = () => {
+    const st = get();
+    const used = (c: Site) => c.id === st.customSite?.id || st.selectedPlanId?.startsWith(`${c.id}_`) || st.comparePlans.some((p) => p.startsWith(`${c.id}_`));
+    for (const c of st.customSites) if (!used(c)) get().removeCustomSite(c.id);
+  };
+  return {
     data,
     load: { status: "idle" },
     manifest: null,
@@ -167,27 +178,36 @@ export function createAppStore(data: DataStore = DataStore.forPage()) {
       set({ customOpen: true, customAt: { lat, lon }, drawerOpen: false, finderOpen: false });
     },
     customSite: null,
+    customSites: [],
     async addCustomSite(lat, lon) {
-      const { data, manifest, customSite } = get();
+      const { data, manifest } = get();
       if (!manifest) return null;
       const made = await createVirtualSite(data, lat, lon);
       if (!made) return null;
-      if (customSite?.id === made.site.id) return made.site.id;
-      if (customSite) get().removeCustomSite();
-      data.registerVirtualSite(made.provider);
-      const plansById = new Map(get().plansById);
-      for (const p of made.plans) plansById.set(p.id, p);
-      set({ customSite: made.site, plansById });
+      const known = get().customSites.find((c) => c.id === made.site.id);
+      if (!known) {
+        data.registerVirtualSite(made.provider);
+        const plansById = new Map(get().plansById);
+        for (const p of made.plans) plansById.set(p.id, p);
+        set({ plansById, customSites: [...get().customSites, made.site] });
+      }
+      set({ customSite: known ?? made.site });
+      pruneCustomSites();
       return made.site.id;
     },
-    removeCustomSite() {
-      const { customSite, data } = get();
-      if (!customSite) return;
-      const prefix = `${customSite.id}_`;
-      const plansById = new Map([...get().plansById].filter(([id]) => !id.startsWith(prefix)));
+    removeCustomSite(id) {
+      const target = id ?? get().customSite?.id;
+      if (!target || !get().customSites.some((c) => c.id === target)) return;
+      const prefix = `${target}_`;
+      const plansById = new Map([...get().plansById].filter(([pid]) => !pid.startsWith(prefix)));
       const sel = get().selectedPlanId;
-      data.unregisterVirtualSite(customSite.id);
-      set({ customSite: null, plansById, comparePlans: get().comparePlans.filter((id) => !id.startsWith(prefix)) });
+      get().data.unregisterVirtualSite(target);
+      set({
+        customSite: get().customSite?.id === target ? null : get().customSite,
+        customSites: get().customSites.filter((c) => c.id !== target),
+        plansById,
+        comparePlans: get().comparePlans.filter((pid) => !pid.startsWith(prefix)),
+      });
       if (sel?.startsWith(prefix)) get().selectPlan(defaultPlanId(get()));
     },
     viewMode: "compare",
@@ -291,6 +311,7 @@ export function createAppStore(data: DataStore = DataStore.forPage()) {
         missionTime: Date.parse(plan.arrival_utc) + (h < plan.window_days * 24 ? h * 3_600_000 : 0),
         missionPhase: "overview",
       });
+      pruneCustomSites(); // an earlier custom point left behind, neither pinned nor current
     },
 
     selectSite(siteId) {
@@ -331,6 +352,7 @@ export function createAppStore(data: DataStore = DataStore.forPage()) {
 
     unpinPlan(id) {
       set({ comparePlans: get().comparePlans.filter((p) => p !== id) });
+      pruneCustomSites();
     },
 
     setConstraints(patch) {
@@ -362,13 +384,14 @@ export function createAppStore(data: DataStore = DataStore.forPage()) {
     clearNotice() {
       set({ notice: null });
     },
-  }));
+  };
+  });
 }
 
 /** A site by id: one of the five candidates or the custom site (B13). */
-export function siteOf(st: Pick<AppState, "sites" | "customSite">, id: string | undefined | null): Site | undefined {
+export function siteOf(st: Pick<AppState, "sites" | "customSites">, id: string | undefined | null): Site | undefined {
   if (!id) return undefined;
-  return st.sites.find((s) => s.id === id) ?? (st.customSite?.id === id ? st.customSite : undefined);
+  return st.sites.find((s) => s.id === id) ?? st.customSites.find((c) => c.id === id);
 }
 
 /** The single application store (one DataStore, one cache). */

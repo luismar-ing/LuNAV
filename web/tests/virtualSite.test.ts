@@ -165,22 +165,37 @@ describe.runIf(HAS_TERRAIN)("virtual site over the reduced relief", () => {
     expect(data.virtualSite(site.id)).toBeUndefined();
   });
 
-  it("the store adds one custom site at a time, with its plans, and removes it", async () => {
+  it("the store keeps a custom point while one of its plans is pinned, and drops it once unused", async () => {
     const store = createAppStore(fileStore());
     await store.getState().loadCore();
-    const n = store.getState().plansById.size;
-    const id = await store.getState().addCustomSite(-88.5, 45);
+    const st = () => store.getState();
+    const n = st().plansById.size;
+    const id = await st().addCustomSite(-88.5, 45);
     expect(id).toBe("custom_s885000_e450000");
-    expect(store.getState().plansById.size).toBe(n + 365 * 3);
-    expect(store.getState().sites).toHaveLength(5); // the candidates stay five
-    store.getState().selectPlan(`${id}_20270301_7d`);
-    const id2 = await store.getState().addCustomSite(-87, -120);
-    expect(store.getState().customSite?.id).toBe(id2);
-    expect(store.getState().plansById.size).toBe(n + 365 * 3);
-    expect(store.getState().selectedPlanId?.startsWith(id!)).toBe(false); // the old point's plan is gone
-    store.getState().removeCustomSite();
-    expect(store.getState().customSite).toBeNull();
-    expect(store.getState().plansById.size).toBe(n);
+    expect(st().plansById.size).toBe(n + 365 * 3);
+    expect(st().sites).toHaveLength(5); // the candidates stay five
+    // a second point replaces an unused first one
+    const id2 = await st().addCustomSite(-87, -120);
+    expect(st().customSite?.id).toBe(id2);
+    expect(st().customSites.map((c) => c.id)).toEqual([id2]);
+    expect(st().plansById.size).toBe(n + 365 * 3);
+    // pinned, the first point stays beside the next one: they can be compared
+    await st().addCustomSite(-88.5, 45);
+    expect(st().pinPlan(`${id}_20270301_7d`)).toBe(true);
+    st().pinPlan("haworth_20270301_7d");
+    await st().addCustomSite(-87, -120);
+    st().pinPlan(`${id2}_20270301_7d`);
+    expect(st().customSites.map((c) => c.id).sort()).toEqual([id, id2].sort());
+    expect(st().plansById.size).toBe(n + 2 * 365 * 3);
+    expect(st().comparePlans).toEqual([`${id}_20270301_7d`, "haworth_20270301_7d", `${id2}_20270301_7d`]);
+    // unpinned and not current: gone, with its plans
+    st().unpinPlan(`${id}_20270301_7d`);
+    expect(st().customSites.map((c) => c.id)).toEqual([id2]);
+    expect(st().plansById.size).toBe(n + 365 * 3);
+    st().removeCustomSite();
+    expect(st().customSite).toBeNull();
+    expect(st().comparePlans).toEqual(["haworth_20270301_7d"]);
+    expect(st().plansById.size).toBe(n);
   });
 
   it("scene geometry (3D) = sky from the point (2D) at a custom site: Sun and Earth within 0.05°", async () => {

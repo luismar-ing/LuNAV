@@ -136,7 +136,14 @@ export function PlannerView({ tools }: { tools: ReactNode }) {
       )}
       {customOpen && !mission && (
         <Drawer title={STRINGS.custom.title} closeLabel={STRINGS.custom.close} onClose={() => setCustomOpen(false)} testId="custom-drawer">
-          <CustomSite onLaunch={launch} onLand={land} />
+          <CustomSite
+            onLaunch={launch}
+            onLand={land}
+            onCompare={() => {
+              setCustomOpen(false);
+              setDrawerOpen(true);
+            }}
+          />
         </Drawer>
       )}
     </div>

@@ -38,7 +38,8 @@ beforeEach(() => {
   st.setScreen("landing");
   st.selectPlan(null);
   st.setCustomOpen(false);
-  st.removeCustomSite();
+  for (const id of [...st.comparePlans]) st.unpinPlan(id);
+  for (const c of [...appStore.getState().customSites]) appStore.getState().removeCustomSite(c.id);
 });
 afterEach(cleanup);
 
@@ -117,5 +118,33 @@ describe.runIf(HAS_TERRAIN)("Journey to a custom coordinate (B13)", () => {
     act(() => appStore.getState().setViewMode("compare"));
     act(() => appStore.getState().selectSite("haworth"));
     expect(appStore.getState().selectedPlanId).toBe("haworth_20270309_7d");
+  });
+
+  it("pins the point's plan to the tray and compares it with a candidate site and another point (B13b)", async () => {
+    const drawer = await openPoint();
+    fireEvent.click(drawer.getByTestId("custom-pin"));
+    await waitFor(() => expect(appStore.getState().comparePlans).toEqual([`${ID}_20270309_7d`]), { timeout: 8000 });
+    expect(drawer.getByTestId("custom-pin").getAttribute("aria-pressed")).toBe("true");
+    act(() => {
+      appStore.getState().pinPlan("haworth_20270309_7d");
+    });
+    // a second point, pinned too: the first one is kept
+    fireEvent.change(drawer.getByLabelText("Latitude, longitude"), { target: { value: "-87, -120" } });
+    fireEvent.click(drawer.getByRole("button", { name: "Analyse" }));
+    await waitFor(() => expect(drawer.getByTestId("custom-pin").getAttribute("aria-pressed")).toBe("false"));
+    fireEvent.click(drawer.getByTestId("custom-pin"));
+    await waitFor(() => expect(appStore.getState().comparePlans).toHaveLength(3), { timeout: 8000 });
+    expect(appStore.getState().customSites).toHaveLength(2);
+
+    fireEvent.click(drawer.getByRole("button", { name: "Compare pinned (3)" }));
+    const search = within(await screen.findByTestId("search-drawer"));
+    expect(screen.queryByTestId("custom-drawer")).toBeNull();
+    const grid = await search.findByTestId("tray-grid", {}, { timeout: 5000 });
+    await waitFor(() => expect(within(grid).getAllByTestId("plan-panel")).toHaveLength(3), { timeout: 8000 });
+    const names = within(grid).getAllByTestId("plan-panel").map((p) => p.querySelector(".plan-site")?.textContent);
+    expect(names).toEqual(["Custom site · -88.500°, 45.000°", "Haworth", "Custom site · -87.000°, -120.000°"]);
+    expect(within(grid).getAllByTestId("approx-panel")).toHaveLength(2); // the two points, not Haworth
+    // every panel has its metrics, so the best values are marked across the three
+    expect(within(grid).getAllByTestId("metrics-box")).toHaveLength(3);
   });
 });

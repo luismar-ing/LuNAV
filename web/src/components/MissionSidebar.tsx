@@ -43,7 +43,7 @@ export function MissionSidebar({ onLaunch, onOpenSearch, onOpenFinder, onOpenCus
   const selectSite = useApp((s) => s.selectSite);
   const loadWindows = useApp((s) => s.loadWindows);
   const [byPointer, setByPointer] = useState(false);
-  const custom = useApp((s) => s.customSite);
+  const customSites = useApp((s) => s.customSites);
 
   useEffect(() => {
     if (plan) void loadWindows(plan.window_days);
@@ -61,7 +61,7 @@ export function MissionSidebar({ onLaunch, onOpenSearch, onOpenFinder, onOpenCus
   // the strip: STRIP_DAYS days around the arrival, kept inside the date range
   const startMs = Math.min(Math.max(first, Date.parse(arrival) - Math.floor(STRIP_DAYS / 2) * DAY_MS), last - (STRIP_DAYS - 1) * DAY_MS);
   const days = Array.from({ length: STRIP_DAYS }, (_, i) => ymd(startMs + i * DAY_MS));
-  const siteName = (id: string) => sites.find((s) => s.id === id)?.name ?? (custom?.id === id ? custom.name : id);
+  const siteName = (id: string) => sites.find((s) => s.id === id)?.name ?? (customSites.find((c) => c.id === id)?.name ?? id);
 
   return (
     <aside className="mission-sidebar glass" aria-label={STRINGS.planner.sidebar} data-testid="mission-sidebar">

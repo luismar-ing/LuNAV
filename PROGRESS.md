@@ -3823,3 +3823,22 @@ Las trayectorias ILLUSTRATIVE, los datos SYNTHETIC y toda desviación de la spec
   - Si se fusiona otro cambio de `pipeline/trajectory.py`, `tests/trajectoryBuilder.test.ts` fallará hasta portarlo.
   - Educator y el reto «Can your lander make it?» quedan fuera de alcance (solo los cinco sitios).
 - **Siguiente tarea:** revisión de la persona B; coordinar con A (escena) y C (README).
+
+## AJUSTE · B13b: fijar y comparar el sitio personalizado
+
+- **Tarea:** petición de la persona B tras B13: poder fijar el sitio personalizado en la bandeja y compararlo. Decisión A14 (ampliada).
+- **Qué se hizo:**
+  - `store/appStore.ts`: `customSites` (todos los puntos registrados) además de `customSite` (el actual). Un punto anterior se conserva mientras tenga un plan fijado o seleccionado, así que se pueden comparar varios puntos entre sí y con los cinco sitios; `pruneCustomSites` lo descarta (planes, pines y archivos) al quitar el pin, elegir otro plan o analizar otro punto. `removeCustomSite(id?)` y `siteOf` buscan en todos.
+  - `components/CustomSite.tsx`: «Pin to compare» / «Pinned · remove» para el plan de la llegada y estancia del panel, y «Compare pinned (n)», que cierra el panel y abre la bandeja (`PlannerView`).
+  - `panels2d/PlanPanel.tsx`: APPROXIMATE en el panel de un punto personalizado. Las métricas, la silueta, la cinta y las insignias «best» salen de los archivos del sitio virtual, como en cualquier panel.
+- **Cómo se verificó:**
+  ```
+  $ npm --prefix web run typecheck → sin errores
+  $ npm --prefix web test → Test Files 63 passed (63), Tests 429 passed (429)
+  ```
+  - `tests/virtualSite.test.ts`: un punto sin usar se sustituye; fijado, se conserva junto al siguiente; al quitar el pin desaparece con sus planes.
+  - `tests/customJourney.test.tsx`: dos puntos y Haworth fijados → «Compare pinned (3)» abre la bandeja con tres paneles (dos con APPROXIMATE) y sus métricas.
+  - Navegador (servidor de desarrollo): dos puntos fijados desde el panel aparecen en la bandeja con APPROXIMATE; sin errores nuevos en consola.
+- **Desviaciones de la spec / cambios en la guía:** ninguna. El `score` del punto está en la escala de los cinco sitios (A14).
+- **Problemas abiertos:** el calendario sigue mostrando solo las filas de los cinco sitios; el mapa de la Luna no marca los puntos fijados.
+- **Siguiente tarea:** revisión de la persona B.
