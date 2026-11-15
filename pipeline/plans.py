@@ -51,7 +51,9 @@ def check(plans: list[dict], site_ids: list[str]) -> list[str]:
     for p in plans:
         if p["site_id"] not in site_ids:
             errors.append(f"{p['id']}: sitio desconocido")
-        if parse_instant(p["arrival_utc"]) - parse_instant(p["launch_utc"]) != timedelta(days=p["transit_days"]):
+        # instants are written to the second; transit_days need not be whole (A16), so allow 1 s like the contract
+        gap = parse_instant(p["arrival_utc"]) - parse_instant(p["launch_utc"]) - timedelta(days=p["transit_days"])
+        if abs(gap.total_seconds()) > 1:
             errors.append(f"{p['id']}: launch_utc no es arrival_utc − transit_days")
     return errors
 
