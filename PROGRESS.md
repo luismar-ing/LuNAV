@@ -3870,3 +3870,72 @@ Las trayectorias ILLUSTRATIVE, los datos SYNTHETIC y toda desviación de la spec
 - **Desviaciones de la spec / cambios en la guía:** ninguna. El `score` del punto está en la escala de los cinco sitios (A14).
 - **Problemas abiertos:** el calendario sigue mostrando solo las filas de los cinco sitios; el mapa de la Luna no marca los puntos fijados.
 - **Siguiente tarea:** revisión de la persona B.
+
+## AJUSTE · B14: el reto del Educador con un punto personalizado
+
+- **Tarea:** B14, petición del humano (15-nov-2026): en el reto «Can your lander make it?» el jugador elige un punto propio de la Luna en vez de uno de los cinco sitios. Rama `b14-challenge-custom-point`, desde `b13-custom-journey` (necesita el sitio virtual de B13). Decisión A15.
+- **Qué se hizo:**
+  - `views/Challenge.tsx`: el paso 1 es «Choose a landing point on the Moon»: el selector `PointPicker` (mapa de luz media de LOLA de 85°S al polo, con los cinco sitios como anillos de referencia) y un campo de coordenadas. Cada punto se convierte en sitio virtual con `addCustomSite`; una elección posterior gana a una anterior. Mensajes para texto inválido y para puntos al norte de 85°S. El nombre del punto («Custom site · lat°, lon°») y APPROXIMATE aparecen al elegirlo; el panel de la misión y el resultado usan ese nombre.
+  - El resto del reto no cambia: `lib/challenge.ts` evalúa la serie del sitio virtual con las mismas reglas, y la escena vuela la trayectoria ILLUSTRATIVE calculada en el navegador.
+  - `lib/strings.ts`: textos del paso 1 y de la misión; `styles/challenge.css`: estilos del selector en la barra lateral.
+- **Cómo se verificó:**
+  ```
+  $ npm --prefix web run typecheck → sin errores
+  $ npm --prefix web test → Test Files 63 passed (63), Tests 429 passed (429)
+  ```
+  - `tests/challenge.view.test.tsx`, reescrito: el selector y los 31 días; texto inválido y punto fuera de 85°S rechazados; el punto y el día forman el plan `custom_…_AAAAMMDD_7d`; lanzar, saltar fases y parar exactamente donde la batería se vacía (instante sacado de la serie del punto); «Try again» marca solo el día probado; un día bueno termina en éxito; «Watch again» no cuenta como intento. Los días esperados salen de `monthOutcomes` sobre la serie del punto (−89,45°, −137,1°: 19 de 31 días buenos).
+  - Navegador (servidor de desarrollo): Educador → «Take the challenge» → clic en el mapa elige (−89,987°, 133,153°) → 15 de marzo → el vuelo arranca con la batería y la barra de la estancia.
+- **Desviaciones de la spec / cambios en la guía:** ninguna en las definiciones. La dificultad cambia: muchos puntos no tienen ningún día bueno en marzo (medido en 10 puntos: 0 a 19 de 31).
+- **Problemas abiertos:** no hay pista de qué zonas funcionan aparte del mapa de luz media; quizá convenga una ayuda («prueba cerca de las crestas iluminadas») si el reto resulta demasiado difícil. La rama depende de B13 (PR pendiente).
+- **Siguiente tarea:** revisión del humano.
+
+## AJUSTE · B14b: el panel del reto cabe sin scroll
+
+- **Tarea:** petición del humano: resumir el panel izquierdo del reto para que no haga falta desplazarse.
+- **Qué se hizo:**
+  - Textos más cortos (`lib/strings.ts`): la misión en una frase («Keep the lander powered for 7 days. Land anywhere from 85°S, any day in March 2027.»); el lander como «5 kWh battery, 250 W load: 20 h of darkness on a full charge.», con la frase completa y la nota ASSUMED en el tooltip; la ayuda del mapa en una línea, con la explicación de la luz media en el tooltip; el estado del punto como «Landing at lat°, lon°» + APPROXIMATE.
+  - Distribución (`styles/challenge.css`, `views/Challenge.tsx`): mapa a la izquierda (≈ 15 % del alto de la ventana) y coordenada y estado a la derecha; la lectura del cursor del mapa queda solo para lectores de pantalla; días más bajos (26–36 px según el alto); «Launch» y «Back to the story» en una fila con la pista debajo; menos separación entre bloques.
+- **Cómo se verificó:**
+  ```
+  $ npm --prefix web run typecheck → sin errores
+  $ npm --prefix web test → Test Files 63 passed (63), Tests 429 passed (429)
+  ```
+  - Navegador (servidor de desarrollo), alto del contenido frente al alto visible de la barra lateral: 1280×720 → 687/687 (78 px de margen con día elegido; también sin scroll al empezar y mientras se calcula el punto), 1366×768 → 733/733, 1920×1080 → 1031/1031. Los dos botones de abajo caben sin cortarse.
+- **Desviaciones de la spec / cambios en la guía:** ninguna.
+- **Problemas abiertos:** en teléfono la barra sigue pudiendo desplazarse (el diseño móvil apila el panel).
+- **Siguiente tarea:** revisión del humano.
+
+## AJUSTE · B14c: el día del reto con el control del planificador
+
+- **Tarea:** petición del humano: que la elección del día en el reto se vea como la fecha de llegada del Mission Planner, sin dar pistas del Sol ni de la Tierra.
+- **Qué se hizo:**
+  - `views/Challenge.tsx` (`DayPicker`): la fila «‹ fecha ›» del planificador (`.arrival-row`, `.arrival-field`): el texto «Mar 15, 2027», el icono del calendario y el selector nativo del navegador limitado al 1–31 de marzo, más una tira de 21 días alrededor del elegido (`.day-strip`), siempre dentro del mes. Sin día elegido dice «Choose a day».
+  - Sin pistas: las casillas no llevan las marcas del Sol y la Tierra ni la leyenda del planificador. Solo marcan los intentos del propio jugador, por forma además de color (llena = conservó la energía; cruzada = la perdió), con una leyenda que aparece tras el primer intento.
+  - Se quitó la cuadrícula de 31 botones con número; `styles/challenge.css` y `lib/strings.ts` al día.
+- **Cómo se verificó:**
+  ```
+  $ npm --prefix web run typecheck → sin errores
+  $ npm --prefix web test → Test Files 63 passed (63), Tests 429 passed (429)
+  ```
+  - `tests/challenge.view.test.tsx`: fila de fecha con mín./máx. de marzo, 21 casillas sin `data-sun` ni `data-earth`, sin leyenda del planificador, «‹ ›» y el campo de fecha; el día se elige con el campo de fecha; tras «Try again» solo el día probado queda marcado.
+  - Navegador (1280×720): el panel sigue sin scroll (687/687) al empezar, con punto, con día y tras un intento; el día perdido se ve cruzado y aparece la leyenda.
+- **Desviaciones de la spec / cambios en la guía:** ninguna.
+- **Problemas abiertos:** ninguno nuevo.
+- **Siguiente tarea:** revisión del humano.
+
+## AJUSTE · B14d: más espacio para el paso 1 del reto
+
+- **Tarea:** petición del humano: dar más espacio al paso 1 y poner el campo de coordenadas debajo del mapa.
+- **Qué se hizo:**
+  - `views/Challenge.tsx`: el paso 1 se apila: mapa, debajo el campo con «Use», debajo el estado («Landing at lat°, lon°» + APPROXIMATE).
+  - El mapa escala con el alto de la ventana: `clamp(130px, 24vh, 260px)` → 173 px a 720, 184 px a 768 y 259 px a 1080 (antes 108–140 px). «Enlarge map» pasa a la esquina del mapa.
+  - La ayuda «Click the map or type a coordinate» pasa al tooltip y al placeholder («or type: -88.5, 45»); la misión a 14 px (dos líneas); «Computing…» se dice una vez (estado del paso 1) y es más corto.
+- **Cómo se verificó:**
+  ```
+  $ npm --prefix web run typecheck → sin errores
+  $ npm --prefix web test → Test Files 63 passed (63), Tests 429 passed (429)
+  ```
+  - Navegador, contenido frente a alto visible de la barra lateral: 1280×720 → 686/686 al empezar, calculando el punto, con punto, con día y tras un intento (margen mínimo 12 px); 1366×768 → 732/732; 1920×1080 → 1031/1031.
+- **Desviaciones de la spec / cambios en la guía:** ninguna.
+- **Problemas abiertos:** ninguno nuevo.
+- **Siguiente tarea:** revisión del humano.
