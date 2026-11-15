@@ -17,7 +17,7 @@ Principio: **2D para comparar, 3D para comprender.** Un solo contexto WebGL; los
 
 - Pipeline (offline, reproducible): Python 3.11+ (la máquina tiene 3.13), numpy, spiceypy, rasterio o similar, pyproj, pandas, pydantic, matplotlib, pytest.
 - Front end: React + TypeScript, Vite, Zustand, D3, three.js, Vitest, zod. Node 24.
-- Despliegue: hosting estático (Vercel, Netlify o GitHub Pages; por decidir en T7.1.a). Todo se precalcula; cero servidor en la demo.
+- Despliegue: GitHub Pages (decisión A11, T7.1.a). Cada merge a `main` ejecuta `.github/workflows/deploy.yml`, que compila para `/LuNAV/` y publica `web/dist` en la rama `deploy`; Pages sirve esa rama en https://luismar-ing.github.io/LuNAV/. Todo se precalcula; cero servidor en la demo.
 - Entorno: Windows. Los comandos van desde la raíz del repo; funcionan en PowerShell y en Git Bash.
 
 ## Comandos
@@ -44,6 +44,8 @@ Principio: **2D para comparar, 3D para comprender.** Un solo contexto WebGL; los
 | Tipos | `npm --prefix web run typecheck` | disponible |
 | Build | `npm --prefix web run build` | disponible |
 | Servir el build | `npm --prefix web run preview` (puerto 4173) | disponible |
+| Probar el build de GitHub Pages | `npm --prefix web run build -- --base=/LuNAV/` y `npm --prefix web run preview -- --base=/LuNAV/` → http://localhost:4173/LuNAV/ | disponible |
+| Publicar | automático en cada merge a `main` (GitHub Actions → rama `deploy`); a mano: pestaña Actions → «Build and publish site» → Run workflow | disponible |
 | Capturas de cada pantalla (1920×1080 y 375×812, avisa si hay scroll horizontal) | `npm --prefix web run screens` (con el servidor de desarrollo en marcha; Chrome o Edge instalado, `CHROME_PATH` para otro) → `docs/figures/screens/` (`desk-*`, `phone-*`) | disponible |
 | Auditoría de rendimiento (8.7) | `npm --prefix web run perf` (carga y actualización) y `npm --prefix web run fps` (fps y contextos WebGL), con `npm --prefix web run preview` en marcha → resultados en `docs/performance.md` | disponible |
 
@@ -103,4 +105,5 @@ Notas del protocolo:
 | Pipeline | `pipeline/` (salida intermedia en `pipeline/out/`, no versionada) |
 | Datos del front end | `web/public/data/` (REAL, versionado; regenerar con `build_all`) |
 | Front end | `web/src/` (`store/`, `views/`, `components/`, `lib/`, `styles/`, `scene3d/`, `panels2d/`) |
+| Publicación (GitHub Pages) | `.github/workflows/deploy.yml` → rama `deploy` |
 | Comando de sesión | `.claude/commands/siguiente.md` |
