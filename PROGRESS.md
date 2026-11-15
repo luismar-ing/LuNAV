@@ -3354,3 +3354,25 @@ Las trayectorias ILLUSTRATIVE, los datos SYNTHETIC y toda desviación de la spec
 - **Desviaciones de la spec / cambios en la guía:** ninguna. La batería sigue marcada ASSUMED (T6.4.a).
 - **Problemas abiertos:** el día anterior al 1-ene y el posterior al último día de llegada no tienen datos (fila «outside the data»).
 - **Siguiente tarea:** B8 (frase del horizonte; necesita el visto bueno para tocar `views/Panorama.tsx`).
+
+## AJUSTE · B8: frase del horizonte bajo el panorama
+
+- **Tarea:** B8 del plan de mejoras del 14-nov-2026 (persona B, hallazgo H10). En Haworth, el 11-ene a las 00:00 UTC, el Sol está a −2,66° y el estado dice «Sunlit», sin explicación. Rama hecha sobre B7 (`b7-battery-and-neighbour-days`).
+- **Qué se hizo:**
+  - `views/Panorama.tsx`: archivo sin dueño en el reparto; el humano autorizó el cambio. Ninguna rama de A (`a1-sky-data` … `a6-textures`) lo toca a esta fecha.
+  - Bajo la lectura del panorama aparece una frase solo cuando el Sol o la Tierra están visibles con elevación < 0° en el instante del reloj. Ejemplo: «The Sun (-2.66°) is in view below 0°: this site stands 2,842 m above the Moon's reference radius, and from this high ground the terrain horizon dips below the flat one.».
+  - La altitud sale de `sites.json` (`elevation_m`).
+  - Redacción: el plan pedía «You're X m up». Se cambió porque `elevation_m` es la altura sobre la esfera de referencia de LOLA (1737,4 km), no sobre el terreno vecino. La frase no afirma más de lo que dicen los datos: el cuerpo se ve bajo 0° porque el horizonte del terreno en esa dirección está aún más bajo.
+  - `lib/strings.ts`: `panorama.belowZero`; `tokens.css`: `.panorama-horizon-note`.
+- **Cómo se verificó:**
+  ```
+  $ npm --prefix web run typecheck → sin errores
+  $ npm --prefix web test → 293 passed (48 archivos)
+  ```
+  - `tests/panorama.test.tsx`:
+    - Haworth 11-ene 00:00 UTC: Sol visible a −2,66° y frase con «2,842 m».
+    - Un instante con el Sol visible sobre 0° y la Tierra no visible bajo 0°: sin frase.
+  - Navegador (servidor de desarrollo, 1920×1080): «Land at Haworth» el 11-ene muestra la frase junto a «el -2.66°» y «☀ Sunlit». Sin errores en consola.
+- **Desviaciones de la spec / cambios en la guía:** la redacción cambia respecto al plan de mejoras (ver arriba). Confirmar con el equipo.
+- **Problemas abiertos:** A1 va a mover el panorama a la vista «Data»; la frase va dentro de `Panorama`, así que se mueve con él.
+- **Siguiente tarea:** B10 (un solo reloj visible; coordinar con A1).

@@ -372,6 +372,11 @@ export const STRINGS = {
     link: "Earth link",
     noLink: "No Earth link",
     outside: "outside the plan window",
+    // B8 (H10): why a body can be in view below 0°. elevation_m is height above the LOLA reference sphere (1737.4 km)
+    belowZero: (bodies: { body: string; el: number }[], elevationM: number) => {
+      const list = bodies.map((b) => `${b.body} (${b.el.toFixed(2)}°)`).join(" and the ");
+      return `The ${list} ${bodies.length > 1 ? "are" : "is"} in view below 0°: this site stands ${Math.round(elevationM).toLocaleString("en-US")} m above the Moon's reference radius, and from this high ground the terrain horizon dips below the flat one.`;
+    },
   },
   timeControl: {
     label: "Mission time at the site",
