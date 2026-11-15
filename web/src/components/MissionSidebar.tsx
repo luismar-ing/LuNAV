@@ -1,6 +1,5 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { lookup, dayIndex } from "../lib/constraints";
-import { lutIndex, rampLut } from "../lib/colorScale";
 import { fmtDay } from "../lib/format";
 import { lastInputWasKeyboard } from "../lib/inputModality";
 import { planVerdict } from "../lib/siteBrief";
@@ -27,8 +26,8 @@ function openPicker(input: HTMLInputElement) {
 }
 
 /**
- * Mission start sidebar (decision A7, design A2): arrival date (with a strip of days coloured by the chosen
- * site's combined score, the calendar's own ramp), length of stay, landing site and "Launch". Every control
+ * Mission start sidebar (decision A7, design A2): arrival date (with a strip of days marked for the Sun and the
+ * Earth at the chosen site, B6), length of stay, landing site and "Launch". Every control
  * changes the selected plan, which the Moon map, the site brief and every other view follow.
  */
 export function MissionSidebar({ onLaunch, onOpenSearch }: { onLaunch(): void; onOpenSearch(): void }) {
@@ -43,7 +42,6 @@ export function MissionSidebar({ onLaunch, onOpenSearch }: { onLaunch(): void; o
   const setWindow = useApp((s) => s.setWindow);
   const selectSite = useApp((s) => s.selectSite);
   const loadWindows = useApp((s) => s.loadWindows);
-  const lut = useMemo(() => rampLut("combined"), []);
   const [byPointer, setByPointer] = useState(false);
 
   useEffect(() => {
@@ -113,23 +111,47 @@ export function MissionSidebar({ onLaunch, onOpenSearch }: { onLaunch(): void; o
         <div className="day-strip" role="group" aria-label={STRINGS.planner.strip(siteName(plan.site_id))}>
           {days.map((day) => {
             const m = index ? lookup(index, plan.site_id, day) : null;
+            const v = m ? planVerdict(m) : null;
             const selected = day === arrival;
+            // B6 (H7): two marks per day instead of one shade of green: the Sun on top (filled = no night, outline =
+            // a night) and the Earth below (filled = all stay, striped = gaps, outline = never); the score stays in the label
+            const label = v && m ? STRINGS.planner.dayCellFull(fmtDay(day), STRINGS.planner.statusSun(v.darkH), STRINGS.planner.statusEarth(v.earth, v.gapH), round(m.score, 2)) : STRINGS.planner.dayCell(fmtDay(day), null);
             return (
               <button
                 key={day}
                 type="button"
                 className="day-cell"
                 aria-pressed={selected}
-                aria-label={STRINGS.planner.dayCell(fmtDay(day), m ? round(m.score, 2) : null)}
-                title={STRINGS.planner.dayCell(fmtDay(day), m ? round(m.score, 2) : null)}
-                style={{ background: m ? lut[lutIndex("combined", m.score)] : undefined }}
+                aria-label={label}
+                title={label}
+                data-sun={v?.sun}
+                data-earth={v?.earth}
                 onClick={() => goDay(Date.parse(day))}
                 data-day-index={index ? dayIndex(index, day) : undefined}
-              />
+              >
+                <span className="day-mark" data-body="sun" aria-hidden="true" />
+                <span className="day-mark" data-body="earth" aria-hidden="true" />
+              </button>
             );
           })}
         </div>
-        <p className="sidebar-hint">{STRINGS.planner.stripHint}</p>
+        <p className="strip-legend" aria-hidden="true" data-testid="strip-legend">
+          <span>
+            <span className="day-swatch" data-body="sun" data-state="lit" /> {STRINGS.planner.legendNoNight}
+          </span>
+          <span>
+            <span className="day-swatch" data-body="sun" data-state="night" /> {STRINGS.planner.legendNight}
+          </span>
+          <span>
+            <span className="day-swatch" data-body="earth" data-state="all" /> {STRINGS.planner.legendEarthAll}
+          </span>
+          <span>
+            <span className="day-swatch" data-body="earth" data-state="gaps" /> {STRINGS.planner.legendEarthGaps}
+          </span>
+          <span>
+            <span className="day-swatch" data-body="earth" data-state="none" /> {STRINGS.planner.legendEarthNone}
+          </span>
+        </p>
       </section>
 
       <section className="sidebar-block" aria-labelledby="stay-label">

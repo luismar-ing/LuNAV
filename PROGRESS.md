@@ -3245,3 +3245,28 @@ Las trayectorias ILLUSTRATIVE, los datos SYNTHETIC y toda desviación de la spec
   - A 1366×650 el sidebar desborda 11 px (fuera de las resoluciones objetivo).
   - `Drawer.tsx` no estaba en el reparto: avisar al equipo del cambio.
 - **Siguiente tarea:** B6 (tira de días más clara).
+
+## AJUSTE · B6: tira de días con Sol y Tierra por forma
+
+- **Tarea:** B6 del plan de mejoras del 14-nov-2026 (persona B, hallazgo H7). La tira del sidebar coloreaba cada día con la rampa verde del score: Haworth 1-ene (0,71, sin Tierra) y 9-ene (1,00) eran dos verdes casi iguales, y el color no decía qué fallaba. Rama hecha sobre B9 (`b9-fixed-buttons-details`).
+- **Qué se hizo:**
+  - `MissionSidebar.tsx`: cada día es un botón con dos marcas, calculadas con `planVerdict` (B2):
+    - arriba el Sol: relleno = sin noche en la estancia, contorno = con noche;
+    - abajo la Tierra: rellena = toda la estancia, rayada = con huecos, contorno = nunca;
+    - sin datos todavía: contornos grises.
+  - La etiqueta y el `title` de cada día dicen lo mismo con palabras y conservan el score: «Jan 11, 2027: 34 h night in stay · Earth all stay · score 0.86».
+  - Una leyenda con muestras sustituye a «Brighter days score higher for this site.».
+  - La tira ya no usa `colorScale` (la rampa la sigue usando el calendario).
+  - `lib/strings.ts`: `dayCellFull`, textos de la leyenda y nueva etiqueta de grupo de la tira. `dayCell` se queda para el Educator.
+- **Cómo se verificó:**
+  ```
+  $ npm --prefix web run typecheck → sin errores
+  $ npm --prefix web test → 289 passed (48 archivos); en una corrida falló otra vez la intermitente de integration.test.tsx (T5.1.b, «Longest dark»), la de main anotada en B1
+  ```
+  - `tests/plannerSidebar.test.tsx`: Haworth 1, 9 y 11-ene dan `night/gaps`, `lit/all` y `night/all`; la etiqueta del 11-ene incluye el score; el clic en un día sigue eligiendo su plan.
+  - Navegador (servidor de desarrollo): las etiquetas de los tres días coinciden con los datos. Sin scroll en barra ni etapa a 1280×720, 1366×768, 1536×700 y 1920×1080; sin errores en consola.
+- **Desviaciones de la spec / cambios en la guía:** la tira del sidebar (diseño A2, decisión A7) se coloreaba por score; ahora va por forma, con el score en la etiqueta. El calendario de calor de la spec 8.5 no cambia: sigue en el código con su rampa. Si el equipo lo considera una desviación de diseño, registrarla en `docs/DECISIONS.md` con el número que quede libre tras A1.
+- **Problemas abiertos:**
+  - A 1366×650 el sidebar desborda 26 px (antes 11) porque la leyenda ocupa dos líneas; está fuera de las resoluciones objetivo.
+  - La intermitente de `integration.test.tsx` falla cada vez más seguido con la suite completa (la misma búsqueda de «Longest dark» que en main). Conviene que alguien la revise (probable condición de carrera en jsdom).
+- **Siguiente tarea:** B7 (línea de batería en el panel y «±1 day»).

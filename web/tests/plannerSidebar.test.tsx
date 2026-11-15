@@ -67,9 +67,9 @@ describe("Mission Planner sidebar (A2)", () => {
     expect(appStore.getState().selectedPlanId).toBe("haworth_20270309_14d");
     expect(sidebar().getByRole("button", { name: /^Haworth/ }).getAttribute("aria-pressed")).toBe("true");
 
-    // the strip colours its days from the score index once it is loaded; clicking a day selects it
+    // the strip marks its days from the window index once it is loaded (score in the label); clicking a day selects it
     await waitFor(() => expect(sidebar().getAllByRole("button", { name: /score/ }).length).toBeGreaterThan(10));
-    fireEvent.click(sidebar().getByRole("button", { name: /^Mar 11, 2027, score/ }));
+    fireEvent.click(sidebar().getByRole("button", { name: /^Mar 11, 2027: / }));
     expect(appStore.getState().selectedPlanId).toBe("haworth_20270311_14d");
   });
 
@@ -179,6 +179,12 @@ describe("Mission Planner sidebar (A2)", () => {
     expect(within(map).getByText("52 km")).toBeTruthy(); // to Malapert Massif, the nearest other site
 
     // the sidebar names each site's night for these dates (same data as REDIS); the brief has no sentence (A9)
+    // B6 (H7): Jan 1, 9 and 11 at Haworth tell apart by shape (Sun mark, Earth mark), not by two shades of green
+    const cell = (d: string) => sidebar().getByRole("button", { name: new RegExp(`^${d}, 2027: `) });
+    await waitFor(() => expect(cell("Jan 11").dataset.sun).toBe("night"));
+    expect([cell("Jan 1"), cell("Jan 9"), cell("Jan 11")].map((c) => `${c.dataset.sun}/${c.dataset.earth}`)).toEqual(["night/gaps", "lit/all", "night/all"]);
+    expect(cell("Jan 11").getAttribute("aria-label")).toBe("Jan 11, 2027: 34 h night in stay · Earth all stay · score 0.86");
+
     // B3: one night, one figure in context: 34 h of the 36.5 h night fall inside the 7-day stay
     await waitFor(() => expect(sidebar().getByRole("button", { name: /^Haworth/ }).textContent).toContain("34 h night in stay"));
     expect((await screen.findByTestId("brief-night-of")).textContent).toBe("of 36.5 h");
