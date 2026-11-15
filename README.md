@@ -12,6 +12,8 @@ PolePlanner is a mission-planning tool for landing sites at the lunar south pole
 > **Status:** in development. Science, data, the 2D comparison and the 3D journey are done (phases 0–4); integration and polish (phase 5) is in progress.
 > The full specification (in Spanish) is in [`docs/SPEC.md`](docs/SPEC.md).
 
+**Live app:** https://luismar-ing.github.io/LuNAV/ (the static build of `main`, published automatically; see [Deployment](#deployment)).
+
 ## Repository layout
 
 ```
@@ -59,6 +61,15 @@ Everything is precomputed offline; the browser only filters and draws.
 | Tests | `npm --prefix web test` | available |
 | Type check | `npm --prefix web run typecheck` | available |
 | Production build | `npm --prefix web run build` | available |
+
+## Deployment
+
+Every merge to `main` runs [`.github/workflows/deploy.yml`](.github/workflows/deploy.yml): it installs the front end, type-checks and builds it for the `/LuNAV/` path, and publishes `web/dist` to the `deploy` branch. GitHub Pages serves that branch (**Settings → Pages → Deploy from a branch → `deploy`, `/ (root)`**). There is no server: the browser downloads the precomputed data.
+
+| Step | Command |
+|---|---|
+| Publish | automatic on every merge to `main`; by hand: **Actions → Build and publish site → Run workflow** |
+| Try the Pages build locally | `npm --prefix web run build -- --base=/LuNAV/`, then `npm --prefix web run preview -- --base=/LuNAV/` and open http://localhost:4173/LuNAV/ |
 
 ## What is real and what is not
 

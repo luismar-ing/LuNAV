@@ -974,11 +974,12 @@ Aceptación general: cada extra se desactiva con un interruptor sin romper el MV
 
 ## Fase 7: Entrega
 
-##### [ ] T7.1.a — Elegir hosting estático y desplegar
+##### [!] T7.1.a — Elegir hosting estático y desplegar
 - **Qué:** elegir entre Vercel, Netlify o GitHub Pages y desplegar el build. Se puede adelantar con el shell 2D para reducir el riesgo de la demo en vivo.
 - **Archivos:** configuración del hosting elegido, `README.md`
 - **Depende de:** T3.5.a · **Spec:** 7, 14 · **Decisiones:** D11 · **Est.:** 2 h · **Adelantable** · **Humano**
 - **Aceptación:** la URL pública sirve la app y los datos cargan sin servidor (pestaña de red sin llamadas a una API).
+- **Bloqueo:** falta que el dueño del repo active GitHub Pages (Settings → Pages → Deploy from a branch → `deploy`, `/ (root)`). Hecho: elegido GitHub Pages (A11), flujo `.github/workflows/deploy.yml` y rama `deploy` generada; build con `--base=/LuNAV/` probado en local.
 
 ##### [ ] T7.1.b — Verificación del despliegue final
 - **Qué:** redesplegar el MVP y medir en la URL pública, con un navegador limpio y otro equipo.
