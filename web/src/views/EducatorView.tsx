@@ -1,8 +1,8 @@
-import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { fmtDay } from "../components/MissionSidebar";
 import { CHAPTERS, stepChapter } from "../lib/chapters";
 import { lookup } from "../lib/constraints";
-import { phaseAt, playbackRate, timelineOf, type MissionTimeline } from "../lib/mission";
+import { phaseAt } from "../lib/mission";
 import { Drawer } from "../components/Drawer";
 import { ErrorMessage } from "../components/ErrorMessage";
 import { describeError } from "../lib/errors";
@@ -10,10 +10,10 @@ import { Panorama } from "./Panorama";
 import { useSiteData } from "./useSiteData";
 import { STRINGS } from "../lib/strings";
 import { fmtMetric, round } from "../lib/why";
-import { sceneBridge } from "../scene3d/bridge";
-import { ASCENT_MS } from "../scene3d/launch";
 import { SceneHost } from "../scene3d/SceneHost";
 import { appStore, useApp } from "../store/appStore";
+import { useMissionPlayback } from "./useMissionPlayback";
+import { useScenePlan } from "./useScenePlan";
 
 const STRIP_DAYS = 21;
 const DAY_MS = 86_400_000;
@@ -48,8 +48,6 @@ export function EducatorView({ tools }: { tools: ReactNode }) {
   const index = useApp((s) => s.windowIndex[7]);
   const trajectoryMode = useApp((s) => s.manifest?.params.trajectory_mode ?? "ILLUSTRATIVE");
   const [chapter, setChapterState] = useState(0);
-  const [timeline, setTimeline] = useState<MissionTimeline | null>(null);
-  const shown = useRef<string | null>(appStore.getState().selectedPlanId);
   const c = CHAPTERS[chapter];
 
   const setChapter = (i: number) => {
@@ -68,28 +66,10 @@ export function EducatorView({ tools }: { tools: ReactNode }) {
   }, []);
 
   // the plan's timeline; while on the globe, the scene follows the chosen plan
-  useEffect(() => {
-    if (!plan) return;
-    let alive = true;
-    void appStore
-      .getState()
-      .data.trajectory(plan.trajectory_id)
-      .then((traj) => {
-        if (!alive) return;
-        const tl = timelineOf(plan, traj);
-        setTimeline(tl);
-        if (shown.current !== plan.id && sceneBridge.setPlan) {
-          sceneBridge.setPlan({ trajectory: traj, timeline: tl, siteId: plan.site_id });
-          shown.current = plan.id;
-        }
-      });
-    return () => {
-      alive = false;
-    };
-  }, [plan]);
+  const timeline = useScenePlan(plan);
 
   // each chapter opens at its own moment of the mission; the journey and the landing then play by themselves
-  const [play, setPlay] = useState<{ to: number; hoursPerSecond: number } | null>(null);
+  const { play, setPlay, skip } = useMissionPlayback(timeline);
   useEffect(() => {
     if (!timeline) return;
     const t = c.start(timeline);
@@ -98,40 +78,6 @@ export function EducatorView({ tools }: { tools: ReactNode }) {
     setPlay(c.hoursPerSecond > 0 ? { to: c.end(timeline), hoursPerSecond: c.hoursPerSecond } : null);
   }, [chapter, timeline]);
 
-  // playback towards play.to, with the mission's slow motion around launch (lib/mission playbackRate)
-  useEffect(() => {
-    if (!play || !timeline) return;
-    let raf = 0;
-    let last: number | null = null;
-    const go = (t: number) => {
-      appStore.getState().setMissionTime(t);
-      appStore.getState().setMissionPhase(phaseAt(timeline, t));
-    };
-    const tick = (now: number) => {
-      if (last !== null) {
-        const cur = appStore.getState().missionTime ?? timeline.startMs;
-        const hold = appStore.getState().detailedLaunch ? ASCENT_MS : 0; // staging stays watchable (T6.3.a)
-        const t = cur + (now - last) * playbackRate(timeline, cur, play.hoursPerSecond, hold);
-        if (t >= play.to) {
-          go(play.to);
-          setPlay(null);
-          return;
-        }
-        go(t);
-      }
-      last = now;
-      raf = requestAnimationFrame(tick);
-    };
-    raf = requestAnimationFrame(tick);
-    return () => cancelAnimationFrame(raf);
-  }, [play, timeline]);
-
-  const skip = () => {
-    if (!play || !timeline) return;
-    appStore.getState().setMissionTime(play.to);
-    appStore.getState().setMissionPhase(phaseAt(timeline, play.to));
-    setPlay(null);
-  };
   const fullDay = () => {
     if (!timeline) return;
     const now = appStore.getState().missionTime ?? timeline.landingMs;
@@ -140,10 +86,16 @@ export function EducatorView({ tools }: { tools: ReactNode }) {
     setPlay({ to: Math.min(timeline.endMs, from + 86_400_000), hoursPerSecond: 1 });
   };
   const levelB = useApp((s) => s.levelB);
+  const surfaceView = useApp((s) => s.surfaceView);
   const [panorama, setPanorama] = useState(false);
+  // "Hide text" (C3b): the caption in the middle of the screen steps aside so the 3D scene can be seen whole; the
+  // chapter title, the buttons and the ILLUSTRATIVE label stay. Chapter 1 keeps its text: it is where the plan is chosen.
+  const [textHidden, setTextHidden] = useState(false);
+  const showText = chapter === 0 || !textHidden;
   const lookAround = () => {
-    // Level B: stand on the site and drag the sky; without it, the 2D 360° panorama (level A)
-    if (levelB) appStore.getState().setSurfaceView(true);
+    // Level B: switch between standing on the site (drag the sky) and the aerial view, as in the site panel;
+    // without it, the 2D 360° panorama (level A)
+    if (levelB) appStore.getState().setSurfaceView(!surfaceView);
     else setPanorama(true);
   };
 
@@ -212,13 +164,18 @@ export function EducatorView({ tools }: { tools: ReactNode }) {
 
       {chapter > 0 && (
         <div className="edu-caption">
-          <p className="edu-caption-text" aria-live="polite">
-            {caption}
-          </p>
-          {c.id === "surface" && levelB && <p className="edu-hint">{STRINGS.educator.lookHint}</p>}
+          {showText && (
+            <p className="edu-caption-text" aria-live="polite">
+              {caption}
+            </p>
+          )}
+          {showText && c.id === "surface" && levelB && surfaceView && <p className="edu-hint">{STRINGS.educator.lookHint}</p>}
           <div className="edu-actions">
             <button type="button" className="btn pill" onClick={() => setChapter(stepChapter(chapter, -1))}>
               {STRINGS.educator.back}
+            </button>
+            <button type="button" className="btn pill ghost" aria-pressed={textHidden} onClick={() => setTextHidden(!textHidden)}>
+              {textHidden ? STRINGS.educator.showText : STRINGS.educator.hideText}
             </button>
             {play && (
               <button type="button" className="btn pill" onClick={skip}>
@@ -230,8 +187,16 @@ export function EducatorView({ tools }: { tools: ReactNode }) {
                 <button type="button" className="btn pill primary" onClick={fullDay} disabled={play !== null}>
                   {STRINGS.educator.fullDay}
                 </button>
-                <button type="button" className="btn pill" onClick={lookAround}>
-                  {STRINGS.educator.lookAround}
+                <button
+                  type="button"
+                  className="btn pill"
+                  title={levelB && !surfaceView ? STRINGS.siteLayout.standTitle : undefined}
+                  onClick={lookAround}
+                >
+                  {!levelB ? STRINGS.educator.lookAround : surfaceView ? STRINGS.siteLayout.aerial : STRINGS.siteLayout.stand}
+                </button>
+                <button type="button" className="btn pill" onClick={() => appStore.getState().setScreen("challenge")}>
+                  {STRINGS.challenge.open}
                 </button>
               </>
             )}
