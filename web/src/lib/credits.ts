@@ -5,7 +5,7 @@
  * A test checks that every URL in data/README.md appears here and in the README.
  */
 export interface CreditSource {
-  what: string; // what PolePlanner uses it for
+  what: string; // what LuNAV uses it for
   source: string; // who publishes it
   citation?: string;
   items?: string[]; // exact files
@@ -82,7 +82,7 @@ export const DATA_CREDITS: CreditSource[] = [
 /** What is not real data (rules 1 and 2), stated next to the credits. */
 export const NOT_DATA = [
   "Trajectories and the launch are ILLUSTRATIVE: simplified curves computed with the real Moon position, from a generic launch pad; not the trajectory of any real mission.",
-  "The rocket is PolePlanner's own procedural model (no external asset).",
+  "The rocket is LuNAV's own procedural model (no external asset).",
   "The fine grain and the small craters on the 3D ground are procedural, for texture only: the relief, shadows and horizon come from the LOLA 40 m map.",
   "The ambient music is generated live in your browser with the Web Audio API (no recordings or external audio).",
   "In the 3D view the Earth and the Moon are drawn 6× larger so they stay visible; distances, directions and the Sun are exact, and the final zoom switches to real scale.",

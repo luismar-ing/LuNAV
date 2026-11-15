@@ -123,8 +123,13 @@ describe("compare ↔ live (spec 8.0)", () => {
       const sil = within(thumb).getByTestId("silhouette");
       expect(Number(sil.getAttribute("data-sample"))).toBe(60); // 30 h at 30-min samples
     }
-    // before landing the thumbnails wait at arrival
+    expect(within(strip).getByTestId("thumb-title").textContent).toBe("Other plans · since arrival");
+    // before landing the thumbnails wait at arrival, and there is no "since arrival" clock yet (B5)
     expect(liveRelativeHours(arrival - 5 * 3_600_000, arrival)).toBe(0);
+    act(() => appStore.getState().setMissionTime(arrival - 5 * 3_600_000));
+    expect(within(strip).getByTestId("thumb-title").textContent).toBe("Other plans");
+    expect(within(strip).queryByTestId("thumb-clock")).toBeNull();
+    expect(strip.getAttribute("aria-label")).toBe("Other pinned plans");
     act(() => appStore.getState().setViewMode("compare"));
   });
 });

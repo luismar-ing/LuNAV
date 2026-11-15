@@ -8,6 +8,7 @@ import { Landing } from "./views/Landing";
 import { SoundToggle } from "./components/SoundToggle";
 import { PlannerView } from "./views/PlannerView";
 import { EducatorView } from "./views/EducatorView";
+import { Challenge } from "./views/Challenge";
 
 export const APP_TITLE = STRINGS.appTitle;
 
@@ -90,6 +91,8 @@ export function App() {
       {load.status === "ready" ? (
         screen === "planner" ? (
           <PlannerView tools={tools} />
+        ) : screen === "challenge" ? (
+          <Challenge tools={tools} />
         ) : (
           <EducatorView tools={tools} />
         )

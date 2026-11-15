@@ -44,6 +44,8 @@ describe("Mission Planner sidebar (A2)", () => {
     // planning is 2D (planner redesign): the Moon map instead of the globe, no WebGL until the journey
     expect(screen.queryByTestId("scene-host")).toBeNull();
     expect(screen.getByTestId("moon-map")).toBeTruthy();
+    // B5: no trajectory is drawn while planning, so no ILLUSTRATIVE label there (the journey has its own)
+    expect(screen.queryByText("ILLUSTRATIVE")).toBeNull();
 
     // B2 (H6): the default plan is sunlit but has no Earth for the whole stay: list, pin and brief all say so
     const cr = sidebar().getByRole("button", { name: /^Connecting Ridge/ });
@@ -218,6 +220,10 @@ describe("Mission Planner sidebar (A2)", () => {
     expect(screen.getByRole("button", { name: "Play the mission" })).toBeTruthy(); // paused at the landing
     const site = await screen.findByTestId("live-site");
     const sun = await within(site).findByTestId("countdown-sun", {}, { timeout: 5000 });
+    // B10 (H11): one clock at the site: the day of the stay in the mission controls, no "T+", none in the card
+    expect(screen.getByTestId("mission-elapsed").textContent).toBe("Day 1 of 7");
+    expect(screen.getByTestId("mission-controls").textContent).not.toMatch(/T[+−]/);
+    expect(within(site).getByTestId("time-left").querySelector(".site-card-label")?.textContent).toBe("Time left");
     expect(sun.textContent).toContain("5 d 14 h");
     expect(sun.textContent).toContain("Sunset Jan 16, 14:00 UTC");
     expect(sun.textContent).toContain("Then a 36.5 h night, 34 h of it in your stay.");
