@@ -3105,6 +3105,25 @@ Las trayectorias ILLUSTRATIVE, los datos SYNTHETIC y toda desviación de la spec
 - **Problemas abiertos:** sigue el fallo intermitente de `integration.test.tsx` (T5.1.b) anotado en B1; esta vez pasó.
 - **Siguiente tarea:** B2 (Sol y Tierra juntos en la lista, el pin y el resumen).
 
+## AJUSTE · B1: hover legible en los botones primarios
+
+- **Tarea:** B1 del plan de mejoras del 14-nov-2026 (persona B, hallazgo H1).
+- **Qué se hizo:**
+  - `styles/tokens.css`: `.btn.primary:hover` fija `color: var(--color-bg)`. Antes heredaba de `.btn:hover` el color claro del acento (`#E6EDF7`) sobre el fondo blanco del hover, con un contraste de ~1,2:1. Afecta a «Launch», «Land at …», «Begin the journey», «Next chapter» y «Watch a full day».
+  - `.btn.ghost:hover` añade un relleno sutil (`--glass-fill-hover`, blanco al 8 %), no solo el borde. `.btn` anima también el fondo.
+  - `styles/tokens.ts`: token nuevo `GLASS.fillHover`, expuesto como `--glass-fill-hover`.
+  - Se revisaron todos los `:hover` de `tokens.css`. No hay otro caso de texto claro sobre fondo claro: en `.segmented button.on`, la regla `.on` va después que `:hover` y mantiene el texto oscuro.
+- **Cómo se verificó:**
+  ```
+  $ npm --prefix web run typecheck → sin errores
+  $ npm --prefix web test → 269 passed, 1 failed (integration.test.tsx T5.1.b, intermitente y ya presente en main; ver abajo)
+  ```
+  - `tests/tokens.test.ts`, prueba nueva: lee las reglas de `tokens.css`, resuelve las variables y exige ≥ 4,5:1 en `.btn.primary`, en su hover y en el hover ghost sobre el fondo, sobre el panel y sobre el vidrio con el peor fondo. Si se quita el arreglo, la prueba falla.
+  - Navegador (servidor de desarrollo, 1366×768), valores calculados con el puntero encima: «Launch» y «Land at …» quedan con texto `rgb(5,7,13)` sobre `rgb(255,255,255)`; «Search and compare» (ghost) queda con texto `rgb(230,237,247)` sobre `rgba(255,255,255,0.08)`. Sin errores en consola.
+- **Desviaciones de la spec / cambios en la guía:** ninguna.
+- **Problemas abiertos:** `tests/integration.test.tsx` › «3 plans: tray box, ribbon, why text and the site brief agree» falla de forma intermitente (no encuentra `/Longest dark:|No dark stretch/`). También falla en `main` (026042d) sin este cambio: de 3 corridas en la rama pasó 1. No depende de B1.
+- **Siguiente tarea:** B5a (quitar ILLUSTRATIVE de la planificación; «since arrival» solo tras la llegada).
+
 ## AJUSTE · Prueba de integración intermitente (cinta de tiempo)
 
 - **Tarea:** arreglo de pruebas fuera de las subtareas de A, B y C. La prueba «same figures in every view (T5.1.b) > 3 plans: tray box, ribbon, why text and the site brief agree» fallaba a veces con la suite completa, también en `main` (026042d): `Unable to find an element with the text: /Longest dark:|No dark stretch/`.
