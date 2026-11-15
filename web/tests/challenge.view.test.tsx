@@ -62,6 +62,12 @@ async function daysAtPoint() {
   return { ts, bad: bad![0], good: good![0] };
 }
 
+const STRIP = "Days of March 2027 (only your own attempts are marked)";
+/** Picks a landing day with the date field (the strip shows only the 21 days around the chosen one). */
+function chooseDay(day: string) {
+  fireEvent.change(screen.getByLabelText("Landing day in March 2027 (UTC)"), { target: { value: day } });
+}
+
 const launchButton = () => screen.getByRole("button", { name: "Launch the mission" }) as HTMLButtonElement;
 const ready = () => waitFor(() => expect(launchButton().disabled).toBe(false), { timeout: 8000 });
 
@@ -76,7 +82,21 @@ describe("Challenge screen (C3, B14)", () => {
     expect(ch.getByRole("heading", { name: "1. Choose a landing point on the Moon" })).toBeTruthy();
     expect(await ch.findByTestId("point-picker")).toBeTruthy();
     expect(ch.queryByRole("button", { name: "Haworth" })).toBeNull(); // no preset sites any more
-    expect(within(ch.getByRole("group", { name: "2. Choose a landing day in March 2027" })).getAllByRole("button")).toHaveLength(31);
+    // B14c: the planner's arrival control (‹ date ›, a strip of 21 days), with no Sun or Earth marks
+    expect(ch.getByRole("heading", { name: "2. Choose a landing day in March 2027" })).toBeTruthy();
+    expect(ch.getByTestId("challenge-day-text").textContent).toBe("Choose a day");
+    const input = ch.getByLabelText("Landing day in March 2027 (UTC)") as HTMLInputElement;
+    expect([input.min, input.max]).toEqual(["2027-03-01", "2027-03-31"]);
+    const strip = ch.getByRole("group", { name: STRIP });
+    expect(within(strip).getAllByRole("button")).toHaveLength(21);
+    expect(strip.querySelector("[data-sun], [data-earth]")).toBeNull();
+    expect(ch.queryByTestId("strip-legend")).toBeNull();
+    fireEvent.click(ch.getByRole("button", { name: "Next day" }));
+    expect(ch.getByTestId("challenge-day-text").textContent).toBe("Mar 1, 2027");
+    chooseDay("2027-03-31");
+    expect(ch.getByTestId("challenge-day-text").textContent).toBe("Mar 31, 2027");
+    expect((ch.getByRole("button", { name: "Next day" }) as HTMLButtonElement).disabled).toBe(true);
+    expect(within(strip).getAllByRole("button").at(-1)!.getAttribute("aria-label")).toBe("Mar 31, 2027");
     await waitFor(() => expect(screen.getByTestId("scene-host")).toBeTruthy());
   });
 
@@ -91,7 +111,7 @@ describe("Challenge screen (C3, B14)", () => {
     choosePoint();
     await waitFor(() => expect(status()).toBe("Landing at -89.450°, -137.100°APPROXIMATE"), { timeout: 8000 });
     expect(screen.getByTestId("challenge-approx").textContent).toBe("APPROXIMATE");
-    fireEvent.click(screen.getByRole("button", { name: "Mar 10, 2027" }));
+    chooseDay("2027-03-10");
     expect(appStore.getState().selectedPlanId).toBe(`${POINT_ID}_20270310_7d`);
     await waitFor(() => expect(appStore.getState().missionPhase).toBe("overview"));
   });
@@ -103,7 +123,7 @@ describe("Challenge screen (C3, B14)", () => {
     choosePoint();
     const { ts, bad } = await daysAtPoint();
     const lost = stayTrace(ts, bad, LEVEL_1.stayDays)!.powerLostMs!;
-    fireEvent.click(screen.getByRole("button", { name: fmtDay(bad) }));
+    chooseDay(bad);
     await ready();
     fireEvent.click(launchButton());
 
@@ -161,7 +181,7 @@ describe("Challenge screen (C3, B14)", () => {
 
     choosePoint();
     const { bad, good } = await daysAtPoint();
-    fireEvent.click(screen.getByRole("button", { name: fmtDay(bad) }));
+    chooseDay(bad);
     await ready();
     await finish();
     fireEvent.click(screen.getByRole("button", { name: "Try again" }));
@@ -169,10 +189,10 @@ describe("Challenge screen (C3, B14)", () => {
     // back at the pad: only the day tried is marked, the other 30 stay unknown
     expect(screen.getByTestId("challenge").dataset.stage).toBe("pick");
     expect(appStore.getState().missionPhase).toBe("overview");
-    const days = within(screen.getByRole("group", { name: "2. Choose a landing day in March 2027" })).getAllByRole("button");
+    const days = within(screen.getByRole("group", { name: STRIP })).getAllByRole("button");
     expect(days.filter((b) => b.dataset.outcome !== undefined).map((b) => b.getAttribute("aria-label"))).toEqual([`${fmtDay(bad)}, the lander loses power`]);
 
-    fireEvent.click(screen.getByRole("button", { name: fmtDay(good) }));
+    chooseDay(good);
     await ready();
     await finish();
     expect(screen.getByTestId("challenge-result").dataset.success).toBe("true");

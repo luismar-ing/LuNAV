@@ -84,6 +84,63 @@
   gap: 8px;
   color: var(--color-text);
 }
+/* B14c: the landing day uses the planner's arrival control (.arrival-row, .day-strip). No Sun or Earth marks here:
+   a day only shows the player's own attempt, by shape as well as colour (filled = kept its power, crossed = lost it). */
+.challenge-strip {
+  margin-top: 8px;
+}
+.challenge-sidebar .day-cell[data-outcome="ok"] .day-mark,
+.challenge-legend .day-swatch[data-outcome="ok"] {
+  border-color: var(--color-both);
+  background: var(--color-both);
+}
+.challenge-sidebar .day-cell[data-outcome="lost"] .day-mark,
+.challenge-legend .day-swatch[data-outcome="lost"] {
+  border-color: var(--color-text-muted);
+  background:
+    linear-gradient(45deg, transparent 44%, var(--color-text-muted) 44% 56%, transparent 56%),
+    linear-gradient(-45deg, transparent 44%, var(--color-text-muted) 44% 56%, transparent 56%);
+}
+.challenge-legend {
+  margin-top: 6px;
+}
+.challenge-hint {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.35;
+}
+.challenge-sidebar .point-picker {
+  margin: 0;
+  display: grid;
+  gap: 4px;
+  justify-items: center;
+}
+.challenge-sidebar .point-picker-disc {
+  width: 100%;
+}
+/* the hover readout is the map's description for screen readers; it stays in the page, not on screen */
+.challenge-sidebar .point-picker figcaption {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+.challenge-sidebar .point-picker .btn {
+  padding: 2px 8px;
+  font-size: 12px;
+}
+.challenge-point {
+  margin: 0;
+  min-height: 1.4em;
+  font-size: var(--font-sm);
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  color: var(--color-text);
+}
 .challenge-days {
   display: grid;
   grid-template-columns: repeat(7, minmax(0, 1fr));

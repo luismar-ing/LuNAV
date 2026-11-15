@@ -329,41 +329,12 @@ export function Challenge({ tools }: { tools: ReactNode }) {
             <h3 id="challenge-day" className="sidebar-label">
               {T.dayStep(month)}
             </h3>
-            <div
-              className="challenge-days"
-              role="group"
-              aria-labelledby="challenge-day"
-            >
-              {days.map((d) => {
-                const outcome = siteId ? tried[siteId]?.[d] : undefined;
-                return (
-                  <button
-                    key={d}
-                    type="button"
-                    className="challenge-day"
-                    aria-pressed={d === day}
-                    aria-label={T.dayLabel(fmtDay(d), outcome)}
-                    data-outcome={
-                      outcome === undefined
-                        ? undefined
-                        : outcome
-                          ? "ok"
-                          : "lost"
-                    }
-                    onClick={() => setDay(d)}
-                  >
-                    <span className="challenge-day-n">
-                      {Number(d.slice(8))}
-                    </span>
-                    {outcome !== undefined && (
-                      <span className="challenge-day-mark" aria-hidden="true">
-                        {outcome ? "✓" : "✗"}
-                      </span>
-                    )}
-                  </button>
-                );
-              })}
-            </div>
+            <DayPicker
+              days={days}
+              day={day}
+              outcomes={siteId ? tried[siteId] : undefined}
+              onDay={setDay}
+            />
           </section>
 
           <div className="challenge-actions challenge-launch">
@@ -428,6 +399,101 @@ export function Challenge({ tools }: { tools: ReactNode }) {
         </div>
       )}
     </div>
+  );
+}
+
+/** Days shown in the strip, as in the Mission Planner's arrival control. */
+const STRIP_DAYS = 21;
+
+/** Opens the browser's date picker where it can (showPicker needs a user gesture). */
+function openPicker(input: HTMLInputElement) {
+  try {
+    input.showPicker?.();
+  } catch {
+    /* not allowed here: the input keeps working from the keyboard */
+  }
+}
+
+/**
+ * The landing day, with the Mission Planner's arrival control (B14c): ‹ the date (the browser's picker, limited to
+ * the level's month) › and a strip of days around it. Unlike the planner, the strip says nothing about the Sun or
+ * the Earth: that is what the player has to find out. It only marks the player's own attempts, by shape as well as
+ * colour (filled: kept its power; crossed: lost it).
+ */
+function DayPicker({ days, day, outcomes, onDay }: { days: string[]; day: string | null; outcomes: Record<string, boolean> | undefined; onDay(d: string): void }) {
+  const first = days[0];
+  const last = days[days.length - 1];
+  const i = day ? days.indexOf(day) : 0;
+  const from = Math.min(Math.max(0, i - Math.floor(STRIP_DAYS / 2)), Math.max(0, days.length - STRIP_DAYS));
+  const strip = days.slice(from, from + STRIP_DAYS);
+  const go = (k: number) => onDay(days[Math.min(days.length - 1, Math.max(0, k))]);
+  const tried = outcomes && Object.keys(outcomes).length > 0;
+  return (
+    <>
+      <div className="arrival-row">
+        <button type="button" className="icon-btn" aria-label={STRINGS.planner.prevDay} onClick={() => go(day ? i - 1 : 0)} disabled={day === first}>
+          ‹
+        </button>
+        <label className="arrival-field">
+          <span className="arrival-text" aria-hidden="true" data-testid="challenge-day-text">
+            {day ? fmtDay(day) : T.noDay}
+          </span>
+          <svg className="arrival-icon" viewBox="0 0 20 20" width="18" height="18" aria-hidden="true">
+            <rect x="2.5" y="4" width="15" height="13.5" rx="2" fill="none" stroke="currentColor" strokeWidth="1.5" />
+            <path d="M2.5 8h15M6.5 2v4M13.5 2v4" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+          </svg>
+          <input
+            type="date"
+            className="arrival-input"
+            aria-label={T.dayInput}
+            value={day ?? ""}
+            min={first}
+            max={last}
+            onChange={(e) => e.target.value && days.includes(e.target.value) && onDay(e.target.value)}
+            onClick={(e) => openPicker(e.currentTarget)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                e.preventDefault();
+                openPicker(e.currentTarget);
+              }
+            }}
+          />
+        </label>
+        <button type="button" className="icon-btn" aria-label={STRINGS.planner.nextDay} onClick={() => go(day ? i + 1 : 0)} disabled={day === last}>
+          ›
+        </button>
+      </div>
+      <div className="day-strip challenge-strip" role="group" aria-label={T.stripLabel}>
+        {strip.map((d) => {
+          const outcome = outcomes?.[d];
+          const label = T.dayLabel(fmtDay(d), outcome);
+          return (
+            <button
+              key={d}
+              type="button"
+              className="day-cell"
+              aria-pressed={d === day}
+              aria-label={label}
+              title={label}
+              data-outcome={outcome === undefined ? undefined : outcome ? "ok" : "lost"}
+              onClick={() => onDay(d)}
+            >
+              <span className="day-mark" aria-hidden="true" />
+            </button>
+          );
+        })}
+      </div>
+      {tried && (
+        <p className="strip-legend challenge-legend" aria-hidden="true">
+          <span>
+            <span className="day-swatch" data-outcome="ok" /> {T.legendOk}
+          </span>
+          <span>
+            <span className="day-swatch" data-outcome="lost" /> {T.legendLost}
+          </span>
+        </p>
+      )}
+    </>
   );
 }
 

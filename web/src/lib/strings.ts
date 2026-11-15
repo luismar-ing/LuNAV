@@ -245,6 +245,12 @@ export const STRINGS = {
     dayStep: (month: string) => `2. Choose a landing day in ${month}`,
     dayLabel: (day: string, outcome: boolean | undefined) =>
       outcome === undefined ? day : `${day}, ${outcome ? "the lander keeps its power" : "the lander loses power"}`,
+    // B14c: the landing day, with the planner's arrival control and no Sun or Earth marks
+    noDay: "Choose a day",
+    dayInput: "Landing day in March 2027 (UTC)",
+    stripLabel: "Days of March 2027 (only your own attempts are marked)",
+    legendOk: "kept its power",
+    legendLost: "lost power",
     launch: "Launch the mission",
     hud: "Mission in progress",
     landingOn: (day: string) => `Landing ${day}`,

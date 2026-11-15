@@ -3876,3 +3876,21 @@ Las trayectorias ILLUSTRATIVE, los datos SYNTHETIC y toda desviación de la spec
 - **Desviaciones de la spec / cambios en la guía:** ninguna.
 - **Problemas abiertos:** en teléfono la barra sigue pudiendo desplazarse (el diseño móvil apila el panel).
 - **Siguiente tarea:** revisión del humano.
+
+## AJUSTE · B14c: el día del reto con el control del planificador
+
+- **Tarea:** petición del humano: que la elección del día en el reto se vea como la fecha de llegada del Mission Planner, sin dar pistas del Sol ni de la Tierra.
+- **Qué se hizo:**
+  - `views/Challenge.tsx` (`DayPicker`): la fila «‹ fecha ›» del planificador (`.arrival-row`, `.arrival-field`): el texto «Mar 15, 2027», el icono del calendario y el selector nativo del navegador limitado al 1–31 de marzo, más una tira de 21 días alrededor del elegido (`.day-strip`), siempre dentro del mes. Sin día elegido dice «Choose a day».
+  - Sin pistas: las casillas no llevan las marcas del Sol y la Tierra ni la leyenda del planificador. Solo marcan los intentos del propio jugador, por forma además de color (llena = conservó la energía; cruzada = la perdió), con una leyenda que aparece tras el primer intento.
+  - Se quitó la cuadrícula de 31 botones con número; `styles/challenge.css` y `lib/strings.ts` al día.
+- **Cómo se verificó:**
+  ```
+  $ npm --prefix web run typecheck → sin errores
+  $ npm --prefix web test → Test Files 63 passed (63), Tests 429 passed (429)
+  ```
+  - `tests/challenge.view.test.tsx`: fila de fecha con mín./máx. de marzo, 21 casillas sin `data-sun` ni `data-earth`, sin leyenda del planificador, «‹ ›» y el campo de fecha; el día se elige con el campo de fecha; tras «Try again» solo el día probado queda marcado.
+  - Navegador (1280×720): el panel sigue sin scroll (687/687) al empezar, con punto, con día y tras un intento; el día perdido se ve cruzado y aparece la leyenda.
+- **Desviaciones de la spec / cambios en la guía:** ninguna.
+- **Problemas abiertos:** ninguno nuevo.
+- **Siguiente tarea:** revisión del humano.
