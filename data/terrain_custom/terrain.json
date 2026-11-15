@@ -1,0 +1,30 @@
+{
+ "product": "LOLA elevation reduced by block mean, for horizon masks at custom coordinates (spec 5.2)",
+ "dem_product": "LDEM_80S_40MPP_ADJ.TIF (LRO LOLA, 40 m/pixel; Barker et al. 2023, doi:10.3847/PSJ/acf3e1)",
+ "projection": "+proj=stere +lat_0=-90 +lat_ts=-90 +lon_0=0 +x_0=0 +y_0=0 +R=1737400 +units=m +no_defs",
+ "lat_limit_deg": -85.0,
+ "near_m": 10000.0,
+ "r_max_km": 100.0,
+ "h_obs_m": 3.0,
+ "az_step_deg": 1.0,
+ "height_encoding": "int16 little-endian, row-major from the top-left pixel (x0, y0 = its outer corner)",
+ "height_scale_m": 0.5,
+ "fine": {
+  "bin_file": "fine.bin",
+  "byte_length": 8209352,
+  "nx": 2026,
+  "ny": 2026,
+  "spacing_m": 160.0,
+  "x0_m": -162080.0,
+  "y0_m": 162080.0
+ },
+ "coarse": {
+  "bin_file": "coarse.bin",
+  "byte_length": 3195392,
+  "nx": 1264,
+  "ny": 1264,
+  "spacing_m": 400.0,
+  "x0_m": -252800.0,
+  "y0_m": 252800.0
+ }
+}
