@@ -143,6 +143,56 @@ export function polarGeometry(t: TerrainData, siteBodyKm: Vec3, hole: number): T
   return geo;
 }
 
+/**
+ * Landing marker (C3c): sizes in metres. From the aerial view (1.5 km up, ~5 km back) the lander's real 100 m
+ * would be a dot too small to see, so the landing point gets a ring on the ground and a beacon above it.
+ */
+export const MARKER_M = { ring: 140, ringWidth: 40, beacon: 700 } as const;
+
+/**
+ * The landing point's marker, relative to the site in the Moon-fixed frame (scene units), like the terrain: a flat
+ * ring around the point (perpendicular to the local vertical) and a vertical line rising from it. Drawn over the
+ * terrain (no depth test), so a ridge never hides where the lander stands.
+ */
+export function siteMarker(siteBodyKm: Vec3): THREE.Group {
+  const { east, north, up } = enuBasis(siteBodyKm);
+  const k = 1 / M_PER_UNIT; // m → scene units
+  const lift = 10; // m: just above the ground
+  const at = (e: number, n: number, u: number): Vec3 =>
+    [0, 1, 2].map((c) => (east[c] * e + north[c] * n + up[c] * u) * k) as Vec3;
+
+  const ringPos: number[] = [];
+  const index: number[] = [];
+  const steps = 64;
+  const r0 = MARKER_M.ring - MARKER_M.ringWidth / 2;
+  const r1 = MARKER_M.ring + MARKER_M.ringWidth / 2;
+  for (let i = 0; i <= steps; i++) {
+    const a = (2 * Math.PI * i) / steps;
+    ringPos.push(...at(r0 * Math.cos(a), r0 * Math.sin(a), lift), ...at(r1 * Math.cos(a), r1 * Math.sin(a), lift));
+    if (i < steps) index.push(2 * i, 2 * i + 1, 2 * i + 2, 2 * i + 1, 2 * i + 3, 2 * i + 2);
+  }
+  const ringGeo = new THREE.BufferGeometry();
+  ringGeo.setAttribute("position", new THREE.Float32BufferAttribute(ringPos, 3));
+  ringGeo.setIndex(index);
+  const look = { color: COLORS.text, depthTest: false, depthWrite: false, transparent: true };
+  const ring = new THREE.Mesh(ringGeo, new THREE.MeshBasicMaterial({ ...look, side: THREE.DoubleSide, opacity: 0.9 }));
+  ring.name = "site-marker-ring";
+
+  const beaconGeo = new THREE.BufferGeometry();
+  beaconGeo.setAttribute("position", new THREE.Float32BufferAttribute([...at(0, 0, lift), ...at(0, 0, MARKER_M.beacon)], 3));
+  const beacon = new THREE.Line(beaconGeo, new THREE.LineBasicMaterial({ ...look, opacity: 0.8 }));
+  beacon.name = "site-marker-beacon";
+
+  const marker = new THREE.Group();
+  marker.name = "site-marker";
+  marker.add(ring, beacon);
+  for (const o of [ring, beacon]) {
+    o.renderOrder = 10; // after the terrain
+    o.frustumCulled = false;
+  }
+  return marker;
+}
+
 /** Distances (scene units, camera → site) at which each level is requested. */
 // levels of ±60 km / 300 m, ±20 km / 100 m and ±8 km / 40 m (pipeline/terrain_lod.py): each is requested a little
 // before the camera is close enough for it to matter
@@ -165,6 +215,8 @@ export class TerrainManager {
   private data: Partial<Record<Level, TerrainData>> = {};
   private meshes: Partial<Record<Level, THREE.Mesh>> = {};
   private material = new THREE.MeshStandardMaterial({ color: COLORS.textMuted, roughness: 1, metalness: 0, transparent: true, opacity: 0 });
+  /** Where the lander stands (C3c), shown with the terrain except when standing on the site. */
+  readonly marker: THREE.Group;
 
   constructor(
     private siteId: string,
@@ -173,6 +225,8 @@ export class TerrainManager {
   ) {
     this.group.name = "terrain";
     this.group.visible = false;
+    this.marker = siteMarker(siteBodyKm);
+    this.group.add(this.marker);
     const { east, north } = enuBasis(siteBodyKm);
     addRegolith(this.material, east, north); // procedural detail below the DEM's 40 m (visual only)
   }
@@ -234,8 +288,19 @@ export class TerrainManager {
     this.material.depthWrite = fade >= 1;
   }
 
+  /** The marker would surround the observer when standing on the site: shown only from above. */
+  showMarker(on: boolean): void {
+    this.marker.visible = on;
+  }
+
   dispose(): void {
     for (const m of Object.values(this.meshes)) m?.geometry.dispose();
+    this.marker.traverse((o) => {
+      if (o instanceof THREE.Mesh || o instanceof THREE.Line) {
+        o.geometry.dispose();
+        (o.material as THREE.Material).dispose();
+      }
+    });
     this.material.dispose();
   }
 }

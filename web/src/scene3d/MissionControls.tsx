@@ -1,5 +1,7 @@
 import { useEffect, useState } from "react";
 import { clampMission, missionClock, phaseAt, phaseStart, playbackRate, PLAY_PHASES, type MissionTimeline } from "../lib/mission";
+import { fmtUtc } from "../lib/format";
+import { stayDay } from "../lib/siteBrief";
 import { crossedCues, sfx } from "../lib/sfx";
 import { STRINGS } from "../lib/strings";
 import { ASCENT_MS } from "./launch";
@@ -73,6 +75,11 @@ export function MissionControls({ timeline, planId, autoPlay = false }: { timeli
 
   const t = missionTime ?? timeline.startMs;
   const clock = missionClock(timeline, t);
+  // B10 (H11): one clock at a time. During the journey "T+ …" from launch; from landing, the day of the stay
+  // (the "Time left" card no longer repeats it). The date and time use the app's one format (lib/format.ts).
+  const stay = stayDay(timeline.landingMs, timeline.endMs, t);
+  const elapsed = stay ? STRINGS.siteLayout.dayClock(stay.day, stay.of) : clock.elapsed;
+  const utc = fmtUtc(t);
   const minutes = Math.round((t - timeline.startMs) / 60_000);
   const total = Math.round((timeline.endMs - timeline.startMs) / 60_000);
 
@@ -82,8 +89,10 @@ export function MissionControls({ timeline, planId, autoPlay = false }: { timeli
         <span className="mission-phase" data-testid="mission-phase">
           {STRINGS.mission.phases[missionPhase]}
         </span>
-        <span className="mono">{clock.elapsed}</span>
-        <span className="mono muted">{clock.utc}</span>
+        <span className="mono" data-testid="mission-elapsed">
+          {elapsed}
+        </span>
+        <span className="mono muted">{utc}</span>
         {playing && playbackRate(timeline, t, speed, detailedLaunch ? ASCENT_MS : 0) < speed * 3600 && (
           <span className="mission-slow" data-testid="slow-motion">
             {STRINGS.mission.slow}
@@ -123,7 +132,7 @@ export function MissionControls({ timeline, planId, autoPlay = false }: { timeli
           value={minutes}
           onChange={(e) => go(timeline.startMs + Number(e.target.value) * 60_000)}
           aria-label={STRINGS.mission.scrubber}
-          aria-valuetext={`${clock.elapsed}, ${clock.utc}, ${STRINGS.mission.phases[missionPhase]}`}
+          aria-valuetext={`${elapsed}, ${utc}, ${STRINGS.mission.phases[missionPhase]}`}
         />
       </div>
       <div className="mission-row">

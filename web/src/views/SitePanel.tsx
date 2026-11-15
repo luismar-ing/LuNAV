@@ -19,7 +19,7 @@ const METRIC_SOURCE: Record<MetricKey, string> = {
   longest_comm_gap_h: "Longest continuous run of samples without Earth link in the window.",
   score: "(w1·norm(sun_pct) + w2·(1 − norm(longest_dark_h)) + w3·norm(earth_h_mean)) / (w1 + w2 + w3), min–max normalised over every site's windows of the same length (spec 5.6).",
 };
-const METRIC_ORIGIN = "Computed by the PolePlanner pipeline from NAIF/SPICE ephemerides (validated against JPL Horizons) and the LOLA horizon mask.";
+const METRIC_ORIGIN = "Computed by the LuNAV pipeline from NAIF/SPICE ephemerides (validated against JPL Horizons) and the LOLA horizon mask.";
 
 const UNIT: Record<string, string> = { deg: "°", m: " m", km: " km" };
 

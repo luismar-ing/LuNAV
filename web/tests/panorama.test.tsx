@@ -142,3 +142,31 @@ describe("time control and coherence with the panels (T3.4.b)", () => {
     appStore.getState().selectPlan(null);
   });
 });
+
+describe("why a body can be in view below 0° (B8, finding H10)", () => {
+  const load = async (id: string) => {
+    const st = appStore.getState();
+    return loadPlanData(new DataStore("/base/", fileFetch as never), st.plansById.get(id)!, st.sites);
+  };
+
+  it("Haworth, Jan 11 2027 00:00 UTC: the Sun is in view at −2.66°, with the site's real elevation", async () => {
+    const h = await load("haworth_20270111_7d");
+    const t = Date.parse("2027-01-11T00:00:00Z");
+    const { k } = sampleAtTime(h, t);
+    expect(h.series.sunVis[k]).toBe(1);
+    expect(h.series.sunEl[k]).toBeCloseTo(-2.66, 2);
+    render(<Panorama data={h} timeMs={t} />);
+    expect(screen.getByTestId("horizon-note").textContent).toBe(
+      "The Sun (-2.66°) is in view below 0°: this site stands 2,842 m above the Moon's reference radius, and from this high ground the terrain horizon dips below the flat one.",
+    );
+  });
+
+  it("appears only when a body in view is below 0°", async () => {
+    const h = await load("haworth_20270111_7d");
+    const s = h.series;
+    const k = Array.from({ length: s.n }, (_, i) => i).find((i) => s.sunVis[i] === 1 && s.sunEl[i] > 0 && !(s.earthVis[i] === 1 && s.earthEl[i] < 0))!;
+    expect(k).toBeDefined();
+    render(<Panorama data={h} timeMs={s.startMs + k * s.stepMin * 60_000} />);
+    expect(screen.queryByTestId("horizon-note")).toBeNull();
+  });
+});
