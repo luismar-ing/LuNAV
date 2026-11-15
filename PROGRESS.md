@@ -3873,7 +3873,7 @@ Las trayectorias ILLUSTRATIVE, los datos SYNTHETIC y toda desviación de la spec
 
 ## AJUSTE · A7 · Despegue desde Cabo Cañaveral al mediodía
 
-- **Tarea:** petición del humano: el cohete salía del lado oscuro de la Tierra y desde el mar. Decisión A15.
+- **Tarea:** petición del humano: el cohete salía del lado oscuro de la Tierra y desde el mar. Decisión A16.
 - **Causa:** la plataforma ILLUSTRATIVE estaba en lat 0°, lon 0° (golfo de Guinea) y el despegue era 3 días exactos antes de la llegada, que siempre es a las 00:00 UTC, así que la hora local en la plataforma no se elegía.
 - **Qué se hizo:**
   - `pipeline/config.py`: plataforma en Launch Complex 39A (28.60833° N, 80.60444° W; coordenadas publicadas en Wikipedia).
@@ -3898,5 +3898,5 @@ Las trayectorias ILLUSTRATIVE, los datos SYNTHETIC y toda desviación de la spec
   - SPICE, los 365 despegues: el Sol sobre LC-39A entre 38.0° y 84.8° (media 61.7°).
   - Escena real (Chrome sin cabeza): en la cuenta regresiva el cohete está en la costa este de Florida, en el lado iluminado de la Tierra; la telemetría dice «Launch Dec 28, 2026 · Transit 3 d 6 h».
   - Pruebas ajustadas: fecha y hora de despegue (`plannerSidebar`, `virtualSite`, `customJourney`, `test_plans`), duración de la trayectoria (`test_trajectory`) y el giro de la plataforma en la cuenta regresiva (`launch.test`: a 28.6° N recorre ~122.5 km en 5 min, no 139.5).
-- **Desviaciones de la spec / cambios en la guía:** A15 (la plataforma y `transit_days` dejan de ser los de D5).
+- **Desviaciones de la spec / cambios en la guía:** A16 (la plataforma y `transit_days` dejan de ser los de D5).
 - **Problemas abiertos:** ninguno.

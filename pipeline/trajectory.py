@@ -3,7 +3,7 @@
 No es la trayectoria de ninguna misión real. Es una curva continua, por tramos, con la posición y la
 orientación de la Luna reales (SPICE) para que el cohete llegue al sitio a la hora de llegada:
 
-  1. Despegue (0 → ASCENT_MIN): ascenso radial desde Cabo Cañaveral (LC-39A, A15), al mediodía local, con la
+  1. Despegue (0 → ASCENT_MIN): ascenso radial desde Cabo Cañaveral (LC-39A, A16), al mediodía local, con la
      plataforma girando con la Tierra
      (IAU_EARTH) hasta PARKING_ALT_KM.
   2. Órbita de espera circular hasta la inyección translunar (t = INJECTION_H).
@@ -32,7 +32,7 @@ from pipeline.ephemeris import MOON_FRAME, SCENE_FRAME, observer_position_km
 
 MODE = "ILLUSTRATIVE"
 R_EARTH_KM = 6378.137  # radio ecuatorial (solo para dibujar el despegue)
-PAD_LAT_DEG, PAD_LON_DEG = config.PAD_LAT_DEG, config.PAD_LON_DEG  # A15: Cabo Cañaveral, LC-39A
+PAD_LAT_DEG, PAD_LON_DEG = config.PAD_LAT_DEG, config.PAD_LON_DEG  # A16: Cabo Cañaveral, LC-39A
 ASCENT_MIN = 10.0
 PARKING_ALT_KM = 200.0
 INJECTION_H = 2.0

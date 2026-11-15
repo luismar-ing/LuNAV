@@ -48,7 +48,7 @@ describe("continuity: the last point of the launch is the first point of the tra
     const p0 = launchPositionKm(traj, before, launch - PRELAUNCH_MS);
     const p1 = padPositionKm(sceneStateAt(ix, launch).earthQuat);
     expect(Math.hypot(...p0)).toBeCloseTo(PAD.radiusKm, 3); // within 1 m (interpolated rotation)
-    // 5 minutes of Earth rotation at the pad's latitude (LC-39A, 28.6° N, A15) ≈ 2π·6378 km·cos 28.6° / 1436 min · 5
+    // 5 minutes of Earth rotation at the pad's latitude (LC-39A, 28.6° N, A16) ≈ 2π·6378 km·cos 28.6° / 1436 min · 5
     const expected = ((2 * Math.PI * PAD.radiusKm * Math.cos((PAD.latDeg * Math.PI) / 180)) / 1436) * 5; // ≈ 122.5 km
     expect(dist(p0, p1)).toBeGreaterThan(expected - 3);
     expect(dist(p0, p1)).toBeLessThan(expected + 3);

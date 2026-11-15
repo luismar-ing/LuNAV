@@ -12,7 +12,7 @@ from datetime import datetime, timedelta, timezone
 ARRIVAL_START = datetime(2027, 1, 1, tzinfo=timezone.utc)
 ARRIVAL_END = datetime(2027, 12, 31, tzinfo=timezone.utc)
 
-# D5: trayectoria ILLUSTRATIVE. A15: despega de Cabo Cañaveral, Launch Complex 39A (coordenadas publicadas en
+# D5: trayectoria ILLUSTRATIVE. A16: despega de Cabo Cañaveral, Launch Complex 39A (coordenadas publicadas en
 # https://en.wikipedia.org/wiki/Kennedy_Space_Center_Launch_Complex_39A: 28°36′30″N 80°36′16″W), al mediodía solar
 # medio de la plataforma (12:00 − lon/15 h UTC = 17:22:25 UTC), redondeado al minuto (17:22 UTC), con luz de día. Las
 # llegadas son a las 00:00 UTC, así que el mediodía más cercano a los 3 días de D5 cae 4 días antes de la llegada:

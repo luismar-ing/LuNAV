@@ -17,7 +17,7 @@ type V = [number, number, number];
 
 export const MODE = "ILLUSTRATIVE";
 const R_EARTH_KM = 6378.137;
-// A15: Launch Complex 39A at Cape Canaveral, as pipeline/config.py
+// A16: Launch Complex 39A at Cape Canaveral, as pipeline/config.py
 const PAD_LAT_DEG = 28.60833;
 const PAD_LON_DEG = -80.60444;
 export const ASCENT_MIN = 10;

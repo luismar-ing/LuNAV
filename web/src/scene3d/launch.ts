@@ -1,7 +1,7 @@
 /**
  * Illustrative launch (spec 5.8, 8.2; D8: minimal launch). ILLUSTRATIVE, not a real launch:
  *
- * - The pad is the pipeline's (pipeline/config.py, A15): Launch Complex 39A at Cape Canaveral, 28.60833° N,
+ * - The pad is the pipeline's (pipeline/config.py, A16): Launch Complex 39A at Cape Canaveral, 28.60833° N,
  *   80.60444° W, on the equatorial radius. The launch is at its mean solar noon, in daylight. It turns with the
  *   Earth (IAU_EARTH).
  * - Before launch there is a short countdown with the rocket standing on the pad (PRELAUNCH_MS).
@@ -16,7 +16,7 @@ import { rotate, type Quat } from "./ephemeris";
 import { trajectoryPositionKm } from "./trajectory";
 import type { Vec3 } from "./scale";
 
-/** Same pad and radius as the pipeline (config.PAD_LAT_DEG / PAD_LON_DEG: LC-39A, A15; trajectory.R_EARTH_KM). */
+/** Same pad and radius as the pipeline (config.PAD_LAT_DEG / PAD_LON_DEG: LC-39A, A16; trajectory.R_EARTH_KM). */
 export const PAD = { latDeg: 28.60833, lonDeg: -80.60444, radiusKm: 6378.137 } as const;
 export { PRELAUNCH_MS };
 /** Duration of the radial ascent in the trajectory file (pipeline ASCENT_MIN = 10). */

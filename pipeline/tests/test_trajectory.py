@@ -53,7 +53,7 @@ def test_trajectory(site, arrival, geo):
 
 @pytest.mark.parametrize("arrival", ARRIVALS, ids=[a.strftime("%Y%m%d") for a in ARRIVALS])
 def test_launch_from_cape_canaveral_in_daylight(arrival, geo):
-    """A15: the rocket leaves LC-39A (Cape Canaveral) at local noon, with the Sun well above the horizon."""
+    """A16: the rocket leaves LC-39A (Cape Canaveral) at local noon, with the Sun well above the horizon."""
     import spiceypy as sp
 
     tr = build(SITES[0], arrival, geo)
