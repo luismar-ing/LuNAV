@@ -3335,7 +3335,7 @@ Las trayectorias ILLUSTRATIVE, los datos SYNTHETIC y toda desviación de la spec
     - 1920×1080: barra de tiempo en y = 997–1056, igual sin scroll.
     - Al cambiar de vista el reloj sigue en «T+ 3d 00:00».
   - Pruebas actualizadas: `plannerSidebar.test.tsx` (flujo Sky → Data → Sky con el mismo `missionTime`; TR.2.e y T6.1.c pasan por «Data» para el panorama y las métricas) e `integration.test.tsx` (el panorama del sitio está en «Data»).
-  - `integration.test.tsx` T5.1.b fallaba de forma intermitente con la suite completa, también en `main`: leía la caja de métricas y la cinta antes de que la tarjeta cargara. Ahora las espera (`findBy…`).
+  - `integration.test.tsx` T5.1.b: `main` ya espera la cinta (c960245); esta rama además espera la caja de métricas con `findBy…` (el mismo cambio de una línea está en las ramas de A1, A4 y A5).
 - **Desviaciones de la spec / cambios en la guía:** A10. El panorama y el 3D ya no se ven a la vez en el sitio; se pasa de uno a otro con un clic y en el mismo instante.
 - **Problemas abiertos:** el HMR del servidor de desarrollo sigue provocando pérdidas de contexto WebGL (ya anotado); con una recarga completa no pasa.
 - **Siguiente tarea:** A3.
