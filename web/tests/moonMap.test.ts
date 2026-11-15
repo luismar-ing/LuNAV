@@ -3,7 +3,7 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import type { Site, Timeseries } from "../src/lib/contract";
-import { distanceKm, fmtDuration, fmtUtc, mapFraction, nextChange, polarXY, sampleIndex } from "../src/lib/moonMap";
+import { distanceKm, fmtDuration, fmtUtc, labelBox, mapFraction, nextChange, placeLabels, polarXY, sampleIndex, type Box } from "../src/lib/moonMap";
 import { readAt, upcoming, visibleSpans } from "../src/lib/siteBrief";
 import { polarToLonLat } from "../src/scene3d/terrain";
 
@@ -49,7 +49,7 @@ describe("Moon map geometry", () => {
     expect(fmtDuration(134)).toBe("5 d 14 h");
     expect(fmtDuration(18.5)).toBe("18 h 30 m");
     expect(fmtDuration(2)).toBe("2 h");
-    expect(fmtUtc(Date.parse("2027-01-16T14:00:00Z"))).toBe("16 Jan, 14:00 UTC");
+    expect(fmtUtc(Date.parse("2027-01-16T14:00:00Z"))).toBe("Jan 16, 14:00 UTC");
   });
 });
 
@@ -80,9 +80,41 @@ describe("countdowns from the visibility series", () => {
     const end = jan11 + 168 * 3_600_000;
     const ev = upcoming(ts, now, end);
     expect(ev.map((e) => e.kind)).toEqual(["sunset", "end", "sunrise", "earthset"]);
-    expect(fmtUtc(ev[0].atMs)).toBe("16 Jan, 14:00 UTC");
+    expect(fmtUtc(ev[0].atMs)).toBe("Jan 16, 14:00 UTC");
     expect(ev[1].inDark).toBe(true);
     expect(ev[2].afterStay).toBe(true);
-    expect(fmtUtc(ev[3].atMs)).toBe("26 Jan, 20:30 UTC");
+    expect(fmtUtc(ev[3].atMs)).toBe("Jan 26, 20:30 UTC");
+  });
+});
+
+describe("pin labels without overlaps (B9, finding H15)", () => {
+  const overlap = (a: Box, b: Box) => Math.min(a.x + a.w, b.x + b.w) > Math.max(a.x, b.x) && Math.min(a.y + a.h, b.y + b.h) > Math.max(a.y, b.y);
+  // the map as drawn at 1366×768 (≈ 400 px), labels at 13 px (≈ 7 px a character plus the chip's padding)
+  const SIZE = 400;
+  const at = (s: Site) => {
+    const { fx, fy } = mapFraction(ext, s.lat, s.lon);
+    return { cx: fx * SIZE, cy: fy * SIZE };
+  };
+  const label = (s: Site) => ({ id: s.id, ...at(s), w: s.name.length * 7 + 12, h: 18 });
+
+  it("for every chosen site, no label covers another label, the distance tag or a dot", () => {
+    for (const chosen of sites) {
+      const others = sites.filter((s) => s.id !== chosen.id);
+      const nearest = others.reduce((a, b) => (distanceKm(chosen, a) <= distanceKm(chosen, b) ? a : b));
+      const [p, q] = [at(chosen), at(nearest)];
+      const tag: Box = { x: (p.cx + q.cx) / 2 - 22, y: (p.cy + q.cy) / 2 - 10, w: 44, h: 20 };
+      const dots: Box[] = sites.map((s) => ({ x: at(s).cx - 8, y: at(s).cy - 14, w: 22, h: 22 }));
+      const labels = [label(chosen), ...others.map(label)];
+      const sides = placeLabels(labels, [tag, ...dots], { x: -24, y: -24, w: SIZE + 48, h: SIZE + 48 });
+      const boxes = labels.map((l) => labelBox(l.cx, l.cy, l.w, l.h, sides[l.id]));
+      for (let i = 0; i < boxes.length; i++) {
+        expect(overlap(boxes[i], tag), `${chosen.id}: ${labels[i].id} over the distance tag`).toBe(false);
+        for (let j = i + 1; j < boxes.length; j++) expect(overlap(boxes[i], boxes[j]), `${chosen.id}: ${labels[i].id} × ${labels[j].id}`).toBe(false);
+      }
+    }
+  });
+
+  it("keeps the usual place (right of the dot) when it is free", () => {
+    expect(placeLabels([{ id: "a", cx: 100, cy: 100, w: 60, h: 18 }], [], { x: 0, y: 0, w: 400, h: 400 })).toEqual({ a: "right" });
   });
 });

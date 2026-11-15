@@ -44,6 +44,10 @@ describe("design tokens (spec 9)", () => {
     expect(Object.keys(vars).filter((k) => k.startsWith("--color-"))).toHaveLength(Object.keys(COLORS).length);
   });
 
+  it("B9: Moon map pin labels (light text on the strong glass chip) reach 4.5:1 over the brightest ground", () => {
+    expect(contrast(COLORS.text, composite(GLASS.panelStrong, GLASS.worstBackdrop))).toBeGreaterThanOrEqual(4.5);
+  });
+
   it("UI strings are centralised and in English", () => {
     expect(STRINGS.appTitle).toBe("PolePlanner");
     expect(STRINGS.trayEmpty).toMatch(/Pin 2 to 5 plans/);

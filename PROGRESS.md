@@ -3102,3 +3102,188 @@ Las trayectorias ILLUSTRATIVE, los datos SYNTHETIC y toda desviación de la spec
 - **Desviaciones de la spec / cambios en la guía:** ninguna.
 - **Problemas abiertos:** ninguno.
 - **Siguiente tarea:** sin cambios (esta corrección no avanza ninguna subtarea).
+## AJUSTE · B2: Sol y Tierra juntos en la lista, el mapa y el panel del sitio
+
+- **Tarea:** B2 del plan de mejoras del 14-nov-2026 (persona B, hallazgo H6). Antes, la lista, el pin y el tono verde solo miraban `longest_dark_h`, así que un plan sin Tierra en toda la estancia se veía como bueno.
+- **Qué se hizo:**
+  - `lib/siteBrief.ts`: `planVerdict(row)` sale solo de la fila de `windows`.
+    - Sol: `lit` (sin noche) o `night`.
+    - Tierra: `all` (`longest_comm_gap_h = 0`), `none` (`earth_h_mean = 0`) o `gaps`.
+    - Tono: `good` solo si hay Sol y Tierra toda la estancia; `poor` si no hay Tierra nunca, o si hay noche y huecos de Tierra a la vez; `mixed` en el resto.
+    - Criterio estricto: no se inventa ninguna tolerancia. Se usa el hueco de Tierra y no `earth_h_min`, porque `earth_h_min = 0` aparece en planes con la Tierra casi todo el tiempo (Haworth 6-ene: hueco de 44 h).
+  - `components/VerdictMarks.tsx` (nuevo): dos marcas de forma. Sol: relleno = sin noche, anillo = noche. Tierra: relleno = toda la estancia, mitad = huecos, anillo = nunca. Los colores Sol y Tierra solo repiten la forma.
+  - Lista del sidebar (`MissionSidebar.tsx`): nombre arriba y, debajo, las marcas con «Sunlit all stay · No Earth all stay», «34 h night · Earth all stay» o «0.5 h night · Earth gap 164 h». El verde solo aparece con tono `good`. Las filas se compactaron (`line-height`, `padding`) para que quepan las dos líneas.
+  - Mapa (`MoonMap.tsx`, `PlannerView.tsx`): `SiteTone` pasa a ser el `Verdict`. Cada pin lleva `data-sun`, `data-earth` y `data-tone`, una marca de Tierra arriba a la derecha del punto, y el estado en `title`. El pin elegido conserva el anillo si hay noche (antes se volvía un disco ámbar sin forma).
+  - Panel del sitio (`SiteBrief.tsx`): una frase bajo el nombre con las marcas, por ejemplo «Sunlit all stay, but no direct Earth contact at any time.» o «A 0.5 h night and up to 164 h without direct Earth contact.».
+  - Se probó una cuarta métrica («Earth gap») y se descartó: rompía el ajuste sin scroll y repetía la cifra que ya da la frase.
+- **Cómo se verificó:**
+  ```
+  $ npm --prefix web run typecheck → sin errores
+  $ npm --prefix web test → 275 passed (46 archivos)
+  ```
+  - `tests/siteBrief.test.ts` (nuevo), con filas reales:
+    - Connecting Ridge 1-ene: `lit`/`none`/`poor`.
+    - Haworth 1-ene: `night 0.5 h`/`gaps 164 h`/`poor`.
+    - Haworth 9-ene: `good`.
+    - Haworth 11-ene: `night 34 h`/`all`/`mixed`.
+    - Haworth 6-ene usa el hueco y no el peor día.
+    - En los 5 sitios × 365 días (7 d), `good` coincide exactamente con «sin noche y sin hueco», y todo plan sin Tierra es `poor`.
+  - `tests/plannerSidebar.test.tsx`: el plan por defecto (Connecting Ridge 1-ene) dice «Sunlit all stay · No Earth all stay» con tono `poor` en la lista, `earth: none` en el pin y la frase en el panel.
+  - Navegador (servidor de desarrollo), Connecting Ridge 1-ene:
+    - Los 5 sitios salen `poor` ese día; ninguno se ve verde.
+    - Sin scroll a 1366×768, 1440×900, 1536×700 y 1920×1080; sin scroll horizontal; sin errores en consola.
+- **Desviaciones de la spec / cambios en la guía:** ninguna. La spec 9 pide «no solo color»: se cumple con las marcas.
+- **Problemas abiertos:**
+  - A 1280×720 el panel del sitio desborda 44 px (en `main` no desbordaba): la frase nueva ocupa 28 px y los botones «Land at Connecting Ridge (Shackleton rim)» y «Pin» van en dos filas (126 px). Lo corrige B9 (botones fijos en una fila). Fuera de las resoluciones objetivo; actúa el scroll de respaldo.
+  - A 1366×650 el sidebar desborda 8 px. El panel ya desbordaba 31 px en `main` (con B2, 23 px).
+  - Pendiente de confirmar con el equipo: criterio estricto (cualquier hueco de Tierra cuenta) frente a una tolerancia.
+- **Siguiente tarea:** B3 (cifra única de noche).
+
+## AJUSTE · B3: una sola cifra de noche, con contexto
+
+- **Tarea:** B3 del plan de mejoras del 14-nov-2026 (persona B, hallazgo H8). La lista decía «34 h night» (la parte dentro de la estancia, de `windows`) y «Time left» decía «Then 36.5 h of night» (la noche completa, de la serie de un año), sin explicar la diferencia. Rama hecha sobre B2 (`b2-sun-earth-verdict`) porque cambia sus mismos textos.
+- **Qué se hizo:**
+  - `lib/siteBrief.ts`: `nightInStay(ts, inicio, horas)` replica `longest_run_in_windows` del pipeline. Toma cada racha oscura de la serie, la recorta a la estancia y se queda con la más larga, y además devuelve la noche completa (`fullH`, con `fullKnown = false` si toca el borde de la serie). `overlapH()` calcula la parte de una noche dentro de la estancia.
+  - Lista del sidebar: «34 h night in stay». No carga la serie de los 5 sitios (~2 MB).
+  - Frase del panel: «34 h of night in the stay, with the Earth in view the whole time.».
+  - Métrica «Longest night» del panel: «34 h» y, al lado en pequeño, «of 36.5 h» (en `title`, la explicación completa). Solo aparece cuando la noche sigue antes o después de la estancia. El bloque usa grid para que las tres métricas sigan en una línea.
+  - «Time left» (`TimeLeft.tsx`, solo textos): «Then a 36.5 h night, 34 h of it in your stay.» cuando la noche cruza el fin de la estancia; si cae entera dentro, sigue «Then N h of night.». El aviso «over your limit» se compara ahora con la parte dentro de la estancia, que es la cifra que filtra el límite (`longest_dark_h`).
+- **Cómo se verificó:**
+  ```
+  $ npm --prefix web run typecheck → sin errores
+  $ npm --prefix web test → 278 passed (46 archivos)
+  ```
+  - `tests/siteBrief.test.ts`, paridad con el pipeline: `nightInStay(...).inStayH` es igual a `longest_dark_h` en los 5 sitios × 365 llegadas × estancias de 3, 7 y 14 días. Haworth 11-ene (7 d): 34 h de una noche de 36,5 h que empieza el 16-ene a las 14:00 UTC (la puesta de sol de la cuenta atrás).
+  - `tests/plannerSidebar.test.tsx`: lista «34 h night in stay», panel «of 36.5 h», frase y «Then a 36.5 h night, 34 h of it in your stay.».
+  - `tests/integration.test.tsx` (T5.1.b): las métricas del panel se comparan sin la nota.
+  - Navegador (servidor de desarrollo), Haworth 11-ene: las tres vistas dicen lo mismo con contexto. Sin scroll a 1366×768 y 1920×1080, métricas en una línea, sin errores en consola.
+- **Desviaciones de la spec / cambios en la guía:** ninguna. Las métricas siguen siendo las de la spec 5; solo se añade contexto.
+- **Problemas abiertos:** «Earth link left 15 d 20 h» en una estancia de 7 días (H9) lo resuelve B4. Siguen los pendientes de B2 (1280×720, criterio estricto).
+- **Siguiente tarea:** B4 (topar las cuentas regresivas a la estancia).
+
+## AJUSTE · B4: cuentas regresivas topadas a la estancia
+
+- **Tarea:** B4 del plan de mejoras del 14-nov-2026 (persona B, hallazgo H9). Las cuentas regresivas salían de la serie de un año, así que una estancia de 7 días podía mostrar «Sunlight left 65 d 17 h». Rama hecha sobre B3 (`b3-single-night-figure`).
+- **Qué se hizo:**
+  - `lib/siteBrief.ts`: `stayChange(change, ahora, finDeEstancia)` dice si el cambio cae dentro de la estancia (`withinStay`) y conserva sus horas y su instante.
+  - «Time left» (`TimeLeft.tsx`, solo lógica y textos; la estructura de la tarjeta no cambia):
+    - Si el cambio cae después del final, el valor grande es «All stay» al llegar o «Rest of stay» a mitad de estancia. La fecha real queda como dato secundario: «Sunset 17 Mar, 17:30 UTC · after you leave».
+    - Con el Sol o la Tierra ocultos toda la estancia, la etiqueta es «Night» o «No Earth link».
+    - Fuera las notas que repetían el valor («The Sun stays up…», «No loss of contact…», «…after the stay ends»).
+    - La tarjeta lleva `data-within-stay`.
+  - Pistas del panel del sitio (`SiteBrief.tsx`): «Up all stay · sets 17 Mar» o «Down all stay · rises …» en lugar de «Sets in 65 d 17 h». La fecha y hora UTC completas van en `title`.
+  - `lib/strings.ts`: textos nuevos; se borraron `sunStays`, `sunBackAfter` y `noLoss`, que quedaron sin uso.
+- **Cómo se verificó:**
+  ```
+  $ npm --prefix web run typecheck → sin errores
+  $ npm --prefix web test → 281 passed (46 archivos)
+  ```
+  - `tests/siteBrief.test.ts`:
+    - Connecting Ridge 11-ene (7 d): Sol (> 65 d) y Tierra fuera de la estancia.
+    - Haworth 11-ene: puesta de sol a 134 h, dentro.
+    - Bordes: un cambio justo al final, o fuera de los datos, no cuenta como dentro.
+  - `tests/plannerSidebar.test.tsx`, Haworth 11-ene:
+    - Panel: «Sets in 5 d 14 h» y «Up all stay · sets 26 Jan».
+    - «Time left»: «Earth link left · All stay · Earthset 26 Jan, 20:30 UTC · after you leave», sin «15 d 20 h».
+  - Navegador (servidor de desarrollo), Connecting Ridge 11-ene:
+    - Panel: «Up all stay · sets 17 Mar» y «Up all stay · sets 24 Jan».
+    - «Time left»: «All stay» en las dos cuentas.
+    - Sin scroll a 1366×768 y 1920×1080, sin errores en consola.
+- **Desviaciones de la spec / cambios en la guía:** ninguna.
+- **Problemas abiertos:** «What happens next» sigue listando eventos de después de la estancia, marcados «after leaving», como antes. Las fechas tienen formatos distintos («17 Mar» en el panel, «17 Mar, 17:30 UTC» en «Time left»): se unifican en B5b.
+- **Siguiente tarea:** B5b (fecha legible y formato único).
+
+## AJUSTE · B5b: fecha legible y un solo formato de fecha
+
+- **Tarea:** segunda parte de B5 del plan de mejoras del 14-nov-2026 (persona B, hallazgo H12). Rama hecha sobre B4 (`b4-cap-countdowns`).
+- **Qué se hizo:**
+  - `lib/format.ts` (nuevo): un solo formato, mes primero, en inglés y en UTC.
+    - `fmtDay` → «Jan 11, 2027».
+    - `fmtShortDay` → «Jan 11», dentro de una estancia.
+    - `fmtUtc` → «Jan 16, 14:00 UTC».
+    - Antes convivían «01/01/2027» (formato del sistema), «Jan 01, 2027», «11 Jan», «16 Jan, 14:00 UTC» y «2027-01-11».
+  - `lib/moonMap.ts` reexporta `fmtUtc`, y `MissionSidebar.tsx` reexporta `fmtDay`, para quien ya los importaba de ahí. Por eso `Telemetry` y el Educator también pasan de «Jan 01» a «Jan 1» sin tocar sus archivos.
+  - Fecha de llegada (`MissionSidebar.tsx`):
+    - El campo muestra «Jan 11, 2027» en la fuente de la barra y un ícono de calendario (SVG en línea).
+    - El `<input type="date">` nativo queda transparente encima del texto: conserva teclado, `min`/`max` y el valor, y la etiqueta «Arrival date (UTC)» sigue igual.
+    - Clic en cualquier parte del campo o Enter abren el selector (`showPicker`, con `try/catch`).
+    - El foco de un input de fecha vive en sus segmentos internos, así que `:focus-visible` nunca coincide. El campo muestra su anillo con `:focus-within`, salvo si el foco llegó por puntero (se recuerda si la última interacción en la página fue de teclado o de puntero).
+  - Fechas en formato único: panel del sitio («Landing, Jan 11»; «Up all stay · sets Jan 26»), «Time left» y «What happens next» (vía `fmtUtc`), miniaturas (`ThumbnailStrip`) y paneles de la bandeja (`PlanPanel`).
+- **Cómo se verificó:**
+  ```
+  $ npm --prefix web run typecheck → sin errores
+  $ npm --prefix web test → 283 passed (47 archivos); en una corrida falló la intermitente de integration.test.tsx (T5.1.b), ya anotada en B1. Sola pasa 3 de 3, y la suite completa pasó en las dos corridas siguientes.
+  ```
+  - `tests/format.test.ts` (nuevo): «Jan 11, 2027» desde «YYYY-MM-DD», ISO o ms; sin cero a la izquierda; en UTC (29-dic 23:59 Z sigue siendo «Dec 29, 2026»); «Jan 26»; «Jan 16, 14:00 UTC».
+  - `tests/plannerSidebar.test.tsx`: el campo muestra «Mar 9, 2027» tras cambiar la fecha; textos de fecha del panel y de «Time left» en el formato nuevo. `tests/moonMap.test.ts`: `fmtUtc` en el formato nuevo.
+  - Navegador (servidor de desarrollo, 1366×768):
+    - Muestra «Jan 1, 2027», «Launch · Dec 29, 2026» y «Landing, Jan 1».
+    - Con la flecha arriba sobre el mes pasa a «Feb 1, 2027» y el panel la sigue.
+    - Al llegar con teclado aparece el anillo; con clic, no.
+    - Sin scroll en la barra ni en la etapa, sin errores en consola.
+- **Desviaciones de la spec / cambios en la guía:** ninguna.
+- **Problemas abiertos:**
+  - Fuera del área de B siguen fechas en ISO: el panorama («2027-01-11 00:00 UTC»), el reloj de misión (`lib/mission.ts`, de A), y `SitePanel` y `SiteLayout` (títulos de la tabla). Pedir a sus dueños que usen `lib/format.ts`.
+  - Con el input transparente, quien edita con el teclado no ve qué segmento (mes, día o año) está cambiando. Enter abre el selector y siguen las flechas ‹ ›.
+- **Siguiente tarea:** B9 (botones fijos y detalles; también corrige el desborde de 1280×720 anotado en B2).
+
+## AJUSTE · B9: botones fijos, foco tras el cajón y etiquetas del mapa
+
+- **Tarea:** B9 del plan de mejoras del 14-nov-2026 (persona B, hallazgos H14 y H15). Rama hecha sobre B5b (`b5b-readable-dates`).
+- **Qué se hizo:**
+  - **Botones del panel del sitio** (`SiteBrief.tsx`, H14):
+    - Antes iban en `flex-wrap`, así que con «Connecting Ridge (Shackleton rim)» el botón «Pin» bajaba de fila y ocupaba el lugar donde estaba «Land at …» con otros sitios.
+    - Ahora es una sola fila en grid: «Land at …» ocupa el resto (nombre corto sin el paréntesis, con elipsis si hace falta; el nombre completo queda en `aria-label` y `title`), y «Pin» tiene siempre el ancho de su etiqueta más larga (las dos etiquetas en la misma celda, la otra oculta).
+    - El padding horizontal pasa de 22 a 18 px para que «Land at Connecting Ridge» quepa a 1366 px.
+  - **Foco al cerrar el cajón** (H15): nuevo `lib/inputModality.ts`, que recuerda si la última interacción en la página fue de teclado o de puntero.
+    - `Drawer.tsx` (archivo sin dueño en el reparto): si se abrió con el ratón, devuelve el foco al botón sin el anillo (`data-pointer-focus`, que se quita al perder el foco); con teclado el anillo se mantiene.
+    - El campo de fecha de B5b usa ahora el mismo módulo.
+  - **Etiquetas del mapa** (`MoonMap.tsx`, `lib/moonMap.ts`, H15):
+    - `placeLabels()` coloca cada etiqueta a la derecha, izquierda, arriba o abajo de su punto, primero la del sitio elegido, sin encimarse con otras etiquetas, con la distancia («52 km») ni con los puntos, y sin salir del mapa.
+    - El componente mide las etiquetas reales (`useLayoutEffect`) y el tamaño del disco (`ResizeObserver`).
+  - **Contraste de las etiquetas:** pasan de gris con sombra a texto claro (`--color-text`) sobre un fondo `--glass-panel-strong`.
+- **Cómo se verificó:**
+  ```
+  $ npm --prefix web run typecheck → sin errores
+  $ npm --prefix web test → 289 passed (48 archivos); en una corrida falló la intermitente de integration.test.tsx (T5.1.b, «Longest dark»), la misma de main anotada en B1
+  ```
+  - `tests/moonMap.test.ts`: con las posiciones reales de los 5 sitios y cada uno como elegido, ninguna etiqueta se encima con otra ni con la distancia; con espacio libre se queda a la derecha.
+  - `tests/inputModality.test.ts` (nuevo): teclado o puntero; foco devuelto sin anillo tras el ratón, con anillo tras el teclado.
+  - `tests/tokens.test.ts`: texto de etiqueta sobre `panelStrong` y el fondo más claro ≥ 4,5:1.
+  - Navegador (servidor de desarrollo):
+    - Botones: con los 5 sitios y al anclar/desanclar, «Land at» (245 px) y «Pin» (154 px) quedan en el mismo x, sin recorte.
+    - Mapa: Haworth 11-ene sin choques de etiquetas con ningún sitio elegido (antes «52 km» × «Haworth» y «82 km» × «Malapert Massif»).
+    - Cajón: abrir con clic y cerrar con Esc deja el foco sin anillo; con Enter y Esc, con anillo.
+    - Sin scroll en el panel a 1280×720 (pendiente de B2), 1366×650, 1366×768, 1536×700 y 1920×1080. Sin errores en consola.
+- **Desviaciones de la spec / cambios en la guía:** ninguna.
+- **Problemas abiertos:**
+  - La fila de botones sigue subiendo o bajando hasta 20 px según el contenido de arriba (nombre en dos líneas, frase); en horizontal ya no se mueve.
+  - Las etiquetas pueden cambiar de lado al elegir otro sitio.
+  - A 1366×650 el sidebar desborda 11 px (fuera de las resoluciones objetivo).
+  - `Drawer.tsx` no estaba en el reparto: avisar al equipo del cambio.
+- **Siguiente tarea:** B6 (tira de días más clara).
+
+## AJUSTE · B6: tira de días con Sol y Tierra por forma
+
+- **Tarea:** B6 del plan de mejoras del 14-nov-2026 (persona B, hallazgo H7). La tira del sidebar coloreaba cada día con la rampa verde del score: Haworth 1-ene (0,71, sin Tierra) y 9-ene (1,00) eran dos verdes casi iguales, y el color no decía qué fallaba. Rama hecha sobre B9 (`b9-fixed-buttons-details`).
+- **Qué se hizo:**
+  - `MissionSidebar.tsx`: cada día es un botón con dos marcas, calculadas con `planVerdict` (B2):
+    - arriba el Sol: relleno = sin noche en la estancia, contorno = con noche;
+    - abajo la Tierra: rellena = toda la estancia, rayada = con huecos, contorno = nunca;
+    - sin datos todavía: contornos grises.
+  - La etiqueta y el `title` de cada día dicen lo mismo con palabras y conservan el score: «Jan 11, 2027: 34 h night in stay · Earth all stay · score 0.86».
+  - Una leyenda con muestras sustituye a «Brighter days score higher for this site.».
+  - La tira ya no usa `colorScale` (la rampa la sigue usando el calendario).
+  - `lib/strings.ts`: `dayCellFull`, textos de la leyenda y nueva etiqueta de grupo de la tira. `dayCell` se queda para el Educator.
+- **Cómo se verificó:**
+  ```
+  $ npm --prefix web run typecheck → sin errores
+  $ npm --prefix web test → 289 passed (48 archivos); en una corrida falló otra vez la intermitente de integration.test.tsx (T5.1.b, «Longest dark»), la de main anotada en B1
+  ```
+  - `tests/plannerSidebar.test.tsx`: Haworth 1, 9 y 11-ene dan `night/gaps`, `lit/all` y `night/all`; la etiqueta del 11-ene incluye el score; el clic en un día sigue eligiendo su plan.
+  - Navegador (servidor de desarrollo): las etiquetas de los tres días coinciden con los datos. Sin scroll en barra ni etapa a 1280×720, 1366×768, 1536×700 y 1920×1080; sin errores en consola.
+- **Desviaciones de la spec / cambios en la guía:** la tira del sidebar (diseño A2, decisión A7) se coloreaba por score; ahora va por forma, con el score en la etiqueta. El calendario de calor de la spec 8.5 no cambia: sigue en el código con su rampa. Si el equipo lo considera una desviación de diseño, registrarla en `docs/DECISIONS.md` con el número que quede libre tras A1.
+- **Problemas abiertos:**
+  - A 1366×650 el sidebar desborda 26 px (antes 11) porque la leyenda ocupa dos líneas; está fuera de las resoluciones objetivo.
+  - La intermitente de `integration.test.tsx` falla cada vez más seguido con la suite completa (la misma búsqueda de «Longest dark» que en main). Conviene que alguien la revise (probable condición de carrera en jsdom).
+- **Siguiente tarea:** B7 (línea de batería en el panel y «±1 day»).
