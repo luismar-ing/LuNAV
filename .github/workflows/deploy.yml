@@ -1,6 +1,6 @@
 # Builds the web app and publishes the static files (web/dist) to the `deploy` branch.
-# The hosting (Porkbun Static Hosting, or any static host) serves that branch as is:
-# index.html at its root, no server code. Runs on every push to main and on demand.
+# GitHub Pages serves that branch as is (Settings > Pages > Deploy from a branch > deploy, root):
+# https://luismar-ing.github.io/LuNAV/. No server code. Runs on every push to main and on demand.
 name: Build and publish site
 
 on:
@@ -30,8 +30,13 @@ jobs:
       - name: Install
         run: npm --prefix web ci
 
+      # The site lives under /LuNAV/ on GitHub Pages. With a custom domain at its root, drop --base.
       - name: Build (type check + Vite)
-        run: npm --prefix web run build
+        run: npm --prefix web run build -- --base=/LuNAV/
+
+      # Without it, GitHub Pages runs Jekyll, which skips folders that start with "_" (data/terrain/_polar)
+      - name: Disable Jekyll on GitHub Pages
+        run: touch web/dist/.nojekyll
 
       - name: Publish web/dist to the deploy branch
         env:
