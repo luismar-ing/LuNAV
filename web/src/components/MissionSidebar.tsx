@@ -1,7 +1,10 @@
-import { useEffect, useMemo } from "react";
+import { useEffect, useState } from "react";
 import { lookup, dayIndex } from "../lib/constraints";
-import { lutIndex, rampLut } from "../lib/colorScale";
+import { fmtDay } from "../lib/format";
+import { lastInputWasKeyboard } from "../lib/inputModality";
+import { planVerdict } from "../lib/siteBrief";
 import { STRINGS } from "../lib/strings";
+import { VerdictMarks } from "./VerdictMarks";
 import { round } from "../lib/why";
 import { useApp } from "../store/appStore";
 
@@ -9,12 +12,22 @@ import { useApp } from "../store/appStore";
 export const STRIP_DAYS = 21;
 const DAY_MS = 86_400_000;
 
-export const fmtDay = (iso: string) => new Date(iso).toLocaleDateString("en-US", { month: "short", day: "2-digit", year: "numeric", timeZone: "UTC" });
+// B5: the app's one date format ("Jan 11, 2027"); re-exported for the views that import it from here
+export { fmtDay } from "../lib/format";
 const ymd = (ms: number) => new Date(ms).toISOString().slice(0, 10);
 
+/** Opens the browser's date picker where it can (showPicker needs a user gesture and is missing in older browsers). */
+function openPicker(input: HTMLInputElement) {
+  try {
+    input.showPicker?.();
+  } catch {
+    /* not allowed here (e.g. inside a cross-origin frame): the input keeps working from the keyboard */
+  }
+}
+
 /**
- * Mission start sidebar (decision A7, design A2): arrival date (with a strip of days coloured by the chosen
- * site's combined score, the calendar's own ramp), length of stay, landing site and "Launch". Every control
+ * Mission start sidebar (decision A7, design A2): arrival date (with a strip of days marked for the Sun and the
+ * Earth at the chosen site, B6), length of stay, landing site and "Launch". Every control
  * changes the selected plan, which the Moon map, the site brief and every other view follow.
  */
 export function MissionSidebar({ onLaunch, onOpenSearch }: { onLaunch(): void; onOpenSearch(): void }) {
@@ -29,7 +42,7 @@ export function MissionSidebar({ onLaunch, onOpenSearch }: { onLaunch(): void; o
   const setWindow = useApp((s) => s.setWindow);
   const selectSite = useApp((s) => s.selectSite);
   const loadWindows = useApp((s) => s.loadWindows);
-  const lut = useMemo(() => rampLut("combined"), []);
+  const [byPointer, setByPointer] = useState(false);
 
   useEffect(() => {
     if (plan) void loadWindows(plan.window_days);
@@ -61,15 +74,36 @@ export function MissionSidebar({ onLaunch, onOpenSearch }: { onLaunch(): void; o
           <button type="button" className="icon-btn" aria-label={STRINGS.planner.prevDay} onClick={() => goDay(Date.parse(arrival) - DAY_MS)} disabled={Date.parse(arrival) <= first}>
             ‹
           </button>
-          <input
-            type="date"
-            className="arrival-input"
-            aria-label={STRINGS.planner.arrivalInput}
-            value={arrival}
-            min={ymd(first)}
-            max={ymd(last)}
-            onChange={(e) => e.target.value && goDay(Date.parse(e.target.value))}
-          />
+          {/* B5 (H12): the date reads "Jan 11, 2027" like the rest of the app, not in the system's format. The native
+              date input still does the work (keyboard, picker, min / max): it lies transparent over the text and the
+              whole field opens its picker. */}
+          {/* focus sits inside the date input's own segments, so :focus-visible never matches it: the field shows its
+              ring on :focus-within unless the focus came from the pointer */}
+          <label className="arrival-field" data-pointer={byPointer || undefined} onFocus={() => setByPointer(!lastInputWasKeyboard())} onKeyDown={() => setByPointer(false)}>
+            <span className="arrival-text" aria-hidden="true" data-testid="arrival-text">
+              {fmtDay(arrival)}
+            </span>
+            <svg className="arrival-icon" viewBox="0 0 20 20" width="18" height="18" aria-hidden="true">
+              <rect x="2.5" y="4" width="15" height="13.5" rx="2" fill="none" stroke="currentColor" strokeWidth="1.5" />
+              <path d="M2.5 8h15M6.5 2v4M13.5 2v4" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+            </svg>
+            <input
+              type="date"
+              className="arrival-input"
+              aria-label={STRINGS.planner.arrivalInput}
+              value={arrival}
+              min={ymd(first)}
+              max={ymd(last)}
+              onChange={(e) => e.target.value && goDay(Date.parse(e.target.value))}
+              onClick={(e) => openPicker(e.currentTarget)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  e.preventDefault();
+                  openPicker(e.currentTarget);
+                }
+              }}
+            />
+          </label>
           <button type="button" className="icon-btn" aria-label={STRINGS.planner.nextDay} onClick={() => goDay(Date.parse(arrival) + DAY_MS)} disabled={Date.parse(arrival) >= last}>
             ›
           </button>
@@ -77,23 +111,47 @@ export function MissionSidebar({ onLaunch, onOpenSearch }: { onLaunch(): void; o
         <div className="day-strip" role="group" aria-label={STRINGS.planner.strip(siteName(plan.site_id))}>
           {days.map((day) => {
             const m = index ? lookup(index, plan.site_id, day) : null;
+            const v = m ? planVerdict(m) : null;
             const selected = day === arrival;
+            // B6 (H7): two marks per day instead of one shade of green: the Sun on top (filled = no night, outline =
+            // a night) and the Earth below (filled = all stay, striped = gaps, outline = never); the score stays in the label
+            const label = v && m ? STRINGS.planner.dayCellFull(fmtDay(day), STRINGS.planner.statusSun(v.darkH), STRINGS.planner.statusEarth(v.earth, v.gapH), round(m.score, 2)) : STRINGS.planner.dayCell(fmtDay(day), null);
             return (
               <button
                 key={day}
                 type="button"
                 className="day-cell"
                 aria-pressed={selected}
-                aria-label={STRINGS.planner.dayCell(fmtDay(day), m ? round(m.score, 2) : null)}
-                title={STRINGS.planner.dayCell(fmtDay(day), m ? round(m.score, 2) : null)}
-                style={{ background: m ? lut[lutIndex("combined", m.score)] : undefined }}
+                aria-label={label}
+                title={label}
+                data-sun={v?.sun}
+                data-earth={v?.earth}
                 onClick={() => goDay(Date.parse(day))}
                 data-day-index={index ? dayIndex(index, day) : undefined}
-              />
+              >
+                <span className="day-mark" data-body="sun" aria-hidden="true" />
+                <span className="day-mark" data-body="earth" aria-hidden="true" />
+              </button>
             );
           })}
         </div>
-        <p className="sidebar-hint">{STRINGS.planner.stripHint}</p>
+        <p className="strip-legend" aria-hidden="true" data-testid="strip-legend">
+          <span>
+            <span className="day-swatch" data-body="sun" data-state="lit" /> {STRINGS.planner.legendNoNight}
+          </span>
+          <span>
+            <span className="day-swatch" data-body="sun" data-state="night" /> {STRINGS.planner.legendNight}
+          </span>
+          <span>
+            <span className="day-swatch" data-body="earth" data-state="all" /> {STRINGS.planner.legendEarthAll}
+          </span>
+          <span>
+            <span className="day-swatch" data-body="earth" data-state="gaps" /> {STRINGS.planner.legendEarthGaps}
+          </span>
+          <span>
+            <span className="day-swatch" data-body="earth" data-state="none" /> {STRINGS.planner.legendEarthNone}
+          </span>
+        </p>
       </section>
 
       <section className="sidebar-block" aria-labelledby="stay-label">
@@ -116,14 +174,19 @@ export function MissionSidebar({ onLaunch, onOpenSearch }: { onLaunch(): void; o
         <ul className="site-list">
           {sites.map((s) => {
             const m = index ? lookup(index, s.id, arrival) : null;
+            const v = m ? planVerdict(m) : null;
             return (
               <li key={s.id}>
                 <button type="button" className="site-row" aria-pressed={s.id === plan.site_id} onClick={() => selectSite(s.id)}>
-                  <span>{s.name}</span>
-                  {/* planner redesign: the night length tells the sites apart at a glance (the % is in the brief) */}
-                  <span className="site-status" data-tone={m ? (m.longest_dark_h === 0 ? "lit" : "night") : undefined} title={m ? STRINGS.planner.sun(round(m.sun_pct, 1)) : undefined}>
-                    {m ? STRINGS.planner.status(m.longest_dark_h) : ""}
-                  </span>
+                  <span className="site-name">{s.name}</span>
+                  {/* B2: the Sun and the Earth together, with marks for each (shape, not colour alone); green only when both hold */}
+                  {v && (
+                    <span className="site-status" data-tone={v.tone} title={m ? STRINGS.planner.sun(round(m.sun_pct, 1)) : undefined}>
+                      <span className="visually-hidden">, </span>
+                      <VerdictMarks sun={v.sun} earth={v.earth} />
+                      {`${STRINGS.planner.statusSun(v.darkH)} · ${STRINGS.planner.statusEarth(v.earth, v.gapH)}`}
+                    </span>
+                  )}
                 </button>
               </li>
             );

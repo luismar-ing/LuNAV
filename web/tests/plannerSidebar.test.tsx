@@ -45,11 +45,21 @@ describe("Mission Planner sidebar (A2)", () => {
     expect(screen.queryByTestId("scene-host")).toBeNull();
     expect(screen.getByTestId("moon-map")).toBeTruthy();
 
+    // B2 (H6): the default plan is sunlit but has no Earth for the whole stay: list, pin and brief all say so
+    const cr = sidebar().getByRole("button", { name: /^Connecting Ridge/ });
+    await waitFor(() => expect(cr.querySelector(".site-status")?.textContent).toBe(", Sunlit all stay · No Earth all stay"));
+    expect(cr.querySelector(".site-status")?.getAttribute("data-tone")).toBe("poor");
+    const pin = within(screen.getByTestId("moon-map")).getByRole("button", { name: "Connecting Ridge (Shackleton rim)" });
+    expect(pin.dataset).toMatchObject({ sun: "lit", earth: "none", tone: "poor" });
+    expect((await screen.findByTestId("brief-verdict")).textContent).toBe("Sunlit all stay, but no direct Earth contact at any time.");
+
     fireEvent.click(sidebar().getByRole("button", { name: "Next day" }));
     expect(appStore.getState().selectedPlanId).toBe("connecting_ridge_20270102_7d");
 
     fireEvent.change(sidebar().getByLabelText("Arrival date (UTC)"), { target: { value: "2027-03-09" } });
     expect(appStore.getState().selectedPlanId).toBe("connecting_ridge_20270309_7d");
+    // B5 (H12): the date reads like the rest of the app, not in the system's format
+    expect(sidebar().getByTestId("arrival-text").textContent).toBe("Mar 9, 2027");
 
     // (the < 100 ms update budget is measured in the browser, not under jsdom: see PROGRESS, TR.2.b)
     fireEvent.click(sidebar().getByRole("button", { name: "14 days" }));
@@ -57,9 +67,9 @@ describe("Mission Planner sidebar (A2)", () => {
     expect(appStore.getState().selectedPlanId).toBe("haworth_20270309_14d");
     expect(sidebar().getByRole("button", { name: /^Haworth/ }).getAttribute("aria-pressed")).toBe("true");
 
-    // the strip colours its days from the score index once it is loaded; clicking a day selects it
+    // the strip marks its days from the window index once it is loaded (score in the label); clicking a day selects it
     await waitFor(() => expect(sidebar().getAllByRole("button", { name: /score/ }).length).toBeGreaterThan(10));
-    fireEvent.click(sidebar().getByRole("button", { name: /^Mar 11, 2027, score/ }));
+    fireEvent.click(sidebar().getByRole("button", { name: /^Mar 11, 2027: / }));
     expect(appStore.getState().selectedPlanId).toBe("haworth_20270311_14d");
   });
 
@@ -169,7 +179,34 @@ describe("Mission Planner sidebar (A2)", () => {
     expect(within(map).getByText("52 km")).toBeTruthy(); // to Malapert Massif, the nearest other site
 
     // the sidebar names each site's night for these dates (same data as REDIS); the brief has no sentence (A9)
-    await waitFor(() => expect(sidebar().getByRole("button", { name: /^Haworth/ }).textContent).toContain("34 h night"));
+    // B6 (H7): Jan 1, 9 and 11 at Haworth tell apart by shape (Sun mark, Earth mark), not by two shades of green
+    const cell = (d: string) => sidebar().getByRole("button", { name: new RegExp(`^${d}, 2027: `) });
+    await waitFor(() => expect(cell("Jan 11").dataset.sun).toBe("night"));
+    expect([cell("Jan 1"), cell("Jan 9"), cell("Jan 11")].map((c) => `${c.dataset.sun}/${c.dataset.earth}`)).toEqual(["night/gaps", "lit/all", "night/all"]);
+    expect(cell("Jan 11").getAttribute("aria-label")).toBe("Jan 11, 2027: 34 h night in stay · Earth all stay · score 0.86");
+
+    // B7 (H16): the ASSUMED battery in the brief, and the same site a day earlier or later in the same format
+    expect((await screen.findByTestId("brief-battery")).textContent).toBe("ASSUMED Battery runs empty for 14.5 h");
+    fireEvent.click(screen.getByRole("tab", { name: "Same site, ±1 day" }));
+    expect([...screen.getByTestId("brief-days").querySelectorAll("li")].map((li) => li.textContent)).toEqual([
+      "Jan 10 · day before≥ 50%+14.3 % sun",
+      "Jan 11empty 14.5 hthis plan",
+      "Jan 12 · day afterempty 17.0 h−1.5 % sun",
+    ]);
+    fireEvent.click(screen.getByRole("button", { name: /^Jan 10 · day before/ }));
+    expect(appStore.getState().selectedPlanId).toBe("haworth_20270110_7d");
+    await waitFor(() => expect(screen.getByTestId("brief-battery").textContent).toBe("ASSUMED Battery never below 50%"));
+    fireEvent.click(screen.getByRole("button", { name: /^Jan 11 · day after/ }));
+    expect(appStore.getState().selectedPlanId).toBe("haworth_20270111_7d");
+    fireEvent.click(screen.getByRole("tab", { name: "Same day, other sites" }));
+
+    // B3: one night, one figure in context: 34 h of the 36.5 h night fall inside the 7-day stay
+    await waitFor(() => expect(sidebar().getByRole("button", { name: /^Haworth/ }).textContent).toContain("34 h night in stay"));
+    expect((await screen.findByTestId("brief-night-of")).textContent).toBe("of 36.5 h");
+    expect(screen.getByTestId("brief-verdict").textContent).toBe("34 h of night in the stay, with the Earth in view the whole time.");
+    // B4: the sunset (day 6) is counted down; the Earthset (Jan 26) is after the stay: "Up all stay", date aside
+    expect(screen.getByTestId("brief-count-sun").textContent).toBe("Sets in 5 d 14 h");
+    expect(screen.getByTestId("brief-count-earth").textContent).toBe("Up all stay · sets Jan 26");
     expect(screen.queryByTestId("brief-story")).toBeNull();
     expect(within(screen.getByTestId("brief-others")).getAllByRole("listitem")[0].textContent).toMatch(/^Malapert Massif52 km\+20\.2 % sun$/);
 
@@ -182,9 +219,11 @@ describe("Mission Planner sidebar (A2)", () => {
     const site = await screen.findByTestId("live-site");
     const sun = await within(site).findByTestId("countdown-sun", {}, { timeout: 5000 });
     expect(sun.textContent).toContain("5 d 14 h");
-    expect(sun.textContent).toContain("Sunset 16 Jan, 14:00 UTC");
-    expect(sun.textContent).toContain("Then 36.5 h of night.");
-    expect(within(site).getByTestId("countdown-earth").textContent).toContain("Earthset 26 Jan, 20:30 UTC");
+    expect(sun.textContent).toContain("Sunset Jan 16, 14:00 UTC");
+    expect(sun.textContent).toContain("Then a 36.5 h night, 34 h of it in your stay.");
+    const earth = within(site).getByTestId("countdown-earth");
+    expect(earth.textContent).toBe("Earth link leftAll stayEarthset Jan 26, 20:30 UTC · after you leave"); // B4: no "15 d 20 h"
+    expect(earth.dataset.withinStay).toBe("false");
     expect(within(site).getByTestId("next-events").querySelector("li")?.textContent).toMatch(/^5 d 14 hSunset/);
 
     // "Window metrics" tab, then fold the 2D view away and back

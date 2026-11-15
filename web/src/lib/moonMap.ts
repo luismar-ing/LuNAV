@@ -78,9 +78,57 @@ export function fmtDuration(hours: number): string {
   return `${m} m`;
 }
 
-/** An instant as "16 Jan, 14:00 UTC". */
-export function fmtUtc(ms: number): string {
-  const d = new Date(ms);
-  const day = d.toLocaleDateString("en-GB", { day: "numeric", month: "short", timeZone: "UTC" });
-  return `${day}, ${d.toISOString().slice(11, 16)} UTC`;
+/** An instant as "Jan 16, 14:00 UTC": the app's one date format (B5, lib/format.ts). */
+export { fmtUtc } from "./format";
+
+/** A box in pixels (left, top, width, height). */
+export interface Box {
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+}
+
+export type LabelSide = "right" | "left" | "above" | "below";
+/** Order of preference: beside the dot reads best, then above and below. */
+export const LABEL_SIDES: LabelSide[] = ["right", "left", "above", "below"];
+
+/** Where a label of size w × h goes for a dot at (cx, cy) on one side, `gap` px from the dot's centre. */
+export function labelBox(cx: number, cy: number, w: number, h: number, side: LabelSide, gap = 14): Box {
+  switch (side) {
+    case "right":
+      return { x: cx + gap, y: cy - h / 2, w, h };
+    case "left":
+      return { x: cx - gap - w, y: cy - h / 2, w, h };
+    case "above":
+      return { x: cx - w / 2, y: cy - gap - h, w, h };
+    case "below":
+      return { x: cx - w / 2, y: cy + gap, w, h };
+  }
+}
+
+const overlap = (a: Box, b: Box) => Math.max(0, Math.min(a.x + a.w, b.x + b.w) - Math.max(a.x, b.x)) * Math.max(0, Math.min(a.y + a.h, b.y + b.h) - Math.max(a.y, b.y));
+
+/**
+ * Sides for the pin labels of the Moon map so that no two labels, a label and a fixed obstacle (the distance tag,
+ * the dots) or a label and the edge of the map overlap (B9, finding H15: "52 km" over "Haworth"). Greedy, in the
+ * order given (the chosen site first): each label takes the first side of LABEL_SIDES with no overlap, or the one
+ * with the least.
+ */
+export function placeLabels(labels: { id: string; cx: number; cy: number; w: number; h: number }[], obstacles: Box[], bounds: Box): Record<string, LabelSide> {
+  const placed: Box[] = [];
+  const out: Record<string, LabelSide> = {};
+  for (const l of labels) {
+    let best: { side: LabelSide; cost: number; box: Box } | null = null;
+    for (const side of LABEL_SIDES) {
+      const box = labelBox(l.cx, l.cy, l.w, l.h, side);
+      const outside = box.w * box.h - overlap(box, bounds);
+      const cost = [...placed, ...obstacles].reduce((s, o) => s + overlap(box, o), 0) + outside;
+      if (!best || cost < best.cost) best = { side, cost, box };
+      if (cost === 0) break;
+    }
+    out[l.id] = best!.side;
+    placed.push(best!.box);
+  }
+  return out;
 }

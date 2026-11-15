@@ -1,4 +1,5 @@
 import { useEffect, useRef, type ReactNode } from "react";
+import { lastInputWasKeyboard, restoreFocus } from "../lib/inputModality";
 
 const FOCUSABLE = 'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea, canvas[tabindex], [tabindex]:not([tabindex="-1"])';
 
@@ -11,8 +12,10 @@ export function Drawer({ title, closeLabel, onClose, children, testId }: { title
   const ref = useRef<HTMLDivElement>(null);
   useEffect(() => {
     const opener = document.activeElement as HTMLElement | null;
+    // B9 (H15): opened with the mouse, the opener gets focus back without the ring (with the keyboard it keeps it)
+    const byPointer = !lastInputWasKeyboard();
     ref.current?.querySelector<HTMLElement>(".drawer-close")?.focus();
-    return () => opener?.focus?.();
+    return () => restoreFocus(opener, byPointer);
   }, []);
 
   const onKeyDown = (e: React.KeyboardEvent) => {
