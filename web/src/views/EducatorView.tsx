@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { fmtDay } from "../components/MissionSidebar";
 import { CHAPTERS, stepChapter } from "../lib/chapters";
 import { lookup } from "../lib/constraints";
-import { phaseAt, playbackRate, timelineOf, type MissionTimeline } from "../lib/mission";
+import { phaseAt, timelineOf, type MissionTimeline } from "../lib/mission";
 import { Drawer } from "../components/Drawer";
 import { ErrorMessage } from "../components/ErrorMessage";
 import { describeError } from "../lib/errors";
@@ -11,10 +11,10 @@ import { useSiteData } from "./useSiteData";
 import { STRINGS } from "../lib/strings";
 import { fmtMetric, round } from "../lib/why";
 import { sceneBridge } from "../scene3d/bridge";
-import { ASCENT_MS } from "../scene3d/launch";
 import { SceneHost } from "../scene3d/SceneHost";
 import { appStore, useApp } from "../store/appStore";
 import { Challenge } from "./Challenge";
+import { useMissionPlayback } from "./useMissionPlayback";
 
 const STRIP_DAYS = 21;
 const DAY_MS = 86_400_000;
@@ -92,7 +92,7 @@ export function EducatorView({ tools }: { tools: ReactNode }) {
   }, [plan]);
 
   // each chapter opens at its own moment of the mission; the journey and the landing then play by themselves
-  const [play, setPlay] = useState<{ to: number; hoursPerSecond: number } | null>(null);
+  const { play, setPlay, skip } = useMissionPlayback(timeline);
   useEffect(() => {
     if (!timeline) return;
     const t = c.start(timeline);
@@ -101,40 +101,6 @@ export function EducatorView({ tools }: { tools: ReactNode }) {
     setPlay(c.hoursPerSecond > 0 ? { to: c.end(timeline), hoursPerSecond: c.hoursPerSecond } : null);
   }, [chapter, timeline]);
 
-  // playback towards play.to, with the mission's slow motion around launch (lib/mission playbackRate)
-  useEffect(() => {
-    if (!play || !timeline) return;
-    let raf = 0;
-    let last: number | null = null;
-    const go = (t: number) => {
-      appStore.getState().setMissionTime(t);
-      appStore.getState().setMissionPhase(phaseAt(timeline, t));
-    };
-    const tick = (now: number) => {
-      if (last !== null) {
-        const cur = appStore.getState().missionTime ?? timeline.startMs;
-        const hold = appStore.getState().detailedLaunch ? ASCENT_MS : 0; // staging stays watchable (T6.3.a)
-        const t = cur + (now - last) * playbackRate(timeline, cur, play.hoursPerSecond, hold);
-        if (t >= play.to) {
-          go(play.to);
-          setPlay(null);
-          return;
-        }
-        go(t);
-      }
-      last = now;
-      raf = requestAnimationFrame(tick);
-    };
-    raf = requestAnimationFrame(tick);
-    return () => cancelAnimationFrame(raf);
-  }, [play, timeline]);
-
-  const skip = () => {
-    if (!play || !timeline) return;
-    appStore.getState().setMissionTime(play.to);
-    appStore.getState().setMissionPhase(phaseAt(timeline, play.to));
-    setPlay(null);
-  };
   const fullDay = () => {
     if (!timeline) return;
     const now = appStore.getState().missionTime ?? timeline.landingMs;
