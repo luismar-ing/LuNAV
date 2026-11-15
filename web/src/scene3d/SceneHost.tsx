@@ -61,6 +61,8 @@ export function SceneHost({ planning }: { planning?: () => boolean } = {}) {
       sceneBridge.setPlan = null;
       control.current?.unmount();
       control.current = null;
+      // A2: no scene, no local scale; the next scene (Launch after "Land at") starts at space scale
+      appStore.getState().setSceneScale("space");
     };
   }, [attempt]);
 
