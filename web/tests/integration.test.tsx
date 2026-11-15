@@ -261,8 +261,9 @@ describe("same figures in every view (T5.1.b)", () => {
       // tray: metrics box
       const box = within(panelOf(id)).getByTestId("metrics-box");
       for (const { key } of METRICS) expect(box.querySelector(`[data-metric="${key}"] .metric-value`)!.textContent, `${id} tray ${key}`).toBe(expected[key]);
-      // tray: time ribbon's longest dark = the metric
-      const ribbonText = within(panelOf(id)).getByText(/Longest dark:|No dark stretch/).textContent!;
+      // tray: time ribbon's longest dark = the metric. The ribbon draws its SVG only after its effect has measured
+      // the width, and the panels mount from an async load, so the label may land a tick after the panel: wait for it.
+      const ribbonText = (await within(panelOf(id)).findByText(/Longest dark:|No dark stretch/)).textContent!;
       expect(ribbonText, `${id} ribbon`).toBe(row.longest_dark_h === 0 ? "No dark stretch" : `Longest dark: ${expected.longest_dark_h} h`);
 
       // the planning stage's site brief: sunlight, longest night and the Earth's worst day

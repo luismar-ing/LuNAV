@@ -3085,6 +3085,23 @@ Las trayectorias ILLUSTRATIVE, los datos SYNTHETIC y toda desviación de la spec
   - Siguen abiertos los de la entrada anterior (contexto WebGL, capturas).
 - **Siguiente tarea:** revisión del humano; después T5.2.e y la Fase 7.
 
+## AJUSTE · Prueba de integración intermitente (cinta de tiempo)
+
+- **Tarea:** arreglo de pruebas fuera de las subtareas de A, B y C. La prueba «same figures in every view (T5.1.b) > 3 plans: tray box, ribbon, why text and the site brief agree» fallaba a veces con la suite completa, también en `main` (026042d): `Unable to find an element with the text: /Longest dark:|No dark stretch/`.
+- **Qué se hizo:**
+  - Causa: la bandeja monta los paneles cuando termina una carga asíncrona (`setLoaded` en `panels2d/Tray.tsx`). `renderApp` espera a que haya paneles y sigue en ese mismo commit, pero `TimeRibbon` dibuja su SVG (con la etiqueta) solo cuando su `useEffect` ha medido el ancho (`w > 0`). Ese efecto pasivo puede correr un tick después, y la prueba leía la etiqueta antes con `getByText`. Con el fallo a la vista, el `<div class="ribbon">` estaba montado pero vacío. El componente no tiene error: medir y luego dibujar es lo previsto.
+  - `web/tests/integration.test.tsx`: la etiqueta de la cinta se lee con `await findByText(...)` en lugar de `getByText`. La prueba sigue comprobando que la bandeja, la cinta, el texto «why» y el panel del sitio muestran las mismas cifras que la fila de `windows`.
+- **Cómo se verificó:**
+  ```
+  antes (main + volcado del DOM en el fallo), 4 corridas de npm --prefix web test:
+    3 × Tests 1 failed | 268 passed (269), 1 × 269 passed
+    DBG connecting_ridge_20270304_7d <div class="ribbon" data-testid="ribbon" data-dark-h="0"></div>
+  después, 8 corridas seguidas de npm --prefix web test:
+    8 × Tests 269 passed (269)
+  ```
+- **Desviaciones de la spec / cambios en la guía:** ninguna.
+- **Problemas abiertos:** ninguno.
+- **Siguiente tarea:** sin cambios (esta corrección no avanza ninguna subtarea).
 ## AJUSTE · B2: Sol y Tierra juntos en la lista, el mapa y el panel del sitio
 
 - **Tarea:** B2 del plan de mejoras del 14-nov-2026 (persona B, hallazgo H6). Antes, la lista, el pin y el tono verde solo miraban `longest_dark_h`, así que un plan sin Tierra en toda la estancia se veía como bueno.
