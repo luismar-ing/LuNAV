@@ -5,6 +5,7 @@ import { lookup } from "../lib/constraints";
 import { fmtDay, fmtUtc } from "../lib/format";
 import type { PlanData } from "../lib/planData";
 import { planVerdict } from "../lib/siteBrief";
+import { customSiteId } from "../lib/virtualSite";
 import { STRINGS } from "../lib/strings";
 import { num } from "../lib/why";
 import { appStore, useApp } from "../store/appStore";
@@ -71,7 +72,7 @@ function useLolaSunlight(lat: number | null, lon: number | null): number | null 
  * from the exact coordinate over the reduced LOLA relief, the spec 5.5 metrics for the chosen arrival and stay, the best arrival
  * days there, the five candidate sites side by side, and the site's 360° panorama. All 2D (SVG), no WebGL.
  */
-export function CustomSite() {
+export function CustomSite({ onLaunch, onLand, onCompare }: { onLaunch?(): void; onLand?(): void; onCompare?(): void } = {}) {
   const plan = useApp((s) => (s.selectedPlanId ? s.plansById.get(s.selectedPlanId) : undefined));
   const sites = useApp((s) => s.sites);
   const manifest = useApp((s) => s.manifest);
@@ -95,6 +96,8 @@ export function CustomSite() {
     terrain: CustomTerrain;
   } | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
+  const [going, setGoing] = useState(false);
+  const comparePlans = useApp((s) => s.comparePlans);
 
   useEffect(() => {
     const store = appStore.getState().data;
@@ -179,6 +182,41 @@ export function CustomSite() {
     setCoords(c);
     setOffsetH(0);
   };
+  // B13 (decision A14): the point becomes a site of its own and the plan of this arrival and stay is selected; the
+  // planner then flies the whole journey to it (or opens the site directly), as for the five candidate sites
+  const go = async (then: (() => void) | undefined) => {
+    if (!coords || !then || going) return;
+    setGoing(true);
+    try {
+      const st = appStore.getState();
+      const id = await st.addCustomSite(coords.lat, coords.lon);
+      const planId = id ? `${id}_${arrival.replace(/-/g, "")}_${stay}d` : null;
+      if (!planId || !appStore.getState().plansById.has(planId)) return;
+      appStore.getState().selectPlan(planId);
+      appStore.getState().setCustomOpen(false);
+      then();
+    } catch (e) {
+      setLoadError((e as Error).message);
+    } finally {
+      setGoing(false);
+    }
+  };
+  // B13b: this point's plan in the comparison tray, like any candidate site's (the point stays registered while pinned)
+  const pinId = coords ? `${customSiteId(coords.lat, coords.lon)}_${arrival.replace(/-/g, "")}_${stay}d` : null;
+  const pinned = pinId !== null && comparePlans.includes(pinId);
+  const togglePin = async () => {
+    if (!coords || !pinId || going) return;
+    if (pinned) return appStore.getState().unpinPlan(pinId);
+    setGoing(true);
+    try {
+      const id = await appStore.getState().addCustomSite(coords.lat, coords.lon);
+      if (id) appStore.getState().pinPlan(pinId);
+    } catch (e) {
+      setLoadError((e as Error).message);
+    } finally {
+      setGoing(false);
+    }
+  };
   const outside = data && coords && !result;
   const index = indexes[stay];
   const timeMs = Date.parse(`${arrival}T00:00:00Z`) + offsetH * 3_600_000;
@@ -238,6 +276,31 @@ export function CustomSite() {
               {C.approx}
             </span>
           </div>
+          {(onLaunch || onLand) && (
+            <div className="custom-go" data-testid="custom-go">
+              {onLaunch && (
+                <button type="button" className="btn primary" title={C.launchHereTitle} disabled={going} onClick={() => void go(onLaunch)}>
+                  {C.launchHere}
+                </button>
+              )}
+              {onLand && (
+                <button type="button" className="btn ghost" title={C.landHereTitle} disabled={going} onClick={() => void go(onLand)}>
+                  {C.landHere}
+                </button>
+              )}
+              <button type="button" className="btn ghost" aria-pressed={pinned} title={C.pinTitle} disabled={going} onClick={() => void togglePin()} data-testid="custom-pin">
+                {pinned ? STRINGS.planner.unpinPlan : STRINGS.planner.pinPlan}
+              </button>
+              {onCompare && comparePlans.length > 0 && (
+                <button type="button" className="btn ghost" title={C.comparePinnedTitle} onClick={onCompare}>
+                  {C.comparePinned(comparePlans.length)}
+                </button>
+              )}
+              <p className="finder-method" role="status" aria-live="polite">
+                {going ? C.preparing : C.journeyNote}
+              </p>
+            </div>
+          )}
           <p className="finder-method" data-testid="custom-terrain-note">
             {C.terrainNote(result.point.elevationM.toFixed(0))}
           </p>

@@ -1,3 +1,4 @@
+import { ApproxBadge } from "../components/ApproxBadge";
 import type { PlanData } from "../lib/planData";
 import { fmtDay } from "../lib/format";
 import type { ElevationScale } from "../lib/scale";
@@ -41,6 +42,8 @@ export function PlanPanel({ data, scale, trajectoryMode, selected, exaggeration,
             {STRINGS.arrival} {fmtDay(plan.arrival_utc)} · {STRINGS.windowDays(plan.window_days)}
           </span>
         </button>
+        {/* B13b: a custom point's horizon comes from the reduced relief */}
+        <ApproxBadge siteId={site.id} testId="approx-panel" />
         {trajectoryMode === "ILLUSTRATIVE" && (
           <span className="badge illustrative" title={STRINGS.panel.illustrativeTitle}>
             ILLUSTRATIVE

@@ -10,7 +10,7 @@ import { distanceKm, fmtDuration, type Change } from "../lib/moonMap";
 import { nightInStay, planVerdict, readAt, stayBattery, stayChange, visibleSpans, type Span } from "../lib/siteBrief";
 import { STRINGS } from "../lib/strings";
 import { fmtMetric, num, round } from "../lib/why";
-import { useApp } from "../store/appStore";
+import { siteOf, useApp } from "../store/appStore";
 import { useTimeseries } from "./useTimeseries";
 
 const DAY_MS = 86_400_000;
@@ -33,7 +33,7 @@ export function SiteBrief({ onLand }: { onLand(): void }) {
   const selectPlan = useApp((s) => s.selectPlan);
   const [compare, setCompare] = useState<"sites" | "days">("sites");
   const { ts, error, retry } = useTimeseries(plan?.site_id);
-  const site = sites.find((s) => s.id === plan?.site_id);
+  const site = useApp((s) => siteOf(s, plan?.site_id)); // B13: the custom site too, back from its journey
 
   const arrivalMs = plan ? parseInstant(plan.arrival_utc) : 0;
   const stayH = plan ? plan.window_days * 24 : 0;

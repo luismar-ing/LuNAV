@@ -48,7 +48,7 @@ export function sliceWindow(ts: Timeseries, arrivalUtc: string, windowDays: numb
 }
 
 export async function loadPlanData(data: DataStore, plan: Plan, sites: Site[]): Promise<PlanData> {
-  const site = sites.find((s) => s.id === plan.site_id);
+  const site = sites.find((s) => s.id === plan.site_id) ?? data.virtualSite(plan.site_id); // B13: a custom site
   if (!site) throw new Error(`unknown site ${plan.site_id}`);
   const [horizon, ts, windows] = await Promise.all([
     data.horizon(plan.site_id),
