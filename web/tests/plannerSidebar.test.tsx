@@ -44,6 +44,8 @@ describe("Mission Planner sidebar (A2)", () => {
     // planning is 2D (planner redesign): the Moon map instead of the globe, no WebGL until the journey
     expect(screen.queryByTestId("scene-host")).toBeNull();
     expect(screen.getByTestId("moon-map")).toBeTruthy();
+    // B5: no trajectory is drawn while planning, so no ILLUSTRATIVE label there (the journey has its own)
+    expect(screen.queryByText("ILLUSTRATIVE")).toBeNull();
 
     fireEvent.click(sidebar().getByRole("button", { name: "Next day" }));
     expect(appStore.getState().selectedPlanId).toBe("connecting_ridge_20270102_7d");

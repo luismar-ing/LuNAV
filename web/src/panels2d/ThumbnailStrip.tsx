@@ -47,16 +47,21 @@ export function ThumbnailStrip() {
   // same vertical scale as the tray (computed over every pinned plan), so the thumbnails compare like the panels
   const scale = useMemo(() => sharedElevationScale(loaded), [key]);
   const selected = selectedPlanId ? plansById.get(selectedPlanId) : undefined;
-  const hours = liveRelativeHours(missionTime, selected ? Date.parse(selected.arrival_utc) : null);
+  const arrivalMs = selected ? Date.parse(selected.arrival_utc) : null;
+  const hours = liveRelativeHours(missionTime, arrivalMs);
+  // B5: "since arrival" and its clock only once the live plan has landed (not during launch and transit)
+  const landed = missionTime !== null && arrivalMs !== null && missionTime >= arrivalMs;
   const others = loaded.filter((p) => p.plan.id !== selectedPlanId);
 
   return (
-    <aside className="thumb-strip" aria-label={STRINGS.thumbs.aria} data-testid="thumb-strip">
+    <aside className="thumb-strip" aria-label={landed ? STRINGS.thumbs.aria : STRINGS.thumbs.ariaBefore} data-testid="thumb-strip">
       <p className="thumb-clock">
-        <span>{STRINGS.thumbs.title}</span>
-        <span className="mono" data-testid="thumb-clock">
-          {relativeLabel(Math.floor(hours * 60), 1)}
-        </span>
+        <span data-testid="thumb-title">{landed ? STRINGS.thumbs.title : STRINGS.thumbs.titleBefore}</span>
+        {landed && (
+          <span className="mono" data-testid="thumb-clock">
+            {relativeLabel(Math.floor(hours * 60), 1)}
+          </span>
+        )}
       </p>
       {others.length === 0 && <p className="placeholder">{STRINGS.thumbs.empty}</p>}
       <ul className="thumb-list">
