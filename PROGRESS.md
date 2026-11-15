@@ -3420,3 +3420,16 @@ Las trayectorias ILLUSTRATIVE, los datos SYNTHETIC y toda desviación de la spec
   - Al activarlo, revisar la URL pública (T7.1.a) y medir en ella el rendimiento (T7.1.b: `perf.mjs` y `fps.mjs` aceptan la URL como argumento).
   - El dominio de la oferta queda pendiente. Si se consigue, se conecta a Pages y se quita `--base` del flujo.
 - **Siguiente tarea:** C2 (README final con capturas).
+
+## AJUSTE · C1: URL pública verificada (T7.1.a cerrada)
+
+- **Tarea:** cierre de T7.1.a. El dueño del repo activó GitHub Pages.
+- **Qué se hizo:**
+  - Primero Pages se configuró con la rama `main`, y GitHub publicó el README con Jekyll en lugar de la app.
+  - Se corrigió a «Deploy from a branch → `deploy`, `/ (root)`».
+  - T7.1.a pasa a `[x]` en la guía.
+- **Cómo se verificó:** en https://luismar-ing.github.io/LuNAV/ cargan la portada (con el nombre LuNAV de C2), el Mission Planner con el mapa y, tras «Land at Connecting Ridge», el 3D del sitio. Todas las peticiones de la carga salen de `/LuNAV/` y responden 200: scripts, fuentes, texturas, `manifest`, `sites`, `plans`, ventanas, series, escena, trayectoria y terreno (incluido `data/terrain/_polar/`). No hay llamadas a APIs ni a servidores externos.
+- **Desviaciones de la spec / cambios en la guía:** ninguna.
+- **Problemas abiertos:** T7.1.b (medir el rendimiento en la URL pública con `perf.mjs` y `fps.mjs`).
+- **Siguiente tarea:** C3 (reto del Educator, nivel 1). Nueva numeración de C: C3 reto, C4 niveles 2 y 3, C5 capturas, C6 guion y demo.
+
