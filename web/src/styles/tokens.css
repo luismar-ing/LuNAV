@@ -3905,3 +3905,61 @@ button.scene-chip {
     grid-template-columns: minmax(0, 1fr);
   }
 }
+
+/* B12c: the picker's large map in a modal over the panel */
+.picker-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  display: grid;
+  place-items: center;
+  padding: var(--space-md);
+  background: color-mix(in srgb, var(--color-bg) 82%, transparent);
+}
+
+.picker-modal {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-sm);
+  max-width: 100%;
+  max-height: 100%;
+  padding: var(--space-md) var(--space-lg);
+  border: 1px solid var(--color-border-strong);
+  border-radius: 12px;
+  background: var(--color-bg);
+}
+
+.picker-modal-head {
+  align-self: stretch;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: var(--space-md);
+}
+
+.picker-modal .point-picker-disc[data-large] {
+  width: min(calc(100vh - 190px), calc(100vw - 96px));
+  min-width: 240px;
+}
+
+.picker-modal-readout {
+  max-width: min(calc(100vh - 190px), calc(100vw - 96px));
+  text-align: center;
+}
+
+.point-picker-disc[data-large] .point-picker-site {
+  width: 10px;
+  height: 10px;
+}
+
+.point-picker-site-label {
+  position: absolute;
+  left: 12px;
+  top: 50%;
+  translate: 0 -50%;
+  white-space: nowrap;
+  font-size: 12px;
+  color: var(--color-text);
+  text-shadow: 0 0 3px var(--color-bg), 0 0 3px var(--color-bg);
+}

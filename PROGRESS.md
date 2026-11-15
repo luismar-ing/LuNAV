@@ -3558,3 +3558,29 @@ Las trayectorias ILLUSTRATIVE, los datos SYNTHETIC y toda desviación de la spec
 - **Desviaciones de la spec / cambios en la guía:** ninguna.
 - **Problemas abiertos:** el mapa del planificador no tiene camino de teclado propio para elegir un punto; ese camino es el enlace «Custom coordinates…» y las flechas del mapa del panel.
 - **Siguiente tarea:** revisión y PR de `b12-custom-coordinates`.
+
+## AJUSTE · B12c: mapa grande para elegir la coordenada
+
+- **Tarea:** ampliación de B12 pedida por la persona B el 15-nov-2026: un botón que abra en un modal el mapa de la Luna más grande para elegir la coordenada.
+- **Qué se hizo:**
+  - `components/PointPicker.tsx`:
+    - El mapa del panel pasa a un componente `PickerDisc`, compartido por el mapa pequeño y el grande.
+    - Botón «Enlarge map» → diálogo modal («Choose a point at the south pole») con el mismo mapa a la altura de la pantalla (`min(100vh − 190 px, 100vw − 96 px)`), los nombres de los cinco sitios y la lectura del punto elegido o bajo el puntero.
+    - Cada clic o flecha actualiza el punto y su análisis detrás, y el modal sigue abierto para afinar. «Done», Esc o el fondo lo cierran, y el foco vuelve al botón.
+    - El modal se dibuja en `document.body` (portal), para que ningún ancestro con `translate` lo recorte. Detiene sus eventos de teclado, para que el cajón de detrás no cierre con el mismo Esc. El foco queda atrapado dentro con Tab.
+  - `lib/strings.ts` (`mapEnlarge`, `mapTitle`, `mapDone`, `mapCaption`, `pickerChosen`) y `styles/tokens.css` (`.picker-modal*`, etiquetas de los sitios).
+- **Cómo se verificó:**
+  ```
+  $ npm --prefix web run typecheck → sin errores
+  $ npm --prefix web test → 380 passed (55 archivos)
+  $ npm --prefix web run build -- --base=/LuNAV/ → built
+  ```
+  - `tests/customSite.view.test.tsx`:
+    - el modal abre con el foco en el mapa y con los nombres de los sitios;
+    - un clic elige el punto (campo, «Chosen point», cruz);
+    - Esc cierra solo el modal, el panel sigue abierto y el foco vuelve a «Enlarge map»;
+    - «Done» y el fondo también lo cierran.
+  - Navegador (1366×768): modal de 628 × 709 px; un clic → −86,950°, 137,070° y el panel lo analiza; Esc → foco en «Enlarge map». Sin errores en consola.
+- **Desviaciones de la spec / cambios en la guía:** ninguna.
+- **Problemas abiertos:** ninguno nuevo.
+- **Siguiente tarea:** revisión y PR de `b12-custom-coordinates`.

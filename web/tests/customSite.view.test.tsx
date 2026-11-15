@@ -125,6 +125,43 @@ describe.runIf(HAS_TERRAIN)("Custom coordinates (B12)", () => {
     expect(input.value.split(",").map(Number)).toEqual(after);
   });
 
+  it("Enlarge map opens the large map in a modal: a click there picks the point; Esc closes only the modal", async () => {
+    const { drawer } = await openPanel();
+    await drawer.findByTestId("custom-table", {}, { timeout: 5000 });
+    const enlarge = await drawer.findByRole("button", { name: "Enlarge map" });
+    enlarge.focus();
+    fireEvent.click(enlarge);
+    const modal = await screen.findByRole("dialog", { name: "Choose a point at the south pole" });
+    const disc = within(modal).getByRole("application");
+    expect(document.activeElement).toBe(disc);
+    // the five sites are named on the large map
+    expect(modal.textContent).toContain("Haworth");
+
+    box(disc);
+    fireEvent.click(disc, { clientX: 175, clientY: 250 });
+    const ext = (await appStore.getState().data.illumination()).extent_m;
+    const want = fractionToLatLon(ext, 0.25, 0.5);
+    const input = drawer.getByLabelText("Latitude, longitude") as HTMLInputElement;
+    expect(input.value).toBe(`${Number(want.lat.toFixed(4))}, ${Number(want.lon.toFixed(4))}`);
+    // the modal stays open to refine the point, and says which one is chosen
+    expect(within(modal).getByText(new RegExp(`Chosen point ${want.lat.toFixed(3)}°, ${want.lon.toFixed(3)}°`))).toBeTruthy();
+    expect(within(modal).getByTestId("point-picker-marker-large")).toBeTruthy();
+
+    fireEvent.keyDown(disc, { key: "Escape" });
+    expect(screen.queryByRole("dialog", { name: "Choose a point at the south pole" })).toBeNull();
+    expect(screen.getByTestId("custom-drawer")).toBeTruthy(); // the panel behind stays open
+    expect(document.activeElement).toBe(enlarge);
+    await waitFor(() => expect(drawer.getByRole("heading", { name: `Custom site · ${want.lat.toFixed(3)}°, ${want.lon.toFixed(3)}°` })).toBeTruthy());
+
+    // Done and the backdrop close it too
+    fireEvent.click(enlarge);
+    fireEvent.click(within(await screen.findByTestId("picker-modal")).getByRole("button", { name: "Done" }));
+    expect(screen.queryByTestId("picker-modal")).toBeNull();
+    fireEvent.click(enlarge);
+    fireEvent.click(await screen.findByTestId("picker-modal-backdrop"));
+    expect(screen.queryByTestId("picker-modal")).toBeNull();
+  });
+
   it("a click on the planner's Moon map, away from the pins, opens the panel on that point", async () => {
     render(<App />);
     act(() => appStore.getState().setScreen("planner"));
