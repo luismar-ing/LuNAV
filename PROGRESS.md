@@ -3871,6 +3871,36 @@ Las trayectorias ILLUSTRATIVE, los datos SYNTHETIC y toda desviación de la spec
 - **Problemas abiertos:** el calendario sigue mostrando solo las filas de los cinco sitios; el mapa de la Luna no marca los puntos fijados.
 - **Siguiente tarea:** revisión de la persona B.
 
+## AJUSTE · A7 · Despegue desde Cabo Cañaveral al mediodía
+
+- **Tarea:** petición del humano: el cohete salía del lado oscuro de la Tierra y desde el mar. Decisión A16.
+- **Causa:** la plataforma ILLUSTRATIVE estaba en lat 0°, lon 0° (golfo de Guinea) y el despegue era 3 días exactos antes de la llegada, que siempre es a las 00:00 UTC, así que la hora local en la plataforma no se elegía.
+- **Qué se hizo:**
+  - `pipeline/config.py`: plataforma en Launch Complex 39A (28.60833° N, 80.60444° W; coordenadas publicadas en Wikipedia).
+  - Despegue al mediodía solar medio de la plataforma, redondeado al minuto: 17:22 UTC. El mediodía más cercano a los 3 días de D5 cae 4 días antes de la llegada: `TRANSIT_DAYS` = 4718/1440 días (3 d 6 h 38 min), exacto en segundos.
+  - La escena empieza un día antes del primer despegue, el 2026-12-27.
+  - `pipeline/plans.py`: la comprobación cruzada `launch_utc = arrival_utc − transit_days` admite 1 s, como el contrato.
+  - **Regenerados** con `pipeline.plans`, `pipeline.ephemeris --scene`, `pipeline.trajectory --plot` y `build_all --assemble`: `plans.json`, `scene/ephemeris.json`, las 1825 trayectorias, `manifest.json` y la figura de trayectorias.
+  - `build_all --assemble` vacía `web/public/data`, así que borró `sky/` y `terrain_custom/`, que el equipo añadió fuera del ensamblado. Se restauraron sin cambios desde git.
+  - **Front end:**
+    - la plataforma en `scene3d/launch.ts` y en `lib/trajectoryBuilder.ts` (mismo punto que el pipeline);
+    - la telemetría muestra el tránsito como «3 d 6 h»;
+    - el capítulo del Educator dice «About 3 days»;
+    - textos de ILLUSTRATIVE y de créditos.
+  - **README:** se corrigió una frase que hablaba de «a generic pad». Ojo: es archivo de C; el cambio es solo esa frase.
+- **Cómo se verificó:**
+  ```
+  $ .venv/Scripts/python -m pytest → 287 passed (nueva: el primer punto es LC-39A y el Sol está > 30° sobre la plataforma)
+  $ .venv/Scripts/python -m pipeline.validate web/public/data → OK
+  $ npm --prefix web run typecheck → sin errores
+  $ npm --prefix web test → 429 passed
+  ```
+  - SPICE, los 365 despegues: el Sol sobre LC-39A entre 38.0° y 84.8° (media 61.7°).
+  - Escena real (Chrome sin cabeza): en la cuenta regresiva el cohete está en la costa este de Florida, en el lado iluminado de la Tierra; la telemetría dice «Launch Dec 28, 2026 · Transit 3 d 6 h».
+  - Pruebas ajustadas: fecha y hora de despegue (`plannerSidebar`, `virtualSite`, `customJourney`, `test_plans`), duración de la trayectoria (`test_trajectory`) y el giro de la plataforma en la cuenta regresiva (`launch.test`: a 28.6° N recorre ~122.5 km en 5 min, no 139.5).
+- **Desviaciones de la spec / cambios en la guía:** A16 (la plataforma y `transit_days` dejan de ser los de D5).
+- **Problemas abiertos:** ninguno.
+
 ## AJUSTE · B14: el reto del Educador con un punto personalizado
 
 - **Tarea:** B14, petición del humano (15-nov-2026): en el reto «Can your lander make it?» el jugador elige un punto propio de la Luna en vez de uno de los cinco sitios. Rama `b14-challenge-custom-point`, desde `b13-custom-journey` (necesita el sitio virtual de B13). Decisión A15.
