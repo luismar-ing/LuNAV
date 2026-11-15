@@ -3474,3 +3474,54 @@ Las trayectorias ILLUSTRATIVE, los datos SYNTHETIC y toda desviación de la spec
   - Batería ASSUMED como restricción (paso 6 del plan) no implementada.
   - README (área de C): falta una línea sobre la función.
 - **Siguiente tarea:** revisión y PR de `b11-best-plan-finder`; avisar a C para el README y el demo.
+
+## AJUSTE · B12: coordenadas personalizadas
+
+- **Tarea:** B12, añadida el 15-nov-2026 por la persona B. El reto pide «the ability to input custom lunar coordinates» y la app solo tenía los cinco sitios. Decisión A13.
+- **Qué se hizo:**
+  - `pipeline/custom_site.py` (nuevo):
+    - `--sky`: Sol y Tierra respecto al centro de la Luna, MOON_ME, LT+S, cada 30 min en todo el rango de las series (18 192 instantes) → `web/public/data/sky/` (437 KB).
+    - `--terrain`: el DEM LOLA de 40 m promediado por bloques a 160 m (±162 km) y 400 m (±253 km) → `web/public/data/terrain_custom/` (8,2 + 3,2 MB). También `hybrid_mask`, la referencia de Python, y su resultado para los cinco sitios en `web/tests/fixtures/custom_site_masks.json`.
+  - `lib/customSite.ts` (nuevo):
+    - cielo desde cualquier punto (`skyFrom`: resta la posición del observador y pasa a ENU, como `ephemeris.py`);
+    - horizonte trazado desde la coordenada exacta (`horizonFrom`: círculos máximos, nivel fino hasta 10 km y grueso hasta 100 km);
+    - banderas de 5.3 y 5.4 y métricas de 5.5 portadas de `visibility.py` y `windows.py`;
+    - lectura de coordenadas en texto («-89.45, -137.10», «89.45S 137.10W», «222.9°E»).
+  - `components/CustomSite.tsx` (nuevo), en un `Drawer` que se abre con el enlace «Custom coordinates…» junto a «Landing site» (la barra lateral no crece). Muestra:
+    - métricas de la llegada y la estancia, con los cinco sitios en la misma tabla;
+    - los 3 mejores días de llegada en ese punto;
+    - el panorama 360° de la app con un control de tiempo;
+    - la iluminación media de LOLA (Mazarico) en el punto como comprobación independiente;
+    - la etiqueta APPROXIMATE.
+  - `lib/data.ts` (`sky`, `terrainCustom`), `store/appStore.ts` (`customOpen`), `lib/strings.ts` (sección `custom`), `styles/tokens.css`, `MissionSidebar.tsx`, `PlannerView.tsx`.
+- **Cómo se verificó:**
+  ```
+  $ python -m pipeline.validate web/public/data → OK: web/public/data cumple el contrato 1.0.0
+  $ python -m pytest → 240 passed, 43 skipped
+  $ npm --prefix web run typecheck → sin errores
+  $ npm --prefix web test → 376 passed (55 archivos)
+  $ npm --prefix web run build -- --base=/LuNAV/ → built; web/public 42 MB (D13: < 50 MB)
+  ```
+  - `tests/customSite.test.ts`:
+    - Cielo desde las coordenadas de los cinco sitios frente a las series SPICE: peor diferencia 0,0050° en 18 192 instantes (las series se publican redondeadas a 0,01°).
+    - Con la máscara de 40 m de cada sitio: **365/365 llegadas idénticas** a las ventanas publicadas, en los 5 sitios y las 3 estancias.
+    - Horizonte del navegador frente a la referencia de Python: < 0,005°.
+    - Relieve reducido frente a las máscaras de 40 m, por sitio:
+      ```
+      connecting_ridge   horizonte medio |Δ| 0,25° (máx 0,85°)  sol del año −4,3 pts  enlace −2,5 pts
+      haworth            0,16° (0,81°)  −1,7 pts  +0,1 pts
+      nobile_rim_1       0,23° (1,01°)  −2,1 pts  −0,7 pts
+      malapert_massif    0,19° (0,57°)  −3,8 pts  −0,7 pts
+      de_gerlache_rim_2  0,16° (0,97°)  −0,5 pts  +0,0 pts
+      ```
+  - `tests/customSite.view.test.tsx`: abre en las coordenadas del sitio elegido; tabla con los cinco sitios; coordenada escrita («88.5S 45E»); fuera de 85°S; texto inválido; mejor día; Esc devuelve el foco.
+  - `pipeline/tests/test_custom_site.py`: promedio por bloques, bilineal, terreno plano, pared lejana vista por el nivel grueso, codificación.
+  - Navegador (1366×768): barra lateral sin scroll (732/732 px); «88.8S 125E» → suelo a 1 606 m, métricas, mejores días (10-mar, 6-abr, 3-may), panorama, LOLA 49 %. Sin errores en consola.
+- **Decisiones tomadas:** A13. Antes se probó una malla de máscaras de 40 m cada 5 km (2 885 puntos) con el horizonte del punto más cercano. Se descartó: en las cimas el vecino quedaba 100–400 m más abajo y el sol del año fallaba en 37–60 puntos. Se midieron relieves de 120, 160, 200, 320 y 400 m, y tramos finos de 10 y 25 km: el tramo de 25 km no mejora y el de 120 m pesaría el doble.
+- **Desviaciones de la spec / cambios en la guía:** la spec (5.2) pide el DEM a «decenas de metros» para los sitios; los cinco sitios lo siguen usando. Para las coordenadas libres se usa el relieve reducido, marcado APPROXIMATE y con el error medido en la interfaz.
+- **Problemas abiertos:**
+  - El relieve reducido rebaja las cimas: tiende a dar algo menos de sol que el de 40 m.
+  - Solo de 85°S al polo (la cobertura del relieve publicado y del mapa de Mazarico).
+  - No se puede lanzar ni aterrizar en el 3D en una coordenada libre; solo el análisis 2D.
+  - README (área de C): falta la función y los créditos de los nuevos datos (`sky/` de NAIF/SPICE, `terrain_custom/` de LOLA).
+- **Siguiente tarea:** revisión y PR de `b12-custom-coordinates` (apilada sobre `b11-best-plan-finder`).

@@ -1,10 +1,11 @@
 /**
  * Custom coordinates (B12, decision A13). Any point from 85°S to the pole:
  *  - the Sun and the Earth seen from it, from sky/moon_me.bin (Sun and Earth relative to the Moon centre, MOON_ME,
- *    LT+S, every 30 min; pipeline/horizon_grid.py), minus the observer position, in its local East-North-Up frame,
+ *    LT+S, every 30 min; pipeline/custom_site.py), minus the observer position, in its local East-North-Up frame,
  *    as pipeline/ephemeris.py does for the five sites;
- *  - the terrain horizon of the nearest point of a 5 km grid of masks computed with the 40 m LOLA DEM
- *    (horizon_grid/), with its distance stated: the horizon is that point's, not the exact coordinate's;
+ *  - the terrain horizon traced from the exact coordinate over the LOLA DEM reduced to 160 m near the point and
+ *    400 m beyond 10 km (terrain_custom/; pipeline/custom_site.py), measured against the 40 m masks of the five
+ *    candidate sites (tests/customSite.test.ts);
  *  - the spec 5.3 / 5.4 visibility flags and the spec 5.5 window metrics, ported from pipeline/visibility.py and
  *    pipeline/windows.py (same rules, so the five sites give their published numbers back: tests/customSite.test.ts).
  */
@@ -36,26 +37,42 @@ export function parseSky(header: SkyHeader, bin: ArrayBuffer): SkyData {
   return { header, startMs: Date.parse(header.start_utc), vec };
 }
 
-export interface GridHeader {
-  grid: { nx: number; ny: number; spacing_m: number; x0_m: number; y0_m: number; lat_limit_deg: number; r_max_m: number };
-  points: number;
-  az_step_deg: number;
-  n_az: number;
-  h_obs_m: number;
+/** One level of the reduced LOLA relief (terrain_custom/): heights on a square grid centred on the pole. */
+export interface TerrainLevelHeader {
+  bin_file: string;
+  byte_length: number;
+  nx: number;
+  ny: number;
+  spacing_m: number;
+  x0_m: number; // outer corner of the top-left pixel
+  y0_m: number;
+}
+export interface CustomTerrainHeader {
+  lat_limit_deg: number;
+  near_m: number;
   r_max_km: number;
-  encoding: { scale_deg: number; nodata: number };
-  z0_m: (number | null)[];
+  h_obs_m: number;
+  az_step_deg: number;
+  height_scale_m: number;
   dem_product: string;
+  fine: TerrainLevelHeader;
+  coarse: TerrainLevelHeader;
 }
-export interface GridData {
-  header: GridHeader;
-  masks: Int16Array;
+export interface TerrainLevel {
+  header: TerrainLevelHeader;
+  z: Float32Array;
 }
-export function parseGrid(header: GridHeader, bin: ArrayBuffer): GridData {
-  const masks = new Int16Array(bin);
-  const { nx, ny } = header.grid;
-  if (masks.length !== nx * ny * header.n_az) throw new Error(`horizon_grid/masks.bin holds ${masks.length} values, expected ${nx * ny * header.n_az}`);
-  return { header, masks };
+export interface CustomTerrain {
+  header: CustomTerrainHeader;
+  fine: TerrainLevel;
+  coarse: TerrainLevel;
+}
+export function parseLevel(header: TerrainLevelHeader, bin: ArrayBuffer, scale: number): TerrainLevel {
+  const ints = new Int16Array(bin);
+  if (ints.length !== header.nx * header.ny) throw new Error(`${header.bin_file} holds ${ints.length} heights, expected ${header.nx * header.ny}`);
+  const z = new Float32Array(ints.length);
+  for (let i = 0; i < ints.length; i++) z[i] = ints[i] * scale;
+  return { header, z };
 }
 
 // ---------------------------------------------------------------- geometry
@@ -79,44 +96,75 @@ export function surfaceDistanceM(lat1: number, lon1: number, lat2: number, lon2:
   return 2 * MOON_R_M * Math.asin(Math.min(1, Math.sqrt(a)));
 }
 
-export interface GridPoint {
-  index: number;
-  lat: number;
-  lon: number;
+/** Bilinear height on pixel centres; NaN outside (pipeline/custom_site.py Level.sample). */
+export function sampleLevel(lv: TerrainLevel, x: number, y: number): number {
+  const h = lv.header;
+  const col = (x - h.x0_m) / h.spacing_m - 0.5;
+  const row = (h.y0_m - y) / h.spacing_m - 0.5;
+  const c0 = Math.floor(col);
+  const r0 = Math.floor(row);
+  if (c0 < 0 || r0 < 0 || c0 + 1 >= h.nx || r0 + 1 >= h.ny) return NaN;
+  const fc = col - c0;
+  const fr = row - r0;
+  const k = r0 * h.nx + c0;
+  const z = lv.z;
+  return z[k] * (1 - fc) * (1 - fr) + z[k + 1] * fc * (1 - fr) + z[k + h.nx] * (1 - fc) * fr + z[k + h.nx + 1] * fc * fr;
+}
+
+export interface PointHorizon {
+  /** Terrain height at the point (m above the 1737.4 km sphere), from the fine level. */
   elevationM: number;
-  distanceM: number;
   /** Horizon elevation (deg) at azimuth i · az_step_deg. */
   mask: Float64Array;
 }
 
-/** Nearest grid point that has a mask, or null when the coordinate is outside the grid (north of 85°S). */
-export function nearestGridPoint(grid: GridData, lat: number, lon: number): GridPoint | null {
-  const { grid: g, n_az, encoding, z0_m } = grid.header;
-  if (lat > g.lat_limit_deg || lat < -90) return null;
-  const [x, y] = latLonToPolar(lat, lon);
-  if (Math.hypot(x, y) > g.r_max_m + g.spacing_m / 2) return null;
-  const i0 = Math.round((x - g.x0_m) / g.spacing_m);
-  const j0 = Math.round((g.y0_m - y) / g.spacing_m);
-  let best: { k: number; d: number } | null = null;
-  // the rounded cell, or a neighbour when it lies just outside the circle of computed points
-  for (let dj = -1; dj <= 1; dj++) {
-    for (let di = -1; di <= 1; di++) {
-      const i = i0 + di;
-      const j = j0 + dj;
-      if (i < 0 || j < 0 || i >= g.nx || j >= g.ny) continue;
-      const k = j * g.nx + i;
-      if (z0_m[k] === null || grid.masks[k * n_az] === encoding.nodata) continue;
-      const d = Math.hypot(g.x0_m + i * g.spacing_m - x, g.y0_m - j * g.spacing_m - y);
-      if (!best || d < best.d) best = { k, d };
+/**
+ * Spec 5.2 horizon mask traced from the exact coordinate (pipeline/custom_site.py hybrid_mask, horizon.compute_mask):
+ * great circles on the 1737.4 km sphere with local azimuth, the fine level (160 m) up to near_m (10 km) and the
+ * coarse level (400 m) up to R_max (100 km); elev = atan2(z(d) − z0 − h_obs − d²/2R, d). Null outside 85°S.
+ */
+export function horizonFrom(t: CustomTerrain, lat: number, lon: number): PointHorizon | null {
+  const h = t.header;
+  if (lat > h.lat_limit_deg || lat < -90) return null;
+  const [px, py] = latLonToPolar(lat, lon);
+  const z0 = sampleLevel(t.fine, px, py);
+  if (Number.isNaN(z0)) return null;
+  const nAz = Math.round(360 / h.az_step_deg);
+  const mask = new Float64Array(nAz).fill(-90);
+  const p1 = lat * DEG;
+  const sp1 = Math.sin(p1);
+  const cp1 = Math.cos(p1);
+  const rMax = h.r_max_km * 1000;
+  const legs: [TerrainLevel, number, number][] = [
+    [t.fine, t.fine.header.spacing_m, Math.floor(h.near_m / t.fine.header.spacing_m)],
+    [t.coarse, t.coarse.header.spacing_m, Math.floor((rMax - h.near_m) / t.coarse.header.spacing_m)],
+  ];
+  for (let a = 0; a < nAz; a++) {
+    const th = a * h.az_step_deg * DEG;
+    const sth = Math.sin(th);
+    const cth = Math.cos(th);
+    let best = -90;
+    for (let leg = 0; leg < 2; leg++) {
+      const [lv, step, count] = legs[leg];
+      const d0 = leg === 0 ? 0 : h.near_m;
+      for (let i = 1; i <= count; i++) {
+        const d = d0 + i * step;
+        const dl = d / MOON_R_M;
+        const sd = Math.sin(dl);
+        const cd = Math.cos(dl);
+        const sp2 = sp1 * cd + cp1 * sd * cth;
+        const lat2 = Math.asin(sp2);
+        const lon2 = lon * DEG + Math.atan2(sth * sd * cp1, cd - sp1 * sp2);
+        const rho = 2 * MOON_R_M * Math.tan(Math.PI / 4 + lat2 / 2);
+        const z = sampleLevel(lv, rho * Math.sin(lon2), rho * Math.cos(lon2));
+        if (Number.isNaN(z)) return null;
+        const el = Math.atan2(z - z0 - h.h_obs_m - (d * d) / (2 * MOON_R_M), d);
+        if (el > best) best = el;
+      }
     }
+    mask[a] = best / DEG;
   }
-  if (!best) return null;
-  const px = g.x0_m + (best.k % g.nx) * g.spacing_m;
-  const py = g.y0_m - Math.floor(best.k / g.nx) * g.spacing_m;
-  const [plat, plon] = polarToLatLon(px, py);
-  const mask = new Float64Array(n_az);
-  for (let a = 0; a < n_az; a++) mask[a] = grid.masks[best.k * n_az + a] * encoding.scale_deg;
-  return { index: best.k, lat: plat, lon: plon, elevationM: z0_m[best.k]!, distanceM: surfaceDistanceM(lat, lon, plat, plon), mask };
+  return { elevationM: z0, mask };
 }
 
 // ---------------------------------------------------------------- the sky from a point
@@ -273,7 +321,7 @@ export function windowRows(sun: Uint8Array, earth: Uint8Array, startMs: number, 
 export interface CustomSiteResult {
   lat: number;
   lon: number;
-  point: GridPoint;
+  point: PointHorizon;
   sky: SkySeries;
   sun: Uint8Array;
   earth: Uint8Array;
@@ -282,17 +330,17 @@ export interface CustomSiteResult {
 
 export function analyseCustomSite(
   sky: SkyData,
-  grid: GridData,
+  terrain: CustomTerrain,
   lat: number,
   lon: number,
   windowDays: number,
   nArrivals: number,
   p: Omit<VisibilityParams, "azStepDeg">,
 ): CustomSiteResult | null {
-  const point = nearestGridPoint(grid, lat, lon);
+  const point = horizonFrom(terrain, lat, lon);
   if (!point) return null;
-  const s = skyFrom(sky, lat, lon, point.elevationM, grid.header.h_obs_m);
-  const vis = visibility(s, point.mask, { ...p, azStepDeg: grid.header.az_step_deg });
+  const s = skyFrom(sky, lat, lon, point.elevationM, terrain.header.h_obs_m);
+  const vis = visibility(s, point.mask, { ...p, azStepDeg: terrain.header.az_step_deg });
   return { lat, lon, point, sky: s, ...vis, rows: windowRows(vis.sun, vis.earth, s.startMs, s.stepMin, nArrivals, windowDays) };
 }
 

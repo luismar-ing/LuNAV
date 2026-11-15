@@ -11,18 +11,18 @@ import { describe, expect, it } from "vitest";
 import type { WindowRow } from "../src/lib/contract";
 import {
   analyseCustomSite,
-  horizonAt,
   latLonToPolar,
-  nearestGridPoint,
+  horizonFrom,
   parseCoordinates,
-  parseGrid,
+  parseLevel,
   parseSky,
   polarToLatLon,
   skyFrom,
   surfaceDistanceM,
   visibility,
   windowRows,
-  type GridHeader,
+  type CustomTerrain,
+  type CustomTerrainHeader,
   type SkyHeader,
 } from "../src/lib/customSite";
 
@@ -37,7 +37,15 @@ const SITES = json<{ id: string; lat: number; lon: number; elevation_m: number }
 const manifest = json<{ params: { sun_radius_deg: number; antenna_margin_deg: number; h_obs_m: number }; date_range: { arrival_start: string; arrival_end: string } }>("manifest.json");
 const P = { sunRadiusDeg: manifest.params.sun_radius_deg, antennaMarginDeg: manifest.params.antenna_margin_deg };
 const N_ARRIVALS = Math.round((Date.parse(manifest.date_range.arrival_end) - Date.parse(manifest.date_range.arrival_start)) / 86_400_000) + 1;
-const HAS_GRID = existsSync(join(DATA, "horizon_grid", "grid.json"));
+const HAS_TERRAIN = existsSync(join(DATA, "terrain_custom", "terrain.json"));
+const loadTerrain = (): CustomTerrain => {
+  const header = json<CustomTerrainHeader>("terrain_custom/terrain.json");
+  return {
+    header,
+    fine: parseLevel(header.fine, bin(`terrain_custom/${header.fine.bin_file}`), header.height_scale_m),
+    coarse: parseLevel(header.coarse, bin(`terrain_custom/${header.coarse.bin_file}`), header.height_scale_m),
+  };
+};
 
 describe("coordinates", () => {
   it("polar stereographic round trip; 85°S is 151.7 km from the pole", () => {
@@ -118,29 +126,50 @@ describe("window metrics with each site's own 40 m mask = the published windows"
   }
 });
 
-describe.runIf(HAS_GRID)("nearest 5 km grid point instead of the site's own mask", () => {
-  const grid = HAS_GRID ? parseGrid(json<GridHeader>("horizon_grid/grid.json"), bin("horizon_grid/masks.bin")) : null;
+describe.runIf(HAS_TERRAIN)("horizon traced from the exact coordinate over the reduced relief", () => {
+  const terrain = HAS_TERRAIN ? loadTerrain() : null;
+  const ref = json<Record<string, { z0_m: number; elev_deg: number[] }>>("../../tests/fixtures/custom_site_masks.json");
 
-  it("outside the grid (north of 85°S) there is no point", () => {
-    expect(nearestGridPoint(grid!, -84.5, 0)).toBeNull();
-    expect(nearestGridPoint(grid!, -89.9, 10)).not.toBeNull();
+  it("outside 85°S there is no horizon; inside there is", () => {
+    expect(horizonFrom(terrain!, -84.5, 0)).toBeNull();
+    expect(horizonFrom(terrain!, -89.9, 10)).not.toBeNull();
+    expect(horizonFrom(terrain!, -85.01, 123)).not.toBeNull();
   });
 
   for (const s of SITES) {
-    it(s.id, () => {
-      const p = nearestGridPoint(grid!, s.lat, s.lon)!;
-      expect(p.distanceM).toBeLessThanOrEqual(grid!.header.grid.spacing_m / Math.SQRT2 + 50);
+    it(`${s.id}: same mask as the Python reference; close to the official 40 m mask`, () => {
+      const p = horizonFrom(terrain!, s.lat, s.lon)!;
+      // 1. the browser traces the same rays as pipeline/custom_site.py hybrid_mask
+      expect(p.elevationM).toBeCloseTo(ref[s.id].z0_m, 2);
+      let refDiff = 0;
+      p.mask.forEach((v, a) => (refDiff = Math.max(refDiff, Math.abs(v - ref[s.id].elev_deg[a]))));
+      expect(refDiff).toBeLessThan(0.005);
+      // 2. against the official 40 m mask: the cost of the reduced relief, measured over the year and per stay
       const own = json<{ elev_deg: number[] }>(`horizon/${s.id}.json`).elev_deg;
-      let maskDiff = 0;
-      for (let a = 0; a < own.length; a++) maskDiff = Math.max(maskDiff, Math.abs(horizonAt(p.mask, a) - own[a]));
-      const res = analyseCustomSite(SKY, grid!, s.lat, s.lon, 7, N_ARRIVALS, P)!;
+      let maskMax = 0;
+      let maskMean = 0;
+      own.forEach((v, a) => {
+        maskMax = Math.max(maskMax, Math.abs(p.mask[a] - v));
+        maskMean += Math.abs(p.mask[a] - v) / own.length;
+      });
+      const res = analyseCustomSite(SKY, terrain!, s.lat, s.lon, 7, N_ARRIVALS, P)!;
+      const sky = skyFrom(SKY, s.lat, s.lon, s.elevation_m, manifest.params.h_obs_m);
+      const official = visibility(sky, own, { ...P, azStepDeg: 1 });
+      const year = 365 * 48;
+      const pct = (f: Uint8Array) => (100 * f.subarray(0, year).reduce((a, b) => a + b, 0)) / year;
+      const sunYear = pct(res.sun) - pct(official.sun);
+      const earthYear = pct(res.earth) - pct(official.earth);
       const pub = json<{ rows: WindowRow[] }>(`windows/${s.id}_7d.json`).rows;
       const meanAbs = (k: "sun_pct" | "longest_dark_h" | "earth_h_min") => res.rows.reduce((acc, r, i) => acc + Math.abs(r[k] - pub[i][k]), 0) / pub.length;
       console.log(
-        `grid ${s.id}: nearest point ${(p.distanceM / 1000).toFixed(2)} km away, ${p.elevationM.toFixed(0)} m vs ${s.elevation_m.toFixed(0)} m; ` +
-          `mask max |Δ| ${maskDiff.toFixed(2)}°; 7 d mean |Δ| sun ${meanAbs("sun_pct").toFixed(1)} pts, dark ${meanAbs("longest_dark_h").toFixed(1)} h, Earth min ${meanAbs("earth_h_min").toFixed(1)} h`,
+        `reduced ${s.id}: ground ${p.elevationM.toFixed(0)} m vs ${s.elevation_m.toFixed(0)} m; mask max |Δ| ${maskMax.toFixed(2)}°, mean ${maskMean.toFixed(2)}°; ` +
+          `year sun ${sunYear >= 0 ? "+" : ""}${sunYear.toFixed(1)} pts, Earth link ${earthYear >= 0 ? "+" : ""}${earthYear.toFixed(1)} pts; ` +
+          `7 d mean |Δ| sun ${meanAbs("sun_pct").toFixed(1)} pts, longest night ${meanAbs("longest_dark_h").toFixed(1)} h, Earth worst day ${meanAbs("earth_h_min").toFixed(1)} h`,
       );
-      expect(res.rows).toHaveLength(pub.length);
+      // bounds from the measurement (docs/DECISIONS.md A13): the panel states "within 5 percentage points" for the year's sunlight
+      expect(maskMean).toBeLessThan(0.35);
+      expect(Math.abs(sunYear)).toBeLessThan(4.5);
+      expect(Math.abs(earthYear)).toBeLessThan(3);
     });
   }
 });

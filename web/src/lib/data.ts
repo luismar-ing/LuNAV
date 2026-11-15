@@ -31,7 +31,7 @@ import {
   type Windows,
 } from "./contract";
 
-import { parseGrid, parseSky, type GridData, type GridHeader, type SkyData, type SkyHeader } from "./customSite";
+import { parseLevel, parseSky, type CustomTerrain, type CustomTerrainHeader, type SkyData, type SkyHeader, type TerrainLevelHeader } from "./customSite";
 
 export type DataErrorKind = "network" | "parse" | "validation" | "consistency";
 
@@ -235,16 +235,20 @@ export class DataStore {
     return p;
   }
 
-  /** B12: horizon masks on the 5 km polar grid (horizon_grid/grid.json + masks.bin). */
-  horizonGrid(): Promise<GridData> {
-    const key = "horizon_grid/grid.json";
+  /** B12: LOLA relief reduced to 160 m and 400 m around the pole (terrain_custom/), to trace any point's horizon. */
+  terrainCustom(): Promise<CustomTerrain> {
+    const key = "terrain_custom/terrain.json";
     const cached = this.cache.get(key);
-    if (cached) return cached as Promise<GridData>;
+    if (cached) return cached as Promise<CustomTerrain>;
     const p = (async () => {
-      const header = (await this.raw(key, "json")) as GridHeader & { bin_file: string; byte_length: number };
-      const buf = (await this.raw(`horizon_grid/${header.bin_file}`, "buffer")) as ArrayBuffer;
-      if (buf.byteLength !== header.byte_length) this.fail(`horizon_grid/${header.bin_file}`, `${buf.byteLength} bytes, header says ${header.byte_length}`);
-      return parseGrid(header, buf);
+      const header = (await this.raw(key, "json")) as CustomTerrainHeader;
+      const level = async (h: TerrainLevelHeader) => {
+        const buf = (await this.raw(`terrain_custom/${h.bin_file}`, "buffer")) as ArrayBuffer;
+        if (buf.byteLength !== h.byte_length) this.fail(`terrain_custom/${h.bin_file}`, `${buf.byteLength} bytes, header says ${h.byte_length}`);
+        return parseLevel(h, buf, header.height_scale_m);
+      };
+      const [fine, coarse] = await Promise.all([level(header.fine), level(header.coarse)]);
+      return { header, fine, coarse };
     })();
     p.catch(() => this.cache.delete(key));
     this.cache.set(key, p);

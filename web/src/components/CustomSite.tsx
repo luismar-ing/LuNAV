@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import type { Horizon, Plan, Site, WindowRow } from "../lib/contract";
-import { analyseCustomSite, latLonToPolar, parseCoordinates, type GridData, type SkyData } from "../lib/customSite";
+import { analyseCustomSite, latLonToPolar, parseCoordinates, type SkyData, type CustomTerrain } from "../lib/customSite";
 import { lookup } from "../lib/constraints";
 import { fmtDay, fmtUtc } from "../lib/format";
 import type { PlanData } from "../lib/planData";
@@ -64,8 +64,8 @@ function useLolaSunlight(lat: number | null, lon: number | null): number | null 
 
 /**
  * Custom coordinates (B12, decision A13): the challenge asks for "the ability to input custom lunar coordinates".
- * Any point from 85°S to the pole: the Sun and the Earth from SPICE vectors (lib/customSite), the horizon of the
- * nearest 5 km grid point (40 m LOLA), the spec 5.5 metrics for the chosen arrival and stay, the best arrival
+ * Any point from 85°S to the pole: the Sun and the Earth from SPICE vectors (lib/customSite), the horizon traced
+ * from the exact coordinate over the reduced LOLA relief, the spec 5.5 metrics for the chosen arrival and stay, the best arrival
  * days there, the five candidate sites side by side, and the site's 360° panorama. All 2D (SVG), no WebGL.
  */
 export function CustomSite() {
@@ -84,13 +84,13 @@ export function CustomSite() {
   const last = manifest?.date_range.arrival_end.slice(0, 10) ?? "2027-12-31";
   const [arrival, setArrival] = useState(plan?.arrival_utc.slice(0, 10) ?? first);
   const [offsetH, setOffsetH] = useState(0);
-  const [data, setData] = useState<{ sky: SkyData; grid: GridData } | null>(null);
+  const [data, setData] = useState<{ sky: SkyData; terrain: CustomTerrain } | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
 
   useEffect(() => {
     const store = appStore.getState().data;
-    Promise.all([store.sky(), store.horizonGrid()])
-      .then(([sky, grid]) => setData({ sky, grid }))
+    Promise.all([store.sky(), store.terrainCustom()])
+      .then(([sky, terrain]) => setData({ sky, terrain }))
       .catch((e: Error) => setLoadError(e.message));
   }, []);
   useEffect(() => {
@@ -101,7 +101,7 @@ export function CustomSite() {
   const params = manifest?.params;
   const result = useMemo(() => {
     if (!data || !coords || !params) return null;
-    return analyseCustomSite(data.sky, data.grid, coords.lat, coords.lon, stay, nArrivals, { sunRadiusDeg: params.sun_radius_deg, antennaMarginDeg: params.antenna_margin_deg });
+    return analyseCustomSite(data.sky, data.terrain, coords.lat, coords.lon, stay, nArrivals, { sunRadiusDeg: params.sun_radius_deg, antennaMarginDeg: params.antenna_margin_deg });
   }, [data, coords, stay, nArrivals, params]);
   const lola = useLolaSunlight(result ? coords!.lat : null, result ? coords!.lon : null);
 
@@ -120,7 +120,7 @@ export function CustomSite() {
     return {
       plan: { id: "custom", site_id: "custom", arrival_utc: `${arrival}T00:00:00Z`, window_days: stay } as unknown as Plan,
       site: { id: "custom", name, lat: result.lat, lon: result.lon, elevation_m: result.point.elevationM } as unknown as Site,
-      horizon: { site_id: "custom", az_step_deg: data!.grid.header.az_step_deg, h_obs_m: data!.grid.header.h_obs_m, r_max_km: data!.grid.header.r_max_km, elev_deg: Array.from(result.point.mask) } as Horizon,
+      horizon: { site_id: "custom", az_step_deg: data!.terrain.header.az_step_deg, h_obs_m: data!.terrain.header.h_obs_m, r_max_km: data!.terrain.header.r_max_km, elev_deg: Array.from(result.point.mask) } as Horizon,
       series: {
         startMs: Date.parse(`${arrival}T00:00:00Z`),
         stepMin: result.sky.stepMin,
@@ -167,7 +167,7 @@ export function CustomSite() {
           </button>
         </div>
         <p id="custom-error" className="nl-result" role="status" aria-live="polite">
-          {error ?? (outside && data ? C.outside(data.grid.header.grid.lat_limit_deg) : "")}
+          {error ?? (outside && data ? C.outside(data.terrain.header.lat_limit_deg) : "")}
         </p>
         <div className="custom-presets">
           {sites.map((s) => (
@@ -199,8 +199,8 @@ export function CustomSite() {
               {C.approx}
             </span>
           </div>
-          <p className="finder-method" data-testid="custom-grid-note">
-            {C.gridNote((result.point.distanceM / 1000).toFixed(2), coord(result.point.lat), coord(result.point.lon), result.point.elevationM.toFixed(0))}
+          <p className="finder-method" data-testid="custom-terrain-note">
+            {C.terrainNote(result.point.elevationM.toFixed(0))}
           </p>
 
           <div className="custom-controls">

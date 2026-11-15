@@ -10,7 +10,7 @@ import { appStore } from "../src/store/appStore";
 vi.mock("../src/scene3d/SceneHost", () => ({ SceneHost: () => <div data-testid="scene-host" /> }));
 
 const REAL = join(__dirname, "..", "public", "data");
-const HAS_GRID = existsSync(join(REAL, "horizon_grid", "grid.json"));
+const HAS_TERRAIN = existsSync(join(REAL, "terrain_custom", "terrain.json"));
 const fileFetch = (async (url: string) => {
   try {
     return new Response(readFileSync(join(REAL, url.replace(/^.*\/data\//, ""))), { status: 200 });
@@ -46,19 +46,20 @@ async function openPanel() {
   return { drawer, opener };
 }
 
-describe.runIf(HAS_GRID)("Custom coordinates (B12)", () => {
-  it("opens on the selected site's coordinates and gives the published numbers back with the site's horizon nearby", async () => {
+describe.runIf(HAS_TERRAIN)("Custom coordinates (B12)", () => {
+  it("opens on the selected site's coordinates with the stay's metrics, the five sites and the panorama", async () => {
     const { drawer } = await openPanel();
     const table = await drawer.findByTestId("custom-table", {}, { timeout: 5000 });
     // default plan: Connecting Ridge, Jan 1, 7 days
     const rows = within(table).getAllByRole("row");
     expect(rows[1].textContent).toContain("This point");
     expect(drawer.getByTestId("custom-approx").textContent).toBe("APPROXIMATE");
-    expect(drawer.getByTestId("custom-grid-note").textContent).toMatch(/nearest grid point, \d\.\d\d km away/);
+    expect(drawer.getByTestId("custom-terrain-note").textContent).toMatch(/^Ground at \d+ m\. Horizon traced from this point/);
     // the five candidate sites are listed for the same arrival and stay
     await waitFor(() => expect(within(table).getAllByRole("row")).toHaveLength(2 + appStore.getState().sites.length));
-    // the panorama of the stay is drawn
-    expect(drawer.getByRole("img", { name: /Custom site/ })).toBeTruthy();
+    // the panorama of the stay, with its clock
+    expect(drawer.getByRole("slider", { name: "Time in the stay" })).toBeTruthy();
+    expect(screen.getByTestId("custom-site").querySelector(".panorama, [class*='panorama']")).toBeTruthy();
   });
 
   it("analyses a typed coordinate, and says when it is outside the terrain grid", async () => {
@@ -70,7 +71,7 @@ describe.runIf(HAS_GRID)("Custom coordinates (B12)", () => {
 
     fireEvent.change(input, { target: { value: "-80, 0" } });
     fireEvent.click(drawer.getByRole("button", { name: "Analyse" }));
-    await waitFor(() => expect(drawer.getByText(/Outside the terrain grid/)).toBeTruthy());
+    await waitFor(() => expect(drawer.getByText(/Outside the terrain data/)).toBeTruthy());
 
     fireEvent.change(input, { target: { value: "not a place" } });
     fireEvent.click(drawer.getByRole("button", { name: "Analyse" }));

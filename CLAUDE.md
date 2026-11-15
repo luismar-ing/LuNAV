@@ -36,6 +36,7 @@ Principio: **2D para comparar, 3D para comprender.** Un solo contexto WebGL; los
 | Terreno en LOD | `.venv/Scripts/python -m pipeline.terrain_lod` (→ `pipeline/out/terrain/`) | disponible |
 | Datos SYNTHETIC | — | omitido (A4): el front end usa los datos reales |
 | Correr el pipeline | `.venv/Scripts/python -m pipeline.build_all` (`--assemble` solo reensambla) → `web/public/data/` | disponible |
+| Coordenadas personalizadas (B12) | `.venv/Scripts/python -m pipeline.custom_site` (`--sky`: vectores del Sol y la Tierra, necesita los kernels; `--terrain`: relieve reducido y `web/tests/fixtures/custom_site_masks.json`, necesita el DEM) → `web/public/data/sky/` y `terrain_custom/` | disponible |
 | Muestra de paridad Python ↔ TS | `.venv/Scripts/python -m pipeline.parity` (→ `web/tests/fixtures/parity_sample.json`; regenerar si cambian los datos) | disponible |
 | Tests pipeline | `.venv/Scripts/python -m pytest` (config en `pyproject.toml`) | disponible |
 | Instalar front end | `npm --prefix web ci` | disponible |
