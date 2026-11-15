@@ -3433,3 +3433,15 @@ Las trayectorias ILLUSTRATIVE, los datos SYNTHETIC y toda desviación de la spec
 - **Problemas abiertos:** T7.1.b (medir el rendimiento en la URL pública con `perf.mjs` y `fps.mjs`).
 - **Siguiente tarea:** C3 (reto del Educator, nivel 1). Nueva numeración de C: C3 reto, C4 niveles 2 y 3, C5 capturas, C6 guion y demo.
 
+## AJUSTE · C3: reto «Can your lander make it?» (nivel 1)
+
+- **Tarea:** C3 (propuesta del equipo: modo reto en el Educator). Rama `c3-challenge`.
+- **Qué se hizo:**
+  - `lib/challenge.ts`: reglas y resultado. La misión fija el mes (marzo de 2027) y la estancia (7 días); el jugador elige sitio y día de llegada. Reutiliza `stayBattery` y `nightInStay` de `lib/siteBrief.ts`, así que el reto y el planificador dan siempre el mismo veredicto.
+  - `views/Challenge.tsx` y `styles/challenge.css`: la pantalla del reto. Al lanzar dice si el lander mantuvo la energía y por qué (horas sin batería, la noche que lo causó, si se aterrizó ya de noche), con la cinta de tiempo de la estancia. Tras cada intento se revelan con ✓/✗ los días de marzo que funcionan en ese sitio. Con éxito, «Watch your landing» vuelve a la historia en el capítulo del aterrizaje con ese plan.
+  - `EducatorView.tsx`: botón «Take the challenge» en el capítulo 4. Esc cierra el reto sin salir de la historia.
+  - Textos en la sección `challenge` de `strings.ts`; estilos en archivo propio para no tocar `tokens.css`.
+- **Cómo se verificó:** `tests/challenge.test.ts` (reglas: días que funcionan en marzo por sitio 23/9/12/12/20 de 31; casos de Haworth 10 y 11 de enero y Nobile Rim 1 2 de marzo; paridad con `stayBattery` y con las ventanas precalculadas), `tests/challenge.view.test.tsx` (pantalla) y `tests/challenge.flow.test.tsx` (desde el Educator, Esc y «Watch your landing»).
+- **Desviaciones de la spec / cambios en la guía:** ninguna. El lander es el mismo ASSUMED de `lib/energy.ts` (5 kWh, 250 W, 750 W) y la pantalla lo marca como ASSUMED; la luz y las noches son las reales de cada sitio. Solo 2D, sin WebGL nuevo.
+- **Problemas abiertos:** ninguno.
+- **Siguiente tarea:** C4 (niveles 2 y 3: Tierra ≥ 8 h cada día; lanzamiento retrasado 2 días).

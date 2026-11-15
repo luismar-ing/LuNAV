@@ -212,6 +212,7 @@ export const STRINGS = {
   },
   challenge: {
     kicker: (level: number) => `Challenge · Level ${level}`,
+    open: "Take the challenge",
     title: "Can your lander make it?",
     back: "Back to the story",
     mission: (stayDays: number, month: string) =>
