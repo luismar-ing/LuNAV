@@ -1,16 +1,41 @@
-# PolePlanner
+# LuNAV · Lunar Landing Site Navigator
 
-**Compare in 2D, decide, then travel there in 3D.**
-PolePlanner is a mission-planning tool for landing sites at the lunar south pole (NASA Space Apps Challenge).
+**Where and when can a lander at the Moon's south pole keep its power on and talk to Earth?**
 
-- A **mission plan** is a landing site, an arrival date, a surface window (3, 7 or 14 days) and a trajectory.
-- **Search:** set power and communication constraints, and a heat-map calendar lights up the plans that meet them.
-- **Compare (2D):** 2 to 5 plans side by side, each with its horizon silhouette, the Sun and Earth, a timeline and metrics.
-- **Experience (3D):** the selected plan only: launch, transit, landing and a continuous zoom down to the site.
-- **Site:** a 360° horizon panorama and site characteristics. At the south pole the Sun barely grazes the horizon, so terrain decides whether there is light and a direct link to Earth.
+LuNAV is our project for the NASA Space Apps Challenge 2026, challenge *Lunar Landing Site Navigator*. It lets mission planners, educators and the public compare landing sites and dates at the lunar south pole, seeing where the Sun and the Earth sit against the real terrain horizon.
 
-> **Status:** in development. Science, data, the 2D comparison and the 3D journey are done (phases 0–4); integration and polish (phase 5) is in progress.
-> The full specification (in Spanish) is in [`docs/SPEC.md`](docs/SPEC.md).
+**Live app:** https://luismar-ing.github.io/LuNAV/ (a desktop browser with WebGL; see [Deployment](#deployment)).
+
+## Why it matters
+
+At the south pole the Sun never climbs more than a few degrees above the horizon, so the terrain decides whether there is sunlight for power and a direct line of sight to Earth for radio. Small changes matter: at Haworth, one of NASA's candidate regions, a 7-day stay that starts on 10 January 2027 gets 94.1% sunlight and its longest night lasts 10 h. Start one day later and it gets 79.8%: a 34 h night falls inside the stay, enough to leave an assumed lander battery empty for 14.5 h.
+
+## Try it
+
+1. Open the app and choose **Mission Planner**.
+2. Pick an arrival date, a stay (3, 7 or 14 days) and one of five landing sites on the Moon map. The site panel says in plain words how long the Sun and the Earth stay in view, the longest night, the Earth link on the worst day and how an assumed battery copes, and compares the days around it and the other sites on the same day.
+3. **Pin to compare** a few plans and open **Search and compare** to see them side by side.
+4. **Land at …** to stand on the site: the 3D sky with the Sun and the Earth over the real terrain, the 360° horizon panorama, the time left until sunset and Earthset, and what happens next. **Launch** plays the whole journey from Earth instead.
+5. Or choose **Educator** on the start page: the mission told in four short chapters.
+
+## What's inside
+
+- **5 landing sites**, one point in each of five USGS Artemis III candidate regions: Connecting Ridge, Haworth, Nobile Rim 1, Malapert Massif and de Gerlache Rim 2.
+- **5,475 mission plans**: every arrival day of 2027, with stays of 3, 7 and 14 days.
+- **Sun and Earth positions** from NASA/JPL SPICE (DE440), validated against JPL Horizons: the worst of 70 comparisons differs by 0.0016″ ([`docs/validation.md`](docs/validation.md)).
+- **Terrain horizon** from the LRO LOLA 40 m elevation model of the south pole.
+- **No server**: a reproducible Python pipeline precomputes everything, and the browser only filters and draws.
+
+## Quick start (front end only)
+
+The data are already in `web/public/data/`, so no Python is needed to run the app. With Node.js 24 (22.12 or newer):
+
+```
+npm --prefix web ci
+npm --prefix web run dev
+```
+
+Then open http://localhost:5173. To regenerate the data, see [Pipeline](#pipeline). Internal documentation (in Spanish): [`docs/SPEC.md`](docs/SPEC.md), [`docs/DEVELOPMENT_GUIDE.md`](docs/DEVELOPMENT_GUIDE.md) and [`PROGRESS.md`](PROGRESS.md).
 
 ## Repository layout
 
@@ -29,7 +54,7 @@ PolePlanner is a mission-planning tool for landing sites at the lunar south pole
 └─ docs/                     # SPEC, development guide, decisions, validation
 ```
 
-## Requirements
+## Requirements (full pipeline)
 
 - Python 3.11 or newer
 - Node.js (developed with Node 24) and npm
@@ -59,6 +84,15 @@ Everything is precomputed offline; the browser only filters and draws.
 | Tests | `npm --prefix web test` | available |
 | Type check | `npm --prefix web run typecheck` | available |
 | Production build | `npm --prefix web run build` | available |
+
+## Deployment
+
+Every merge to `main` runs [`.github/workflows/deploy.yml`](.github/workflows/deploy.yml): it installs the front end, type-checks and builds it for the `/LuNAV/` path, and publishes `web/dist` to the `deploy` branch. GitHub Pages serves that branch (**Settings → Pages → Deploy from a branch → `deploy`, `/ (root)`**). There is no server: the browser downloads the precomputed data.
+
+| Step | Command |
+|---|---|
+| Publish | automatic on every merge to `main`; by hand: **Actions → Build and publish site → Run workflow** |
+| Try the Pages build locally | `npm --prefix web run build -- --base=/LuNAV/`, then `npm --prefix web run preview -- --base=/LuNAV/` and open http://localhost:4173/LuNAV/ |
 
 ## What is real and what is not
 

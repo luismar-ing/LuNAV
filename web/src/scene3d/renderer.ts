@@ -575,6 +575,7 @@ export function mountScene(container: HTMLElement, opts: MountOptions): SceneCon
       terrain.update(Math.hypot(pose.position[0] - anchor[0], pose.position[1] - anchor[1], pose.position[2] - anchor[2]), lambda);
       handle.world.set(terrain.group, anchor);
       terrain.group.quaternion.copy(moonQ.set(...state.moonQuat)); // Moon-fixed geometry, relative to the site
+      terrain.showMarker(!surfaceOn); // C3c: the landing point, marked from above
     }
 
     // standing on the site, the observer is the lander: its ~100 m model would stand 3 m away and fill the view
