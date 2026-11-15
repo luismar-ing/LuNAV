@@ -1,3 +1,4 @@
+import { ApproxBadge } from "../components/ApproxBadge";
 import type { Timeseries } from "../lib/contract";
 import { fmtDuration, fmtUtc, type Change } from "../lib/moonMap";
 import type { PlanData } from "../lib/planData";
@@ -42,7 +43,10 @@ export function TimeLeft({ plan, ts, timeMs, limitH }: { plan: PlanData; ts: Tim
   return (
     <div className="time-left" data-testid="time-left">
       {/* B10: the day of the stay is the mission clock's (MissionControls), not repeated here */}
-      <p className="site-card-label">{STRINGS.siteLayout.timeLeft}</p>
+      <p className="site-card-label">
+        {STRINGS.siteLayout.timeLeft}
+        <ApproxBadge siteId={plan.site.id} testId="approx-time-left" />
+      </p>
       {r.sun && sun && (
         <Countdown
           body="sun"

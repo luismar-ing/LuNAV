@@ -31,6 +31,7 @@ import {
   type Windows,
 } from "./contract";
 
+import type { VirtualSiteProvider } from "./virtualSite";
 import { parseLevel, parseSky, type CustomTerrain, type CustomTerrainHeader, type SkyData, type SkyHeader, type TerrainLevelHeader } from "./customSite";
 
 export type DataErrorKind = "network" | "parse" | "validation" | "consistency";
@@ -77,6 +78,8 @@ export type IlluminationHeader = z.infer<typeof IlluminationHeaderSchema>;
 export class DataStore {
   private cache = new Map<string, Promise<unknown>>();
   private manifest?: Manifest;
+  /** B13: sites built in the browser (a custom coordinate), served like the files of the five candidate sites. */
+  private virtual = new Map<string, VirtualSiteProvider>();
 
   constructor(
     readonly baseUrl: string,
@@ -126,6 +129,48 @@ export class DataStore {
     throw new DataError("consistency", path, message);
   }
 
+  /** B13: serves a virtual site's files (lib/virtualSite) from `provider`, validated with the contract schemas. */
+  registerVirtualSite(provider: VirtualSiteProvider): void {
+    this.unregisterVirtualSite(provider.site.id);
+    this.virtual.set(provider.site.id, provider);
+  }
+
+  unregisterVirtualSite(siteId: string): void {
+    this.virtual.delete(siteId);
+    for (const key of [...this.cache.keys()]) if (key.startsWith("virtual:") && key.includes(siteId)) this.cache.delete(key);
+  }
+
+  /** The virtual site with this id, if one is registered. */
+  virtualSite(siteId: string): Site | undefined {
+    return this.virtual.get(siteId)?.site;
+  }
+
+  /** Virtual site that owns a trajectory id ("{site}_{YYYYMMDD}"), with the arrival instant. */
+  private virtualTrajectory(trajectoryId: string): { provider: VirtualSiteProvider; arrivalMs: number } | null {
+    const m = /^(.+)_(\d{4})(\d{2})(\d{2})$/.exec(trajectoryId);
+    const provider = m ? this.virtual.get(m[1]) : undefined;
+    return provider && m ? { provider, arrivalMs: Date.UTC(Number(m[2]), Number(m[3]) - 1, Number(m[4])) } : null;
+  }
+
+  /** Same cache and schema check as a file, for a value produced in the browser. */
+  private computed<S extends z.ZodType>(path: string, schema: S, make: () => Promise<unknown>, check?: (v: z.infer<S>) => void): Promise<z.infer<S>> {
+    const key = `virtual:${path}`;
+    const cached = this.cache.get(key);
+    if (cached) return cached as Promise<z.infer<S>>;
+    const p = make().then((v) => {
+      const r = schema.safeParse(v);
+      if (!r.success) {
+        const issues = r.error.issues.map((i) => `${i.path.join(".") || "(root)"}: ${i.message}`);
+        throw new DataError("validation", path, issues[0] ?? "invalid", issues);
+      }
+      check?.(r.data);
+      return r.data;
+    });
+    p.catch(() => this.cache.delete(key));
+    this.cache.set(key, p);
+    return p;
+  }
+
   async getManifest(): Promise<Manifest> {
     this.manifest = await this.load("manifest.json", ManifestSchema, (m) => {
       if (m.contract_version.split(".")[0] !== CONTRACT_VERSION.split(".")[0])
@@ -164,6 +209,8 @@ export class DataStore {
   }
 
   async horizon(siteId: string): Promise<Horizon> {
+    const v = this.virtual.get(siteId);
+    if (v) return this.computed(`horizon/${siteId}.json`, HorizonSchema, () => v.horizon());
     const m = await this.m();
     const path = `horizon/${siteId}.json`;
     return this.load(path, HorizonSchema, (h) => {
@@ -173,6 +220,8 @@ export class DataStore {
   }
 
   async timeseries(siteId: string): Promise<Timeseries> {
+    const v = this.virtual.get(siteId);
+    if (v) return this.computed(`timeseries/${siteId}.json`, TimeseriesSchema, () => v.timeseries());
     const m = await this.m();
     const path = `timeseries/${siteId}.json`;
     return this.load(path, TimeseriesSchema, (t) => {
@@ -184,11 +233,15 @@ export class DataStore {
   }
 
   daily(siteId: string): Promise<Daily> {
+    const v = this.virtual.get(siteId);
+    if (v) return this.computed(`daily/${siteId}.json`, DailySchema, () => v.daily());
     const path = `daily/${siteId}.json`;
     return this.load(path, DailySchema, this.siteCheck(path, siteId));
   }
 
   async windows(siteId: string, windowDays: number): Promise<Windows> {
+    const v = this.virtual.get(siteId);
+    if (v) return this.computed(`windows/${siteId}_${windowDays}d.json`, WindowsSchema, () => v.windows(windowDays));
     const m = await this.m();
     const path = `windows/${siteId}_${windowDays}d.json`;
     return this.load(path, WindowsSchema, (w) => {
@@ -200,6 +253,8 @@ export class DataStore {
   }
 
   siteFeatures(siteId: string): Promise<SiteFeatures> {
+    const v = this.virtual.get(siteId);
+    if (v) return this.computed(`site_features/${siteId}.json`, SiteFeaturesSchema, () => v.siteFeatures());
     const path = `site_features/${siteId}.json`;
     return this.load(path, SiteFeaturesSchema, this.siteCheck(path, siteId));
   }
@@ -207,6 +262,11 @@ export class DataStore {
   async trajectory(trajectoryId: string): Promise<Trajectory> {
     const m = await this.m();
     const path = `trajectory/${trajectoryId}.json`;
+    const v = this.virtualTrajectory(trajectoryId);
+    if (v)
+      return this.computed(path, TrajectorySchema, () => v.provider.trajectory(v.arrivalMs), (t) => {
+        if (t.mode !== m.params.trajectory_mode) this.fail(path, `mode ${t.mode} ≠ manifest ${m.params.trajectory_mode}`); // §14.9
+      });
     return this.load(path, TrajectorySchema, (t) => {
       if (t.mode !== m.params.trajectory_mode) this.fail(path, `mode ${t.mode} ≠ manifest ${m.params.trajectory_mode}`); // §14.9
     });
@@ -267,6 +327,21 @@ export class DataStore {
 
   /** Terrain level: header plus heights in metres (decoded int16, row-major from north to south). */
   async terrain(siteId: string, lod: number): Promise<{ header: TerrainHeader; heights: Float32Array }> {
+    const v = this.virtual.get(siteId);
+    if (v) {
+      const key = `virtual:terrain/${siteId}/lod${lod}`;
+      const cached = this.cache.get(key) as Promise<{ header: TerrainHeader; heights: Float32Array }> | undefined;
+      if (cached) return cached;
+      const p = v.terrain(lod).then((t) => {
+        const r = TerrainHeaderSchema.safeParse(t.header);
+        if (!r.success) throw new DataError("validation", key, r.error.issues[0]?.message ?? "invalid");
+        if (t.heights.length !== t.header.grid.nx * t.header.grid.ny) this.fail(key, "heights do not fill the grid");
+        return t;
+      });
+      p.catch(() => this.cache.delete(key));
+      this.cache.set(key, p);
+      return p;
+    }
     const folder = `terrain/${siteId}/`;
     const header = await this.load(`${folder}lod${lod}.json`, TerrainHeaderSchema, this.siteCheck(`${folder}lod${lod}.json`, siteId));
     const buf = (await this.raw(folder + header.bin_file, "buffer")) as ArrayBuffer;

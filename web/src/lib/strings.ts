@@ -410,6 +410,17 @@ export const STRINGS = {
     lola: (pct: string) => `NASA LOLA long-term average sunlight at this point: ${pct} % (Mazarico et al. 2011, about 18.6 years).`,
     method: "Same rules as the candidate sites (spec 5.3–5.5): Sun visible when its upper limb clears the terrain; Earth link when its centre is 0.5° above it. No score: the score compares the five candidate sites with each other.",
     time: "Time in the stay",
+    // B13 (decision A14): the journey to the custom point
+    launchHere: "Launch to this point",
+    launchHereTitle: "Fly the whole mission to this point: launch, transit, landing and the stay (ILLUSTRATIVE trajectory)",
+    landHere: "Land here",
+    landHereTitle: "Open the 3D site view at this point, at the arrival, without the journey",
+    preparing: "Preparing the journey to this point…",
+    journeyNote: "The trajectory is ILLUSTRATIVE, computed in your browser like the candidate sites'. The horizon and the 3D terrain come from the reduced relief (APPROXIMATE, no 40 m detail).",
+    pinTitle: "Pin this point's plan (arrival and stay above) to the comparison tray, beside the candidate sites and other points",
+    comparePinned: (n: number) => `Compare pinned (${n})`,
+    comparePinnedTitle: "Open the comparison tray with every pinned plan",
+    approxScene: "Horizon and terrain from the LOLA relief reduced to 160 m (APPROXIMATE); the candidate sites use 40 m.",
   },
   // B11 (decision A12): "Find the best plan", an exact search over every precomputed plan
   finder: {

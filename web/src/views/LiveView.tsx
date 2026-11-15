@@ -1,5 +1,5 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
-import { useApp } from "../store/appStore";
+import { siteOf, useApp } from "../store/appStore";
 import { STRINGS } from "../lib/strings";
 import { timelineOf, type MissionTimeline } from "../lib/mission";
 import { closeLive, playFrom, takeExpandOrigin } from "../lib/modeTransition";
@@ -24,7 +24,7 @@ import { useSiteData } from "./useSiteData";
 export function LiveView({ sceneOutside = false, autoPlay = false }: { sceneOutside?: boolean; autoPlay?: boolean } = {}) {
   const data = useApp((s) => s.data);
   const plan = useApp((s) => (s.selectedPlanId ? s.plansById.get(s.selectedPlanId) : undefined));
-  const site = useApp((s) => s.sites.find((x) => x.id === plan?.site_id));
+  const site = useApp((s) => siteOf(s, plan?.site_id));
   const missionPhase = useApp((s) => s.missionPhase);
   const sceneScale = useApp((s) => s.sceneScale);
   const trajectoryMode = useApp((s) => s.manifest?.params.trajectory_mode ?? "ILLUSTRATIVE");
