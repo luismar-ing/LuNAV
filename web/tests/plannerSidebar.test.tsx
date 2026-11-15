@@ -185,6 +185,21 @@ describe("Mission Planner sidebar (A2)", () => {
     expect([cell("Jan 1"), cell("Jan 9"), cell("Jan 11")].map((c) => `${c.dataset.sun}/${c.dataset.earth}`)).toEqual(["night/gaps", "lit/all", "night/all"]);
     expect(cell("Jan 11").getAttribute("aria-label")).toBe("Jan 11, 2027: 34 h night in stay · Earth all stay · score 0.86");
 
+    // B7 (H16): the ASSUMED battery in the brief, and the same site a day earlier or later in the same format
+    expect((await screen.findByTestId("brief-battery")).textContent).toBe("ASSUMED Battery runs empty for 14.5 h");
+    fireEvent.click(screen.getByRole("tab", { name: "Same site, ±1 day" }));
+    expect([...screen.getByTestId("brief-days").querySelectorAll("li")].map((li) => li.textContent)).toEqual([
+      "Jan 10 · day before≥ 50%+14.3 % sun",
+      "Jan 11empty 14.5 hthis plan",
+      "Jan 12 · day afterempty 17.0 h−1.5 % sun",
+    ]);
+    fireEvent.click(screen.getByRole("button", { name: /^Jan 10 · day before/ }));
+    expect(appStore.getState().selectedPlanId).toBe("haworth_20270110_7d");
+    await waitFor(() => expect(screen.getByTestId("brief-battery").textContent).toBe("ASSUMED Battery never below 50%"));
+    fireEvent.click(screen.getByRole("button", { name: /^Jan 11 · day after/ }));
+    expect(appStore.getState().selectedPlanId).toBe("haworth_20270111_7d");
+    fireEvent.click(screen.getByRole("tab", { name: "Same day, other sites" }));
+
     // B3: one night, one figure in context: 34 h of the 36.5 h night fall inside the 7-day stay
     await waitFor(() => expect(sidebar().getByRole("button", { name: /^Haworth/ }).textContent).toContain("34 h night in stay"));
     expect((await screen.findByTestId("brief-night-of")).textContent).toBe("of 36.5 h");

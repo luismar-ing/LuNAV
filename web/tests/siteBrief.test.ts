@@ -3,7 +3,9 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import type { Timeseries, WindowRow } from "../src/lib/contract";
-import { nightInStay, overlapH, planVerdict, readAt, stayChange } from "../src/lib/siteBrief";
+import { batteryRun } from "../src/lib/energy";
+import { sliceWindow } from "../src/lib/planData";
+import { nightInStay, overlapH, planVerdict, readAt, stayBattery, stayChange } from "../src/lib/siteBrief";
 import { STRINGS } from "../src/lib/strings";
 
 const REAL = join(__dirname, "..", "public", "data", "windows");
@@ -112,5 +114,29 @@ describe("countdowns kept inside the stay (B4)", () => {
   it("a change exactly at the end of the stay, or beyond the data, is not inside it", () => {
     expect(stayChange({ visible: true, hours: 24, lastsH: 1 }, 0, DAY).withinStay).toBe(false);
     expect(stayChange({ visible: true, hours: null, lastsH: null }, 0, DAY)).toEqual({ withinStay: false, hours: null, atMs: null });
+  });
+});
+
+describe("assumed battery in the site brief (B7)", () => {
+  it("Haworth: arriving Jan 10 the battery never drops below 50 %; arriving Jan 11 it runs empty for 14.5 h", () => {
+    const ts = series("haworth");
+    const b10 = stayBattery(ts, Date.parse("2027-01-10T00:00:00Z"), 7)!;
+    const b11 = stayBattery(ts, Date.parse("2027-01-11T00:00:00Z"), 7)!;
+    expect(b10.emptyH).toBe(0);
+    expect(Math.round(b10.minSoc * 100)).toBe(50);
+    expect(b11.emptyH).toBe(14.5);
+  });
+
+  it("parity with the tray: the same window slice and the same battery run, every site and arrival (7 d)", () => {
+    for (const site of SITES) {
+      const ts = series(site);
+      for (let d = 0; d < 365; d += 7) {
+        const arrival = new Date(Date.parse("2027-01-01T00:00:00Z") + d * 86_400_000).toISOString().replace(".000", "");
+        const tray = batteryRun(sliceWindow(ts, arrival, 7).sunVis, ts.step_min);
+        const brief = stayBattery(ts, Date.parse(arrival), 7)!;
+        expect(brief.minSoc, `${site} ${arrival}`).toBe(tray.minSoc);
+        expect(brief.emptyH).toBe((tray.emptySamples * ts.step_min) / 60);
+      }
+    }
   });
 });

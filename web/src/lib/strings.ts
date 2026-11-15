@@ -108,6 +108,16 @@ export const STRINGS = {
       `${hours(inH)} h of a ${known ? "" : "≥ "}${hours(fullH)} h night fall inside the stay; the rest is before or after it.`,
     earthWorst: "Earth, worst day",
     others: "Same day, other sites",
+    // B7 (H16): the ASSUMED battery for this stay, and the same site a day earlier or later
+    batteryLine: (min: number, emptyH: number) =>
+      emptyH > 0 ? `Battery runs empty for ${round(emptyH, 1)} h` : Math.round(min * 100) >= 100 ? "Battery stays full" : `Battery never below ${Math.round(min * 100)}%`,
+    batteryShort: (min: number, emptyH: number) =>
+      emptyH > 0 ? `empty ${round(emptyH, 1)} h` : Math.round(min * 100) >= 100 ? "stays full" : `≥ ${Math.round(min * 100)}%`,
+    compareWith: "Compare this plan with",
+    otherDays: "Same site, ±1 day",
+    neighbourDay: (day: string, dd: number) => (dd < 0 ? `${day} · day before` : dd > 0 ? `${day} · day after` : day),
+    thisPlan: "this plan",
+    outsideData: "outside the data",
     sameLight: "same light",
     deltaSun: (d: string) => `${d} % sun`,
     land: (site: string) => `Land at ${site}`,

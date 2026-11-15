@@ -3287,3 +3287,31 @@ Las trayectorias ILLUSTRATIVE, los datos SYNTHETIC y toda desviación de la spec
   - A 1366×650 el sidebar desborda 26 px (antes 11) porque la leyenda ocupa dos líneas; está fuera de las resoluciones objetivo.
   - La intermitente de `integration.test.tsx` falla cada vez más seguido con la suite completa (la misma búsqueda de «Longest dark» que en main). Conviene que alguien la revise (probable condición de carrera en jsdom).
 - **Siguiente tarea:** B7 (línea de batería en el panel y «±1 day»).
+
+## AJUSTE · B7: batería supuesta y «±1 day» en el panel del sitio
+
+- **Tarea:** B7 del plan de mejoras del 14-nov-2026 (persona B, hallazgo H16). El mejor argumento de la demo (Haworth: llegada 10-ene, la batería nunca baja del 50 %; llegada 11-ene, se queda vacía 14,5 h) solo se veía en la bandeja. Rama hecha sobre B6 (`b6-day-strip-marks`).
+- **Qué se hizo:**
+  - `lib/siteBrief.ts`: `stayBattery(ts, llegada, días)` aplica `batteryRun` (`lib/energy.ts`, parámetros ASSUMED) a la misma porción de `sun_vis` que corta la bandeja (`planData.sliceWindow`).
+  - Panel del sitio (`SiteBrief.tsx`):
+    - Bajo las métricas, una línea con la insignia ASSUMED: «Battery never below 50%», «Battery runs empty for 14.5 h» o «Battery stays full». El `title` explica el supuesto (5000 Wh, 250 W, 750 W).
+    - La lista «Same day, other sites» pasa a tener dos pestañas: la de siempre y «Same site, ±1 day», con el día anterior, el elegido y el siguiente en el mismo formato (fecha, batería, diferencia de Sol).
+    - Un clic en el día anterior o siguiente elige ese plan; fuera del rango de datos la fila dice «outside the data».
+    - Las pestañas mantienen el alto del panel.
+  - `tokens.css`: insignia `badge assumed` (mismo estilo que ILLUSTRATIVE), pestañas y filas.
+- **Cómo se verificó:**
+  ```
+  $ npm --prefix web run typecheck → sin errores
+  $ npm --prefix web test → 291 passed (48 archivos); en una corrida falló la intermitente de integration.test.tsx (T5.1.b). Su arreglo está en la rama fix-integration-ribbon-flake, sin merge todavía.
+  ```
+  - `tests/siteBrief.test.ts`:
+    - Haworth 10-ene: mínimo 50 %, nunca vacía; 11-ene: vacía 14,5 h.
+    - Paridad con la bandeja (misma porción y mismo `batteryRun`) en los 5 sitios, cada 7 días del año.
+  - `tests/plannerSidebar.test.tsx`, Haworth 11-ene:
+    - Línea «ASSUMED Battery runs empty for 14.5 h».
+    - Pestaña ±1 day: «Jan 10 · day before ≥ 50% +14.3 % sun», «Jan 11 empty 14.5 h this plan», «Jan 12 · day after empty 17.0 h −1.5 % sun».
+    - Clic en el 10-ene: elige `haworth_20270110_7d` y la línea cambia a «never below 50%».
+  - Navegador (servidor de desarrollo): lo mismo a mano. Sin scroll a 1280×720, 1366×768, 1536×700 y 1920×1080; sin errores en consola.
+- **Desviaciones de la spec / cambios en la guía:** ninguna. La batería sigue marcada ASSUMED (T6.4.a).
+- **Problemas abiertos:** el día anterior al 1-ene y el posterior al último día de llegada no tienen datos (fila «outside the data»).
+- **Siguiente tarea:** B8 (frase del horizonte; necesita el visto bueno para tocar `views/Panorama.tsx`).
