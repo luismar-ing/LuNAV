@@ -8,7 +8,7 @@ Este documento empieza en T1.1.a (método y referencias) y se completa en T1.1.d
 <!-- validation_summary:start (generado por pipeline/tests/test_vs_horizons.py; no editar a mano) -->
 Generado el 2026-11-14 con `python -m pytest pipeline/tests/test_vs_horizons.py -v` (la fase lunar, con `pipeline/tests/test_scene.py`).
 
-**Referencia:** JPL Horizons (API `https://ssd.jpl.nasa.gov/api/horizons.api`), efemérides DE441. Consultas hechas el 2026-11-14; respuestas crudas en `pipeline/tests/reference/` (`python -m pipeline.horizons_fetch --check` las relee sin red).
+**Referencia:** JPL Horizons (API `https://ssd.jpl.nasa.gov/api/horizons.api`), efemérides DE441. Consultas hechas el 2026-10-21 (2026-10-21T17:20:56Z a 2026-10-21T17:21:00Z); respuestas crudas en `pipeline/tests/reference/` (`python -m pipeline.horizons_fetch --check` las relee sin red).
 
 **PolePlanner:** SPICE (spiceypy), marco lunar MOON_ME, corrección LT+S, h_obs = 3 m (D12), altura de los sitios sobre la esfera de 1737,4 km.
 

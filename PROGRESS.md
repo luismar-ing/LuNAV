@@ -3315,3 +3315,43 @@ Las trayectorias ILLUSTRATIVE, los datos SYNTHETIC y toda desviación de la spec
 - **Desviaciones de la spec / cambios en la guía:** ninguna. La batería sigue marcada ASSUMED (T6.4.a).
 - **Problemas abiertos:** el día anterior al 1-ene y el posterior al último día de llegada no tienen datos (fila «outside the data»).
 - **Siguiente tarea:** B8 (frase del horizonte; necesita el visto bueno para tocar `views/Panorama.tsx`).
+
+## AJUSTE · A5 · Llegada con captura, órbita baja y descenso propulsado
+
+- **Tarea:** A5 del plan de mejoras del 14-nov-2026 (hallazgo H5). Sigue siendo **ILLUSTRATIVE**.
+- **Causa:** la transferencia acababa en un punto fijo a 8 000 km de la Luna con una tangente de `0.6·chord` que la frenaba. Después, la fase 4 bajaba el radio con `1−(1−s)^3`, así que en las últimas horas la nave parecía detenida, «esperando» a la Luna.
+- **Qué se hizo** (`pipeline/trajectory.py`, clase `Arrival`): la fase 4 se calcula en el marco fijo de la Luna (MOON_ME), en un plano polar que pasa por el sitio. El aterrizaje queda en θ = 0, y el plano se orienta para que la llegada empiece del lado de la Tierra.
+  1. **Hipérbola de aproximación** (Kepler con el GM lunar de DE440, exceso de 0.8 km/s), desde unos 29 000 km hasta 100 km de altura. Esa distancia sale de que la llegada quepa en las 12 h de siempre.
+  2. **Frenado de captura** en el perilunio: de 2.45 a 1.63 km/s.
+  3. **Dos vueltas** en órbita circular a 100 km (3.9 h).
+  4. **Órbita de descenso:** media elipse de 100 × 15 km (0.95 h).
+  5. **Descenso propulsado de 12 min y 480 km.** La velocidad horizontal empieza en la del periselenio y acaba en 0; la altura baja con un perfil suave. Termina exactamente en `arrival_utc`.
+  - La transferencia termina con la velocidad del inicio de la hipérbola, así que no hay parada aparente.
+  - Referencia cualitativa en el código: Apolo 11 (~1 día en órbita, descenso de ~12 min). Los parámetros son de diseño, no datos de una misión.
+  - Las fases del contrato (`lunar_arrival_utc` = llegada − 12 h, `landing_utc`) no cambian.
+  - Muestras por trayectoria: 123 → 189 (7.3 kB cada una, 13.3 MB en total, antes 8.8 MB).
+  - Se regeneraron con `python -m pipeline.trajectory --plot` y `python -m pipeline.build_all --assemble`. Solo cambiaron `trajectory/*`, `manifest.json` (versión, fecha y huellas de esos archivos) y `docs/figures/trajectory_examples.png`.
+- **Cómo se verificó:**
+  ```
+  $ .venv/Scripts/python -m pytest → 279 passed (incluye T2.2.b: continua, < 12 km/s, nunca dentro de la Tierra ni de la Luna, aterrizaje < 1 km)
+  $ .venv/Scripts/python -m pipeline.validate web/public/data → OK: cumple el contrato 1.0.0
+  $ npm --prefix web test → 269 passed (45 archivos)
+  ```
+  - Los 5 sitios con llegada el 11 ene 2027 (script temporal fuera del repo), velocidades respecto a la Luna:
+
+    | Tramo | Velocidad |
+    |---|---|
+    | Fin de la transferencia → inicio de la llegada (J2000) | 1.37 → 1.43 km/s |
+    | Hipérbola | 0.99–2.45 km/s |
+    | Órbita baja | 1.63 km/s |
+    | Órbita de descenso | 1.61–1.69 km/s |
+    | Descenso propulsado | 1.61 → 0.01 km/s |
+
+    - Altura mínima antes de tocar suelo: 1.7–6.8 km sobre la esfera.
+    - Error de aterrizaje: ≤ 0.05 km (redondeo a 0.1 km).
+  - Escena real (Chrome sin cabeza, servidor de desarrollo, capturas a 10 h, 4 h, 40 min, 6 min y 30 s del aterrizaje): la estela entra por la hipérbola y rodea la Luna dibujada (×6) por fuera de su superficie. A escala real se ve la traza del descenso sobre el terreno. Escala «Not to scale» → «Real scale» como antes.
+  - `integration.test.tsx` T5.1.b: el mismo arreglo de la intermitencia que en las ramas de A1 y A4 (cambio idéntico).
+- **No se hizo (del texto de A5):** la cámara que sigue al módulo en el descenso y el polvo al tocar suelo. La cámara guiada termina igual que antes, a 5 km del sitio mirando hacia él. Cambiarla exige rehacer el tramo final del director y sus pruebas de «sin saltos», con más riesgo del que conviene antes de la entrega. Quedan como mejora.
+- **Desviaciones de la spec / cambios en la guía:** ninguna; la trayectoria sigue marcada ILLUSTRATIVE en la interfaz.
+- **Problemas abiertos:** la estela de 800 puntos uniformes en el tiempo dibuja cada vuelta baja con unos 22 segmentos; se ve poligonal de cerca.
+- **Siguiente tarea:** A6.

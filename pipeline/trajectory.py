@@ -6,10 +6,15 @@ orientación de la Luna reales (SPICE) para que el cohete llegue al sitio a la h
   1. Despegue (0 → ASCENT_MIN): ascenso radial desde una plataforma genérica que gira con la Tierra
      (IAU_EARTH) hasta PARKING_ALT_KM.
   2. Órbita de espera circular hasta la inyección translunar (t = INJECTION_H).
-  3. Transferencia: curva de Hermite tangente a la órbita de espera, hasta un punto a APPROACH_START_KM
-     del centro de la Luna (del lado de la Tierra) en lunar_arrival_utc = llegada − APPROACH_H.
-  4. Aproximación y descenso en el marco de la Luna: el radio baja y la dirección gira hasta el sitio,
-     que se alcanza exactamente en arrival_utc (= landing_utc).
+  3. Transferencia: curva de Hermite tangente a la órbita de espera, hasta el inicio de la llegada en
+     lunar_arrival_utc = llegada − APPROACH_H, con la velocidad de ese instante (la nave no «espera» a la Luna).
+  4. Llegada (A5), en el marco fijo de la Luna (MOON_ME), en un plano polar que pasa por el sitio:
+     a. hipérbola de aproximación (Kepler, GM lunar) desde el lado de la Tierra hasta 100 km de altura;
+     b. frenado de captura en el perilunio y LLO_REVS vueltas en órbita circular baja;
+     c. órbita de descenso (media elipse de 100 × 15 km);
+     d. descenso propulsado de PD_MIN minutos hasta el sitio, que se alcanza exactamente en arrival_utc.
+     Referencia cualitativa: el Apolo 11 pasó ~1 día en órbita lunar y su descenso propulsado duró ~12 min.
+     No son datos de ninguna misión.
 
 Marco: J2000 con centro en la Tierra (el de la escena). Todos los parámetros son de diseño, no datos.
 """
@@ -31,7 +36,56 @@ ASCENT_MIN = 10.0
 PARKING_ALT_KM = 200.0
 INJECTION_H = 2.0
 APPROACH_H = 12.0
-APPROACH_START_KM = 8000.0
+# Llegada (A5). Parámetros de diseño; el GM lunar es el de DE440 (Park et al. 2021), solo para dar forma a la curva.
+MU_MOON = 4902.800066  # km³/s²
+R_MOON_KM = 1737.4  # la esfera del DEM LOLA
+LLO_ALT_KM = 100.0  # órbita baja de espera
+PDI_ALT_KM = 15.0  # inicio del descenso propulsado
+PD_MIN = 12.0  # duración del descenso propulsado
+PD_RANGE_KM = 480.0  # recorrido sobre el suelo durante el descenso
+LLO_REVS = 2  # vueltas en órbita baja
+V_INF_KM_S = 0.8  # exceso hiperbólico de llegada respecto a la Luna
+
+
+def _solve_hyperbolic(m: float, e: float) -> float:
+    """F con e·sinh F − F = M (Newton)."""
+    f = float(np.arcsinh(m / e))
+    for _ in range(60):
+        f -= (e * np.sinh(f) - f - m) / (e * np.cosh(f) - 1)
+    return float(f)
+
+
+def _solve_elliptic(m: float, e: float) -> float:
+    """E con E − e·sin E = M (Newton)."""
+    big_e = m
+    for _ in range(60):
+        big_e -= (big_e - e * np.sin(big_e) - m) / (1 - e * np.cos(big_e))
+    return float(big_e)
+
+
+def _arrival_design() -> dict:
+    """Tiempos y órbitas de la llegada; la distancia inicial sale de que todo quepa en APPROACH_H."""
+    r_llo = R_MOON_KM + LLO_ALT_KM
+    r_pdi = R_MOON_KM + PDI_ALT_KM
+    t_llo = LLO_REVS * 2 * np.pi * np.sqrt(r_llo**3 / MU_MOON)
+    a_doi = (r_llo + r_pdi) / 2
+    t_doi = np.pi * np.sqrt(a_doi**3 / MU_MOON)  # media elipse: de aposelenio a periselenio
+    t_pd = PD_MIN * 60.0
+    t_app = APPROACH_H * 3600.0 - t_llo - t_doi - t_pd
+    a_h = MU_MOON / V_INF_KM_S**2  # semieje (valor absoluto) de la hipérbola
+    e_h = 1 + r_llo / a_h
+    n_h = np.sqrt(MU_MOON / a_h**3)
+    big_f = _solve_hyperbolic(n_h * t_app, e_h)  # anomalía hiperbólica al empezar la llegada
+    return {
+        "r_llo": r_llo, "r_pdi": r_pdi, "t_app": t_app, "t_llo": t_llo, "t_doi": t_doi, "t_pd": t_pd,
+        "a_h": a_h, "e_h": e_h, "n_h": n_h, "r0": a_h * (e_h * np.cosh(big_f) - 1),
+        "a_doi": a_doi, "e_doi": (r_llo - r_pdi) / (r_llo + r_pdi), "n_doi": np.sqrt(MU_MOON / a_doi**3),
+        "dth_pd": PD_RANGE_KM / R_MOON_KM,
+    }
+
+
+ARRIVAL = _arrival_design()
+APPROACH_START_KM = float(ARRIVAL["r0"])  # distancia al centro de la Luna en lunar_arrival_utc
 
 
 @dataclass(frozen=True)
@@ -52,12 +106,18 @@ def sample_times_s(ph: Phases) -> np.ndarray:
     total = (ph.landing - ph.launch).total_seconds()
     t_inj = (ph.injection - ph.launch).total_seconds()
     t_la = (ph.lunar_arrival - ph.launch).total_seconds()
+    d = ARRIVAL
+    t_loi = t_la + d["t_app"]
+    t_doi = t_loi + d["t_llo"]
+    t_pdi = t_doi + d["t_doi"]
     parts = [
         np.linspace(0, ASCENT_MIN * 60, 6, endpoint=False),
         np.linspace(ASCENT_MIN * 60, t_inj, 16, endpoint=False),
         t_inj + (t_la - t_inj) * (1 - np.cos(np.linspace(0, np.pi / 2, 50, endpoint=False))),  # denso al salir
-        np.linspace(t_la, total - 3600, 30, endpoint=False),
-        np.linspace(total - 3600, total, 21),  # última hora: descenso
+        t_la + d["t_app"] * np.sin(np.linspace(0, np.pi / 2, 28, endpoint=False)),  # denso cerca del perilunio
+        np.linspace(t_loi, t_doi, 24 * LLO_REVS, endpoint=False),  # 24 muestras por vuelta
+        np.linspace(t_doi, t_pdi, 16, endpoint=False),
+        t_pdi + (total - t_pdi) * np.sin(np.linspace(0, np.pi / 2, 25)),  # denso al tocar suelo; acaba en `total`
     ]
     return np.concatenate(parts)
 
@@ -119,6 +179,59 @@ def _smoothstep(s):
     return s * s * (3 - 2 * s)
 
 
+class Arrival:
+    """Fase 4 (A5): posición respecto a la Luna en su marco fijo (MOON_ME), a `dt` segundos del aterrizaje (≤ 0).
+
+    Plano polar que contiene el sitio; ángulo θ medido desde el sitio en el sentido del movimiento, con el
+    aterrizaje en θ = 0. El plano se orienta para que la hipérbola empiece del lado de la Tierra.
+    """
+
+    def __init__(self, site_body: np.ndarray, earth_dir_body: np.ndarray):
+        d = ARRIVAL
+        self.d = d
+        self.r_site = float(np.linalg.norm(site_body))
+        s_hat = _unit(site_body)
+        e_perp = earth_dir_body - np.dot(earth_dir_body, s_hat) * s_hat
+        a_hat = _unit(e_perp if np.linalg.norm(e_perp) > 1e-9 else np.cross(s_hat, [1.0, 0.0, 0.0]))
+        # ángulos clave (θ = 0 en el sitio)
+        self.th_pdi = -d["dth_pd"]
+        self.th_doi = self.th_pdi - np.pi
+        self.th_loi = self.th_doi - 2 * np.pi * LLO_REVS
+        p_h = d["a_h"] * (d["e_h"] ** 2 - 1)
+        nu0 = -np.arccos((p_h / d["r0"] - 1) / d["e_h"])  # anomalía verdadera al empezar (antes del perilunio)
+        sign = 1.0 if np.sin(self.th_loi + nu0) >= 0 else -1.0
+        self.s_hat, self.b_hat = s_hat, sign * a_hat
+        v_pdi = np.sqrt(MU_MOON * (2 / d["r_pdi"] - 1 / d["a_doi"]))
+        # exponente del frenado horizontal: empieza con la velocidad del periselenio y acaba en 0
+        self.k_pd = (v_pdi / d["r_pdi"]) * d["t_pd"] / d["dth_pd"]
+
+    def _at(self, theta: float, r: float) -> np.ndarray:
+        return r * (np.cos(theta) * self.s_hat + np.sin(theta) * self.b_hat)
+
+    def rel_body(self, dt: float) -> np.ndarray:
+        d = self.d
+        t_pdi = -d["t_pd"]
+        t_doi = t_pdi - d["t_doi"]
+        t_loi = t_doi - d["t_llo"]
+        if dt >= t_pdi:  # d. descenso propulsado
+            tau = min(1.0, (dt - t_pdi) / d["t_pd"])
+            theta = self.th_pdi * (1 - tau) ** self.k_pd
+            r = self.r_site + (d["r_pdi"] - self.r_site) * (1 - _smoothstep(tau))
+            return self._at(theta, r)
+        if dt >= t_doi:  # c. órbita de descenso, de aposelenio (M = π) a periselenio (M = 2π)
+            e = d["e_doi"]
+            big_e = _solve_elliptic(np.pi + d["n_doi"] * (dt - t_doi), e)
+            nu = 2 * np.arctan2(np.sqrt(1 + e) * np.sin(big_e / 2), np.sqrt(1 - e) * np.cos(big_e / 2))
+            nu = nu % (2 * np.pi)
+            return self._at(self.th_doi + (nu - np.pi), d["a_doi"] * (1 - e * np.cos(big_e)))
+        if dt >= t_loi:  # b. órbita circular baja tras el frenado de captura
+            return self._at(self.th_loi + np.sqrt(MU_MOON / d["r_llo"] ** 3) * (dt - t_loi), d["r_llo"])
+        # a. hipérbola de aproximación, perilunio en t_loi
+        big_f = _solve_hyperbolic(d["n_h"] * (dt - t_loi), d["e_h"])
+        nu = 2 * np.arctan(np.sqrt((d["e_h"] + 1) / (d["e_h"] - 1)) * np.tanh(big_f / 2))
+        return self._at(self.th_loi + nu, d["a_h"] * (d["e_h"] * np.cosh(big_f) - 1))
+
+
 def build(site: dict, arrival: datetime, geo: Geometry | None = None) -> dict:
     """trajectory/{id}.json (contrato §11) para un sitio y un día de llegada."""
     geo = geo or Geometry()
@@ -148,13 +261,20 @@ def build(site: dict, arrival: datetime, geo: Geometry | None = None) -> dict:
         ang = omega * (t - t_asc)
         return _unit(-np.sin(ang) * up_launch + np.cos(ang) * np.cross(normal, up_launch))
 
+    # 4. llegada en el marco fijo de la Luna (A5); desde la Luna, la Tierra está en −moon_la
+    arrival_body = Arrival(observer_position_km(site["lat"], site["lon"], site["elevation_m"], 0.0),
+                           _unit(geo.moon_rot(et_la).T @ -moon_la))
+
+    def arrival_j2000(t):
+        et = geo.et(ph.launch + timedelta(seconds=float(t)))
+        return geo.moon_pos(et) + geo.moon_rot(et) @ arrival_body.rel_body(t - total)
+
     p_inj = parking(t_inj)
-    p_la = moon_la - _unit(moon_la) * APPROACH_START_KM  # del lado de la Tierra, a 8 000 km del centro lunar
+    p_la = arrival_j2000(t_la)
     chord = np.linalg.norm(p_la - p_inj)
     tan0 = parking_vel_dir(t_inj) * chord * 1.0
-    tan1 = _unit(p_la - p_inj) * chord * 0.6
-    rel_la = p_la - moon_la
-    site_rel_land = geo.site_pos(site, geo.et(ph.landing)) - geo.moon_pos(geo.et(ph.landing))
+    # la transferencia acaba con la velocidad del inicio de la llegada (Luna + hipérbola): sin parada aparente
+    tan1 = (arrival_j2000(t_la + 1.0) - p_la) * (t_la - t_inj)
 
     pos = []
     for t in t_s:
@@ -169,14 +289,10 @@ def build(site: dict, arrival: datetime, geo: Geometry | None = None) -> dict:
             p = parking(t)
         elif t <= t_la:  # 3. transferencia
             p = _hermite(p_inj, tan0, p_la, tan1, (t - t_inj) / (t_la - t_inj))
-        else:  # 4. aproximación y descenso en el marco de la Luna
-            et = geo.et(dt)
-            s = (t - t_la) / (total - t_la)
-            direction = _slerp_dir(rel_la, site_rel_land, _smoothstep(s))
-            r = np.linalg.norm(rel_la) + (np.linalg.norm(site_rel_land) - np.linalg.norm(rel_la)) * (1 - (1 - s) ** 3)
-            p = geo.moon_pos(et) + r * direction
+        else:  # 4. llegada: aproximación, captura, órbita baja, descenso (A5)
+            p = arrival_j2000(t)
             if t == total:
-                p = geo.site_pos(site, et)  # aterrizaje exacto en el sitio
+                p = geo.site_pos(site, geo.et(dt))  # aterrizaje exacto en el sitio
         pos.append(p)
 
     stamp = arrival.strftime("%Y%m%d")
