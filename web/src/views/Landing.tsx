@@ -31,7 +31,11 @@ export function Landing({ tools, onCredits }: { tools?: ReactNode; onCredits(): 
         <div className="landing-shade" />
       </div>
       <header className="landing-bar">
-        <span className="landing-wordmark">{STRINGS.appTitle}</span>
+        <span className="landing-wordmark">
+          {/* the team's logo (public/logo.svg); decorative, the name beside it says what it is */}
+          <img className="landing-logo" src={`${import.meta.env.BASE_URL}logo.svg`} alt="" />
+          {STRINGS.appTitle}
+        </span>
         <div className="landing-tools">{tools}</div>
       </header>
       <div className="landing-copy">

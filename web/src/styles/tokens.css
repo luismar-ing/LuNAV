@@ -1647,10 +1647,18 @@ input[type="range"] {
 }
 
 .landing-wordmark {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
   font-family: var(--font-display);
   font-weight: 500;
   font-size: var(--font-lg);
   letter-spacing: 0.02em;
+}
+
+.landing-logo {
+  height: 1.7em;
+  width: auto;
 }
 
 .landing-tools {
