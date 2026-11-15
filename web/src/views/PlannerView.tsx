@@ -4,6 +4,7 @@ import { MissionSidebar } from "../components/MissionSidebar";
 import { MoonMap, type SiteTone } from "../components/MoonMap";
 import { lookup } from "../lib/constraints";
 import { timelineOf, PLAY_PHASES } from "../lib/mission";
+import { planVerdict } from "../lib/siteBrief";
 import { STRINGS } from "../lib/strings";
 import { sceneBridge } from "../scene3d/bridge";
 import { SceneHost } from "../scene3d/SceneHost";
@@ -79,7 +80,7 @@ export function PlannerView({ tools }: { tools: ReactNode }) {
 
   const tone = (siteId: string): SiteTone => {
     const m = index && plan ? lookup(index, siteId, plan.arrival_utc.slice(0, 10)) : null;
-    return m ? (m.longest_dark_h === 0 ? "lit" : "night") : undefined;
+    return m ? planVerdict(m) : undefined; // B2: the same verdict as the sidebar list
   };
 
   const current = mission ? (missionPhase === "overview" ? "launch" : missionPhase) : "plan";

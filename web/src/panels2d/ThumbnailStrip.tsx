@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { fmtDay } from "../lib/format";
 import { loadPlanData, type PlanData } from "../lib/planData";
 import { relativeLabel } from "../lib/ribbon";
 import { sharedElevationScale } from "../lib/scale";
@@ -72,13 +73,13 @@ export function ThumbnailStrip() {
               className="thumb"
               data-testid="thumb"
               data-plan-id={p.plan.id}
-              aria-label={STRINGS.thumbs.switch(p.site.name, p.plan.arrival_utc.slice(0, 10), p.plan.window_days)}
+              aria-label={STRINGS.thumbs.switch(p.site.name, fmtDay(p.plan.arrival_utc), p.plan.window_days)}
               onClick={() => void switchLivePlan(p.plan.id)}
             >
               <span className="thumb-head">
                 <span className="plan-site">{p.site.name}</span>
                 <span className="plan-meta">
-                  {p.plan.arrival_utc.slice(0, 10)} · {STRINGS.windowDays(p.plan.window_days)}
+                  {fmtDay(p.plan.arrival_utc)} · {STRINGS.windowDays(p.plan.window_days)}
                 </span>
               </span>
               <span className="thumb-silhouette">

@@ -1,7 +1,7 @@
 import type { Timeseries } from "../lib/contract";
 import { fmtDuration, fmtUtc, type Change } from "../lib/moonMap";
 import type { PlanData } from "../lib/planData";
-import { readAt, upcoming, visibleSpans, type Span } from "../lib/siteBrief";
+import { overlapH, readAt, stayChange, upcoming, visibleSpans, type Span, type StayChange } from "../lib/siteBrief";
 import { STRINGS } from "../lib/strings";
 import { num } from "../lib/why";
 
@@ -21,49 +21,50 @@ export function TimeLeft({ plan, ts, timeMs, limitH }: { plan: PlanData; ts: Tim
   const now = Math.min(1, Math.max(0, (timeMs - startMs) / stayMs));
   const sunSpans = visibleSpans(plan.series.sunVis, 0, plan.series.n);
   const earthSpans = visibleSpans(plan.series.earthVis, 0, plan.series.n);
-  const at = (c: Change) => (c.hours === null ? null : timeMs + c.hours * 3_600_000);
+  // B4: a change after the end of the stay is not counted down ("All stay"); its date stays as a side note
+  const sun = r.sun ? stayChange(r.sun, timeMs, endMs) : null;
+  const earth = r.earth ? stayChange(r.earth, timeMs, endMs) : null;
+  const whole = timeMs <= startMs ? STRINGS.siteLayout.allStay : STRINGS.siteLayout.restOfStay;
 
-  const sunNote = (c: Change): string => {
-    const t = at(c);
-    if (c.visible) {
-      if (t === null || t >= endMs) return STRINGS.siteLayout.sunStays;
-      const over = limitH !== null && c.lastsH !== null && c.lastsH > limitH ? `${num(c.lastsH - limitH)} h` : null;
-      return STRINGS.siteLayout.nightThen(c.lastsH === null ? STRINGS.siteLayout.noData : `${num(c.lastsH)} h`, over);
-    }
-    return t !== null && t < endMs ? STRINGS.siteLayout.sunBackInStay : STRINGS.siteLayout.sunBackAfter;
+  const sunNote = (c: Change, s: StayChange): string => {
+    if (!s.withinStay) return ""; // the value already says it lasts the stay
+    if (!c.visible) return STRINGS.siteLayout.sunBackInStay;
+    const t = s.atMs as number;
+    if (c.lastsH === null) return STRINGS.siteLayout.nightThen(STRINGS.siteLayout.noData, null, null);
+    // B3: a night that runs past the end of the stay says how much of it falls inside, the figure the list shows;
+    // the user's limit applies to that same part (it is the window metric longest_dark_h)
+    const inStayH = overlapH(t, t + c.lastsH * 3_600_000, startMs, endMs);
+    const over = limitH !== null && inStayH > limitH ? `${num(inStayH - limitH)} h` : null;
+    return STRINGS.siteLayout.nightThen(`${num(c.lastsH)} h`, inStayH < c.lastsH ? `${num(inStayH)} h` : null, over);
   };
-  const earthNote = (c: Change): string => {
-    const t = at(c);
-    if (c.visible && (t === null || t >= endMs)) return STRINGS.siteLayout.noLoss;
-    if (c.visible) return STRINGS.siteLayout.gapThen(c.lastsH === null ? STRINGS.siteLayout.noData : `${num(c.lastsH)} h`);
-    return STRINGS.siteLayout.earthBack;
-  };
+  const earthNote = (c: Change, s: StayChange): string =>
+    s.withinStay && c.visible ? STRINGS.siteLayout.gapThen(c.lastsH === null ? STRINGS.siteLayout.noData : `${num(c.lastsH)} h`) : "";
 
   return (
     <div className="time-left" data-testid="time-left">
       <p className="site-card-label">{STRINGS.siteLayout.dayOf(day, plan.plan.window_days)}</p>
-      {r.sun && (
+      {r.sun && sun && (
         <Countdown
           body="sun"
-          label={r.sun.visible ? STRINGS.siteLayout.sunLeft : STRINGS.siteLayout.sunBack}
-          change={r.sun}
-          when={at(r.sun)}
+          label={r.sun.visible ? STRINGS.siteLayout.sunLeft : sun.withinStay ? STRINGS.siteLayout.sunBack : STRINGS.siteLayout.sunDown}
+          stay={sun}
+          whole={whole}
           whenText={(w) => (r.sun?.visible ? STRINGS.siteLayout.sunsetAt(w) : STRINGS.siteLayout.sunriseAt(w))}
-          note={sunNote(r.sun)}
-          warn={r.sun.visible && at(r.sun) !== null && (at(r.sun) as number) < endMs}
+          note={sunNote(r.sun, sun)}
+          warn={r.sun.visible && sun.withinStay}
           spans={sunSpans}
           now={now}
         />
       )}
-      {r.earth && (
+      {r.earth && earth && (
         <Countdown
           body="earth"
-          label={r.earth.visible ? STRINGS.siteLayout.earthLeft : STRINGS.siteLayout.earthBack}
-          change={r.earth}
-          when={at(r.earth)}
+          label={r.earth.visible ? STRINGS.siteLayout.earthLeft : earth.withinStay ? STRINGS.siteLayout.earthBack : STRINGS.siteLayout.earthDown}
+          stay={earth}
+          whole={whole}
           whenText={(w) => (r.earth?.visible ? STRINGS.siteLayout.earthsetAt(w) : STRINGS.siteLayout.earthriseAt(w))}
-          note={r.earth.visible ? earthNote(r.earth) : ""}
-          warn={r.earth.visible && at(r.earth) !== null && (at(r.earth) as number) < endMs}
+          note={earthNote(r.earth, earth)}
+          warn={r.earth.visible && earth.withinStay}
           spans={earthSpans}
           now={now}
         />
@@ -75,19 +76,26 @@ export function TimeLeft({ plan, ts, timeMs, limitH }: { plan: PlanData; ts: Tim
 function Countdown(p: {
   body: "sun" | "earth";
   label: string;
-  change: Change;
-  when: number | null;
+  stay: StayChange;
+  /** "All stay" or "Rest of stay": the value when the change is after the stay */
+  whole: string;
   whenText(w: string): string;
   note: string;
   warn: boolean;
   spans: Span[];
   now: number;
 }) {
+  const { withinStay, hours, atMs } = p.stay;
   return (
-    <div className="countdown" data-body={p.body} data-testid={`countdown-${p.body}`}>
+    <div className="countdown" data-body={p.body} data-testid={`countdown-${p.body}`} data-within-stay={withinStay}>
       <span className="countdown-label">{p.label}</span>
-      <span className="countdown-value">{p.change.hours === null ? STRINGS.siteLayout.noData : fmtDuration(p.change.hours)}</span>
-      {p.when !== null && <span className="countdown-when">{p.whenText(fmtUtc(p.when))}</span>}
+      <span className="countdown-value">{withinStay && hours !== null ? fmtDuration(hours) : p.whole}</span>
+      {atMs !== null && (
+        <span className="countdown-when">
+          {p.whenText(fmtUtc(atMs))}
+          {!withinStay && ` · ${STRINGS.siteLayout.afterYouLeave}`}
+        </span>
+      )}
       <span className="countdown-line" aria-hidden="true">
         {p.spans.map((s) => (
           <span key={s.from} className="on" style={{ left: `${s.from * 100}%`, width: `${(s.to - s.from) * 100}%` }} />
