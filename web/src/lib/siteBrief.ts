@@ -121,6 +121,16 @@ export function stayBattery(ts: Pick<Timeseries, "start_utc" | "step_min" | "n" 
   return { minSoc: run.minSoc, emptyH: (run.emptySamples * ts.step_min) / 60 };
 }
 
+/**
+ * Day of the stay at an instant (B10, finding H11): 1 on landing day, up to the stay's length; null before landing.
+ * At the site this replaces the "T+" clock counted from launch, so one clock shows at a time.
+ */
+export function stayDay(landingMs: number, endMs: number, t: number): { day: number; of: number } | null {
+  if (t < landingMs) return null;
+  const of = Math.round((endMs - landingMs) / 86_400_000);
+  return { day: Math.min(of, Math.floor((t - landingMs) / 86_400_000) + 1), of };
+}
+
 /** Hours of the night [nightStartMs, nightEndMs) that fall inside the stay [stayStartMs, stayEndMs). */
 export function overlapH(nightStartMs: number, nightEndMs: number, stayStartMs: number, stayEndMs: number): number {
   return Math.max(0, Math.min(nightEndMs, stayEndMs) - Math.max(nightStartMs, stayStartMs)) / 3_600_000;
