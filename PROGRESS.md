@@ -3315,3 +3315,24 @@ Las trayectorias ILLUSTRATIVE, los datos SYNTHETIC y toda desviación de la spec
 - **Desviaciones de la spec / cambios en la guía:** ninguna. La batería sigue marcada ASSUMED (T6.4.a).
 - **Problemas abiertos:** el día anterior al 1-ene y el posterior al último día de llegada no tienen datos (fila «outside the data»).
 - **Siguiente tarea:** B8 (frase del horizonte; necesita el visto bueno para tocar `views/Panorama.tsx`).
+
+## AJUSTE · A6 (parte 1) · Atmósfera de la Tierra
+
+- **Tarea:** A6 del plan de mejoras del 14-nov-2026, la parte que no necesita archivos nuevos.
+- **Qué se hizo** (`scene3d/bodies.ts`): la Tierra tiene ahora una capa delgada, hija de su malla, de 1.025 veces su radio dibujado. Brilla en el borde (Fresnel) solo en el lado de día y se apaga en el terminador.
+  - `ShaderMaterial` aditivo, sin escritura de profundidad y con los fragmentos de profundidad logarítmica de three.js.
+  - La dirección del Sol llega por `updateBodies` en cada cuadro.
+  - Al ser hija de la Tierra, sigue su elipsoide y el cambio a escala real.
+  - No usa imágenes. «About & credits» (`lib/credits.ts`) la anota como efecto dibujado, no como medida.
+- **Cómo se verificó:**
+  ```
+  $ npm --prefix web run typecheck → sin errores
+  $ npm --prefix web test → 292 passed
+  ```
+  - `tests/bodies.test.ts`: la capa es hija de la Tierra, aditiva, sin escritura de profundidad, de radio 1.025× y con la dirección del Sol de la efeméride.
+  - Chrome sin cabeza (1366×768, escena real): el borde azul aparece en el lado iluminado durante la cuenta regresiva y el tránsito, a 60.3 fps.
+- **Pendiente de A6 (necesita descargas, a la espera del visto bueno):**
+  - **Relieve de la Luna:** CGI Moon Kit (SVS 4720), `ldem_4_uint.tif` (1440×720, 2.0 MB según la página, 16 bits en medios metros sobre 1727.4 km con +20 000 de desplazamiento) o `ldem_4.tif` (flotante en km, 4.0 MB). Crédito pedido: «NASA's Scientific Visualization Studio».
+  - **Luces nocturnas de la Tierra:** Black Marble 2016, `BlackMarble_2016_01deg.jpg` (3600×1800, tamaño no publicado en la página) en science.nasa.gov. La página no muestra licencia; habría que confirmar las pautas de reproducción de NASA.
+  - **Nubes:** la textura actual de la Tierra (SVS 3615) ya las trae dentro.
+- **Siguiente tarea:** A6 parte 2 si se aprueban las descargas.

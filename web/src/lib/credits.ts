@@ -86,6 +86,7 @@ export const NOT_DATA = [
   "The fine grain and the small craters on the 3D ground are procedural, for texture only: the relief, shadows and horizon come from the LOLA 40 m map.",
   "The ambient music is generated live in your browser with the Web Audio API (no recordings or external audio).",
   "In the 3D view the Earth and the Moon are drawn 6× larger so they stay visible; distances, directions and the Sun are exact, and the final zoom switches to real scale.",
+  "The blue glow on the Earth's sunlit limb is a drawn effect, not a measurement of the atmosphere.",
 ];
 
 export interface SoftwareCredit {
