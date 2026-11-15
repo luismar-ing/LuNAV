@@ -106,10 +106,12 @@ export function EducatorView({ tools }: { tools: ReactNode }) {
     setPlay({ to: Math.min(timeline.endMs, from + 86_400_000), hoursPerSecond: 1 });
   };
   const levelB = useApp((s) => s.levelB);
+  const surfaceView = useApp((s) => s.surfaceView);
   const [panorama, setPanorama] = useState(false);
   const lookAround = () => {
-    // Level B: stand on the site and drag the sky; without it, the 2D 360° panorama (level A)
-    if (levelB) appStore.getState().setSurfaceView(true);
+    // Level B: switch between standing on the site (drag the sky) and the aerial view, as in the site panel;
+    // without it, the 2D 360° panorama (level A)
+    if (levelB) appStore.getState().setSurfaceView(!surfaceView);
     else setPanorama(true);
   };
 
@@ -181,7 +183,7 @@ export function EducatorView({ tools }: { tools: ReactNode }) {
           <p className="edu-caption-text" aria-live="polite">
             {caption}
           </p>
-          {c.id === "surface" && levelB && <p className="edu-hint">{STRINGS.educator.lookHint}</p>}
+          {c.id === "surface" && levelB && surfaceView && <p className="edu-hint">{STRINGS.educator.lookHint}</p>}
           <div className="edu-actions">
             <button type="button" className="btn pill" onClick={() => setChapter(stepChapter(chapter, -1))}>
               {STRINGS.educator.back}
@@ -196,8 +198,13 @@ export function EducatorView({ tools }: { tools: ReactNode }) {
                 <button type="button" className="btn pill primary" onClick={fullDay} disabled={play !== null}>
                   {STRINGS.educator.fullDay}
                 </button>
-                <button type="button" className="btn pill" onClick={lookAround}>
-                  {STRINGS.educator.lookAround}
+                <button
+                  type="button"
+                  className="btn pill"
+                  title={levelB && !surfaceView ? STRINGS.siteLayout.standTitle : undefined}
+                  onClick={lookAround}
+                >
+                  {!levelB ? STRINGS.educator.lookAround : surfaceView ? STRINGS.siteLayout.aerial : STRINGS.siteLayout.stand}
                 </button>
                 <button type="button" className="btn pill" onClick={() => appStore.getState().setScreen("challenge")}>
                   {STRINGS.challenge.open}
