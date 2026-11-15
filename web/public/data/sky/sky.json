@@ -1,0 +1,17 @@
+{
+ "product": "Sun and Earth positions relative to the Moon centre, for any observer on the surface",
+ "frame": "MOON_ME",
+ "abcorr": "LT+S",
+ "observer": "MOON (centre)",
+ "units": "km",
+ "kernels": "de440s.bsp, moon_pa_de440_200625.bpc, moon_de440_250416.tf, pck00011.tpc, naif0012.tls (NAIF/JPL)",
+ "start_utc": "2027-01-01T00:00:00Z",
+ "step_min": 30,
+ "n": 18192,
+ "encoding": {
+  "dtype": "float32 little-endian",
+  "layout": "[sample][sun_x, sun_y, sun_z, earth_x, earth_y, earth_z]"
+ },
+ "bin_file": "moon_me.bin",
+ "byte_length": 436608
+}
