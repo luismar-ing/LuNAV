@@ -427,7 +427,7 @@ export function mountScene(container: HTMLElement, opts: MountOptions): SceneCon
   const Y = new THREE.Vector3(0, 1, 0);
   const dir = new THREE.Vector3();
   let lambda = 0;
-  let reportedScale: "space" | "local" = "space";
+  let reportedScale: "space" | "local" | null = null; // A2: the first frame always reports its scale
   if (import.meta.env.DEV)
     (window as unknown as { __pp3d?: unknown }).__pp3d = {
       THREE,
