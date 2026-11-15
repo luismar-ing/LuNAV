@@ -3778,3 +3778,19 @@ Las trayectorias ILLUSTRATIVE, los datos SYNTHETIC y toda desviación de la spec
 - **Decisiones tomadas:** los niveles 2 y 3 del reto (C4) quedan como trabajo futuro, por decisión del humano. Propuesta calculada con los datos: nivel 2 «Stay in touch» (batería y Tierra ≥ 8 h cada día) en julio de 2027, 26% de éxito a ciegas; nivel 3 «Launch slip» (la regla del nivel 2 con retraso de 0 a 2 días) en julio, 19%.
 - **Problemas abiertos:** la plataforma de lanzamiento genérica está en latitud 0°, longitud 0° (golfo de Guinea), por eso la nave parece salir de África; cambiarla a un puerto real obliga a regenerar las trayectorias y choca con A5. La Luna fuera del sitio usa una imagen de 4k sin relieve (A6). Ambos se coordinan con la persona A.
 - **Siguiente tarea:** C5 (capturas y README) y C6 (guion y demo).
+
+## AJUSTE · Logo junto al nombre en Home
+
+- **Tarea:** petición del humano (fuera del plan A–C): el logo del equipo junto a «LuNAV» en la página de inicio.
+- **Qué se hizo:**
+  - `web/public/logo.svg`: copia sin cambios del archivo entregado («Logo Constelación», SVG transparente en dos tonos, `#D9D8D2` y `#FFF3C4`).
+  - `views/Landing.tsx`: el logo va dentro de `.landing-wordmark`, antes del nombre, como imagen decorativa (`alt=""`, porque el nombre de al lado ya dice qué es).
+  - `styles/tokens.css`: `.landing-wordmark` pasa a `inline-flex` centrado con 10 px de separación; `.landing-logo` mide 1.7 em de alto.
+- **Cómo se verificó:**
+  ```
+  $ npm --prefix web run typecheck → sin errores
+  $ npm --prefix web test → 401 passed
+  ```
+  - Navegador (servidor de desarrollo, 1366×768): el logo carga (428×310 natural, 47×34 px en pantalla), centrado con el texto y sin recursos con error tras recargar.
+- **Desviaciones de la spec / cambios en la guía:** ninguna.
+- **Problemas abiertos:** ninguno.
