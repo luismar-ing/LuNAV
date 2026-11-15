@@ -12,6 +12,8 @@ export const COLORS = {
   panel: "#0E1422", // opaque panel (drawer, tray cards); glass panels use GLASS.panel
   sun: "#FFB347", // spec 9
   earth: "#4AA3FF", // spec 9
+  sunLight: "#FFD08A", // Home: the Mission Planner card's title on hover (light tint of the Sun)
+  earthLight: "#A9D2FF", // Home: the Educator card's title on hover (light tint of the Earth)
   dark: "#1A2238", // spec 9: the lunar night (ribbon lane with neither body)
   both: "#9BE3A6", // spec 9: Sun and Earth together (combined calendar ramp)
   text: "#E6EDF7", // spec 9

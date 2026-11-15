@@ -40,6 +40,7 @@ export function Landing({ tools, onCredits }: { tools?: ReactNode; onCredits(): 
       </header>
       <div className="landing-copy">
         <h1 className="landing-title">{STRINGS.landing.title}</h1>
+        <p className="landing-lede">{STRINGS.landing.lede}</p>
       </div>
       <nav className="landing-modes" aria-label={STRINGS.landing.choose}>
         {MODES.map(({ screen, text }) => (
@@ -56,6 +57,9 @@ export function Landing({ tools, onCredits }: { tools?: ReactNode; onCredits(): 
                 <path d="M5 12h14M13 6l6 6-6 6" />
               </svg>
             </span>
+            {/* the card's own horizon: on hover its body (the Earth or the Sun) rises above it */}
+            <span className="mode-card-disc" aria-hidden="true" />
+            <span className="mode-card-horizon" aria-hidden="true" />
           </SpotlightCard>
         ))}
       </nav>
