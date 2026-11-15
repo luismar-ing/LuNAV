@@ -3376,3 +3376,28 @@ Las trayectorias ILLUSTRATIVE, los datos SYNTHETIC y toda desviación de la spec
 - **Desviaciones de la spec / cambios en la guía:** la redacción cambia respecto al plan de mejoras (ver arriba). Confirmar con el equipo.
 - **Problemas abiertos:** A1 va a mover el panorama a la vista «Data»; la frase va dentro de `Panorama`, así que se mueve con él.
 - **Siguiente tarea:** B10 (un solo reloj visible; coordinar con A1).
+
+## AJUSTE · B10: un solo reloj visible
+
+- **Tarea:** B10 del plan de mejoras del 14-nov-2026 (persona B, hallazgo H11). En el sitio se veían dos relojes: «T+ 3d 00:00» (desde el lanzamiento, en los controles de misión) y «Time left · day 1 of 7» (en la tarjeta). Rama hecha sobre B8 (`b8-horizon-note`).
+- **Qué se hizo:**
+  - `lib/siteBrief.ts`: `stayDay(aterrizaje, fin, t)` da el día de la estancia (1 al aterrizar, como mucho la duración) o `null` antes del aterrizaje.
+  - `scene3d/MissionControls.tsx` (área de A; A1 no lo toca en `a1-sky-data`): el reloj de los controles, visible en las vistas Sky y Data, es el único.
+    - Durante el viaje sigue «T− …» o «T+ …» desde el lanzamiento; desde el aterrizaje muestra «Day N of 7».
+    - La fecha y hora pasan al formato único de B5b («Jan 1, 00:00 UTC», `lib/format.ts`), también en `aria-valuetext`.
+    - `missionClock` (`lib/mission.ts`) no cambia.
+  - `views/TimeLeft.tsx`: la tarjeta dice solo «Time left»; el día ya no se repite ahí.
+  - `lib/strings.ts`: `siteLayout.dayClock` sustituye a `siteLayout.dayOf`.
+- **Cómo se verificó:**
+  ```
+  $ npm --prefix web run typecheck → sin errores
+  $ npm --prefix web test → 294 passed (48 archivos); en una corrida falló la intermitente de integration.test.tsx (T5.1.b). Su arreglo está en fix-integration-ribbon-flake, sin merge.
+  ```
+  - `tests/siteBrief.test.ts`: `stayDay` antes del aterrizaje, al aterrizar, a mitad y en el último instante (día 7).
+  - `tests/plannerSidebar.test.tsx`: tras «Land at Haworth», el reloj dice «Day 1 of 7», no aparece «T+» ni «T−» en los controles, y la tarjeta dice «Time left».
+  - Navegador (servidor de desarrollo, 1366×768): lanzamiento «T− 05:00 · Dec 28, 23:55 UTC», tránsito «T+ 0d 02:00 · Dec 29, 02:00 UTC», sitio «Day 1 of 7 · Jan 1, 00:00 UTC» con la tarjeta «Time left». Sin errores en consola.
+- **Desviaciones de la spec / cambios en la guía:** ninguna.
+- **Problemas abiertos:**
+  - Al hacer merge con `a1-sky-data`: A1 cambia `SiteLayout.tsx` (usa `TimeLeft` como tarjeta compacta), `strings.ts` y `tokens.css`. Hay posibles conflictos de texto en esos dos archivos compartidos, no de lógica.
+  - En la vista Data, la lectura del panorama sigue mostrando «Time 2027-01-11 00:00 UTC» (la muestra de la serie, que se recorta a la ventana); conviene que A o B la pasen a `lib/format.ts`.
+- **Siguiente tarea:** todas las tareas de B (B1–B10) están en ramas. Falta revisión, PR y merge en orden.

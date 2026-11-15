@@ -137,7 +137,8 @@ export const STRINGS = {
     standTitle: "See the sky from 3 m above the ground: drag to look around, scroll to zoom",
     // planner redesign: time left at the site, what happens next, and the switch for the 2D view
     timeLeft: "Time left",
-    dayOf: (d: number, n: number) => `Time left · day ${d} of ${n}`,
+    // B10 (H11): the day of the stay is the clock at the site (mission controls); the card is just "Time left"
+    dayClock: (d: number, n: number) => `Day ${d} of ${n}`,
     sunLeft: "Sunlight left",
     sunBack: "Night · the Sun comes back in",
     sunsetAt: (when: string) => `Sunset ${when}`,

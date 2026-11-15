@@ -5,7 +5,7 @@ import { describe, expect, it } from "vitest";
 import type { Timeseries, WindowRow } from "../src/lib/contract";
 import { batteryRun } from "../src/lib/energy";
 import { sliceWindow } from "../src/lib/planData";
-import { nightInStay, overlapH, planVerdict, readAt, stayBattery, stayChange } from "../src/lib/siteBrief";
+import { nightInStay, overlapH, planVerdict, readAt, stayBattery, stayChange, stayDay } from "../src/lib/siteBrief";
 import { STRINGS } from "../src/lib/strings";
 
 const REAL = join(__dirname, "..", "public", "data", "windows");
@@ -138,5 +138,16 @@ describe("assumed battery in the site brief (B7)", () => {
         expect(brief.emptyH).toBe((tray.emptySamples * ts.step_min) / 60);
       }
     }
+  });
+});
+
+describe("one clock at the site (B10)", () => {
+  it("counts the days of the stay from landing, and nothing before it", () => {
+    const land = Date.parse("2027-01-11T00:00:00Z");
+    const end = land + 7 * 86_400_000;
+    expect(stayDay(land, end, land - 1)).toBeNull();
+    expect(stayDay(land, end, land)).toEqual({ day: 1, of: 7 });
+    expect(stayDay(land, end, land + 2.5 * 86_400_000)).toEqual({ day: 3, of: 7 });
+    expect(stayDay(land, end, end)).toEqual({ day: 7, of: 7 }); // the last instant stays on day 7
   });
 });
