@@ -34,6 +34,7 @@ export const GLASS = {
   panelStrong: "rgba(14, 20, 34, 0.86)", // drawer and bottom console: dense content
   stroke: "rgba(255, 255, 255, 0.08)",
   strokeHover: "rgba(255, 255, 255, 0.28)",
+  fillHover: "rgba(255, 255, 255, 0.08)", // ghost button hover: a faint fill, not only the border (B1)
   blur: "16px",
   radius: { sm: 10, md: 16, lg: 20 },
   // brightest thing that can sit behind a glass panel (lit lunar regolith / Earth clouds), for contrast tests
@@ -71,6 +72,7 @@ export function cssVariables(): Record<string, string> {
   vars["--glass-panel-strong"] = GLASS.panelStrong;
   vars["--glass-stroke"] = GLASS.stroke;
   vars["--glass-stroke-hover"] = GLASS.strokeHover;
+  vars["--glass-fill-hover"] = GLASS.fillHover;
   vars["--glass-blur"] = GLASS.blur;
   for (const [k, v] of Object.entries(GLASS.radius)) vars[`--radius-${k}`] = `${v}px`;
   vars["--motion-fast"] = `${MOTION.fastMs}ms`;

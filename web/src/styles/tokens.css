@@ -355,7 +355,7 @@ button {
   border-radius: 8px;
   padding: 6px 12px;
   cursor: pointer;
-  transition: color var(--motion-fast), border-color var(--motion-fast);
+  transition: color var(--motion-fast), border-color var(--motion-fast), background-color var(--motion-fast);
 }
 
 .btn:hover:not(:disabled) {
@@ -370,6 +370,11 @@ button {
 
 .btn.ghost {
   background: transparent;
+}
+
+/* B1: ghost buttons get a faint fill on hover, not only a lighter border */
+.btn.ghost:hover:not(:disabled) {
+  background: var(--glass-fill-hover);
 }
 
 .pin-count {
@@ -2174,9 +2179,11 @@ input[type="range"] {
   font-weight: 600;
 }
 
+/* B1: the light fill needs dark text on hover too (.btn:hover alone would turn it light on white) */
 .btn.primary:hover:not(:disabled) {
   background: var(--color-focus);
   border-color: var(--color-focus);
+  color: var(--color-bg);
 }
 
 .launch-btn {
