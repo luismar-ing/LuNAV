@@ -84,7 +84,7 @@ export const NOT_DATA = [
   "Trajectories and the launch are ILLUSTRATIVE: simplified curves computed with the real Moon position, from a generic launch pad; not the trajectory of any real mission.",
   "The rocket is PolePlanner's own procedural model (no external asset).",
   "The fine grain and the small craters on the 3D ground are procedural, for texture only: the relief, shadows and horizon come from the LOLA 40 m map.",
-  "The ambient music is generated live in your browser with the Web Audio API (no recordings or external audio).",
+  "The ambient music and the mission-control sounds (countdown beeps, the lift-off rumble on Earth, telemetry blips in transit, the lunar-orbit chime and the touchdown beeps) are generated live in your browser with the Web Audio API: no recordings or external audio. They are illustrative, and no engine is heard in space, where there is no air to carry sound.",
   "In the 3D view the Earth and the Moon are drawn 6× larger so they stay visible; distances, directions and the Sun are exact, and the final zoom switches to real scale.",
 ];
 

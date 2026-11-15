@@ -3116,6 +3116,21 @@ Las trayectorias ILLUSTRATIVE, los datos SYNTHETIC y toda desviación de la spec
   - Mapa (`MoonMap.tsx`, `PlannerView.tsx`): `SiteTone` pasa a ser el `Verdict`. Cada pin lleva `data-sun`, `data-earth` y `data-tone`, una marca de Tierra arriba a la derecha del punto, y el estado en `title`. El pin elegido conserva el anillo si hay noche (antes se volvía un disco ámbar sin forma).
   - Panel del sitio (`SiteBrief.tsx`): una frase bajo el nombre con las marcas, por ejemplo «Sunlit all stay, but no direct Earth contact at any time.» o «A 0.5 h night and up to 164 h without direct Earth contact.».
   - Se probó una cuarta métrica («Earth gap») y se descartó: rompía el ajuste sin scroll y repetía la cifra que ya da la frase.
+
+## AJUSTE · A4 · Sonidos de control de misión
+
+- **Tarea:** A4 del plan de mejoras del 14-nov-2026.
+- **Qué se hizo:** `lib/sfx.ts` (nuevo) genera las señales con Web Audio, sin archivos de audio:
+  - **Cuenta regresiva:** pitidos en T− 3, 2 y 1 min (la cuenta de 5 min dura cerca de un segundo).
+  - **Despegue:** retumbo de ruido grave filtrado de unos 4 s sobre un golpe de 45 Hz, en la Tierra.
+  - **Tránsito:** doble pitido de telemetría cada 12 h, como máximo uno cada 1.5 s reales.
+  - **Llegada a la órbita lunar:** campanilla de dos notas.
+  - **Toque de suelo («contact light»):** tres pitidos ascendentes.
+  - **Nada de motor en el vacío:** el único retumbo es el del despegue.
+  - **Cuándo suenan:** solo durante la reproducción, al cruzar el momento (`MissionControls`, bucle de reproducción). Un salto, mover la barra o «Land at …» no suenan.
+  - **Sonido apagado:** comparten el contexto de audio de la música (`ambient.liveContext`), así que callan con el botón de sonido apagado o mientras el navegador no deja reproducir.
+  - **Reduce motion:** con «Reduce motion» no suenan.
+  - **Créditos:** «About & credits» (`lib/credits.ts`) las describe como generadas e ilustrativas, y aclara que en el espacio no se oye el motor.
 - **Cómo se verificó:**
   ```
   $ npm --prefix web run typecheck → sin errores
@@ -3315,3 +3330,16 @@ Las trayectorias ILLUSTRATIVE, los datos SYNTHETIC y toda desviación de la spec
 - **Desviaciones de la spec / cambios en la guía:** ninguna. La batería sigue marcada ASSUMED (T6.4.a).
 - **Problemas abiertos:** el día anterior al 1-ene y el posterior al último día de llegada no tienen datos (fila «outside the data»).
 - **Siguiente tarea:** B8 (frase del horizonte; necesita el visto bueno para tocar `views/Panorama.tsx`).
+
+  - `tests/sfx.test.ts` (nuevo):
+    - una misión completa reproducida da las señales en orden;
+    - el mismo resultado con pasos finos y gruesos;
+    - un cuadro largo en la aproximación da órbita y toque juntos;
+    - nada hacia atrás ni fuera del tránsito;
+    - silencio sin contexto o con «Reduce motion»;
+    - regulador de la telemetría.
+  - Chrome sin cabeza sobre el servidor de desarrollo, «Launch» a 6 h/s, frecuencias programadas en orden: `1000 1000 1000 45 1400 1800 ×4 660 990 880 1100 1320`. La quinta telemetría cayó dentro del límite de 1.5 s por cuadros lentos. Con «Reduce motion»: ningún nodo de audio.
+  - Corrección durante la verificación: en la aproximación los cuadros se alargan al cargar el terreno, y un límite de 6 h por paso callaba la órbita y el toque. Se quitó: solo el bucle de reproducción llama a `crossedCues`.
+- **Desviaciones de la spec / cambios en la guía:** ninguna. Los sonidos son ILLUSTRATIVE, como el viaje.
+- **Problemas abiertos:** falta oírlos con altavoces reales para ajustar el volumen (`LEVEL` en `sfx.ts`).
+- **Siguiente tarea:** A5.
