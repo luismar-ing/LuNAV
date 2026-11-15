@@ -3800,7 +3800,7 @@ Las trayectorias ILLUSTRATIVE, los datos SYNTHETIC y toda desviación de la spec
 - **Tarea:** petición del humano. De las 3 propuestas para Home (lienzo de diseño, página «Round 5 · Home»), la A, con dos cambios pedidos: el hover conserva el movimiento de antes y se quitan el horizonte y el Sol del fondo.
 - **Qué se hizo:**
   - **Título** «Where do we land next?» en Instrument Serif (`--font-serif`), de 56 a 112 px. El tamaño depende del ancho y del alto (`min(7.4vw, 12vh)`) para que a 1366×768 las tarjetas queden a la vista. `text-wrap: balance` lo reparte en «Where do we / land next?».
-  - **Frase nueva** bajo el título (`STRINGS.landing.lede`), con datos de `windows/haworth_7d.json`: 7 días desde el 10 ene 2027 dan 94.1 % de sol; desde el 11 ene, 79.8 % y una noche de 34 h.
+  - Sin frase bajo el título: la de la propuesta (Haworth, 10 frente a 11 ene) se quitó a petición del humano.
   - **Tarjetas en el color de su modo:** Educator en el azul de la Tierra, Mission Planner en el ámbar del Sol.
     - La luz que sigue al puntero (`SpotlightCard`) y el ascenso de 2 px se conservan; ahora la luz es del color del modo.
     - Al pasar el cursor, el borde y un leve tinte toman ese color, y el título y «Enter» su tono claro.

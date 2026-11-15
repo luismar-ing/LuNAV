@@ -1677,7 +1677,7 @@ input[type="range"] {
   max-width: 40rem;
 }
 
-/* home redesign (proposal A, Horizon): the headline in Instrument Serif, a line on why one day matters */
+/* home redesign (proposal A, Horizon): the headline in Instrument Serif */
 .landing-title {
   font-family: var(--font-serif);
   font-weight: 400;
@@ -1685,14 +1685,6 @@ input[type="range"] {
   line-height: 0.92;
   letter-spacing: -0.01em;
   text-wrap: balance; /* "Where do we / land next?" */
-}
-
-.landing-lede {
-  margin: 18px 0 0;
-  max-width: 36rem;
-  color: var(--color-text-muted);
-  font-size: 18px;
-  line-height: 1.55;
 }
 
 .landing-modes {

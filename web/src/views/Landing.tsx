@@ -40,7 +40,6 @@ export function Landing({ tools, onCredits }: { tools?: ReactNode; onCredits(): 
       </header>
       <div className="landing-copy">
         <h1 className="landing-title">{STRINGS.landing.title}</h1>
-        <p className="landing-lede">{STRINGS.landing.lede}</p>
       </div>
       <nav className="landing-modes" aria-label={STRINGS.landing.choose}>
         {MODES.map(({ screen, text }) => (

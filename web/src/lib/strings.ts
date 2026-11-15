@@ -305,8 +305,6 @@ export const STRINGS = {
   homeTitle: "Back to the start page (your pinned plans are kept)",
   landing: {
     title: "Where do we land next?",
-    // home redesign (proposal A, Horizon): why one day matters, from the 7-day windows of Haworth
-    lede: "At the south pole the Sun skims the skyline, so one day matters. Haworth, 7 days from Jan 10, 2027: 94.1% sunlight. Start on Jan 11: 79.8%, and a 34-hour night.",
     choose: "Choose how to explore",
     educator: {
       name: "Educator",
